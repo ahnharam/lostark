@@ -1,7 +1,7 @@
 package com.lostark.backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;
 import java.util.List;
 
@@ -9,6 +9,6 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EngravingResponseDto {
     
-    @JsonProperty(value = "Effects", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("Effects")
     private List<EngravingEffectDto> effects;
 }
