@@ -23,34 +23,29 @@ public class EngravingService {
     
     @Transactional
     public List<EngravingEffectDto> getCharacterEngravings(String characterName) {
-        Character character = characterRepository.findByCharacterName(characterName)
-                .orElseThrow(() -> new RuntimeException("캐릭터를 찾을 수 없습니다."));
-        
-        // 캐시된 각인 정보가 있으면 반환
-        if (!character.getEngravings().isEmpty()) {
-            return character.getEngravings().stream()
-                    .map(this::convertToDto)
-                    .collect(Collectors.toList());
-        }
-        
         // API 호출
         ArmoryDto armory = lostArkApiService.getCharacterArmory(characterName).block();
         if (armory == null || armory.getEngraving() == null || armory.getEngraving().getEffects() == null) {
             return List.of();
         }
-        
-        // DB에 저장
-        character.getEngravings().clear();
-        for (EngravingEffectDto dto : armory.getEngraving().getEffects()) {
-            Engraving engraving = new Engraving();
-            engraving.setCharacter(character);
-            engraving.setName(dto.getName());
-            engraving.setIcon(dto.getIcon());
-            engraving.setTooltip(dto.getDescription());
-            character.getEngravings().add(engraving);
+
+        // DB에서 캐릭터 찾기 (없으면 캐시 없이 API 결과만 반환)
+        Character character = characterRepository.findByCharacterName(characterName).orElse(null);
+
+        if (character != null) {
+            // DB에 저장
+            character.getEngravings().clear();
+            for (EngravingEffectDto dto : armory.getEngraving().getEffects()) {
+                Engraving engraving = new Engraving();
+                engraving.setCharacter(character);
+                engraving.setName(dto.getName());
+                engraving.setIcon(dto.getIcon());
+                engraving.setTooltip(dto.getDescription());
+                character.getEngravings().add(engraving);
+            }
+            characterRepository.save(character);
         }
-        
-        characterRepository.save(character);
+
         return armory.getEngraving().getEffects();
     }
     
