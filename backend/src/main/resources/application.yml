@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: lostark-backend
+  
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mariadb://localhost:3307/lostark}
+    username: ${SPRING_DATASOURCE_USERNAME:lostark_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:lostark-pass-2024}
+    driver-class-name: org.mariadb.jdbc.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MariaDBDialect
+
+lostark:
+  api:
+    key: ${LOSTARK_API_KEY}
+    base-url: https://developer-lostark.game.onstove.com
+
+server:
+  port: 8080

@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # MariaDB 데이터베이스
+  database:
+    image: mariadb:11.4
+    container_name: lostark-db
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: lostark
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3307:3306"  # 기존 docker-demo와 충돌 방지를 위해 3307 사용
+    volumes:
+      - lostark_dbdata:/var/lib/mysql
+    networks:
+      - lostark-network
+    restart: unless-stopped
+
+  # Adminer (DB 관리 도구)
+  adminer:
+    image: adminer
+    container_name: lostark-adminer
+    ports:
+      - "8082:8080"  # 기존 docker-demo와 충돌 방지를 위해 8082 사용
+    depends_on:
+      - database
+    networks:
+      - lostark-network
+    restart: unless-stopped
+
+  # Spring Boot 백엔드
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lostark-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://database:3306/lostark
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      LOSTARK_API_KEY: ${LOSTARK_API_KEY}
+    depends_on:
+      - database
+    volumes:
+      - ./backend:/app
+      - gradle_cache:/root/.gradle
+    networks:
+      - lostark-network
+    restart: unless-stopped
+
+  # Vue.js 프론트엔드
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lostark-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - lostark-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  lostark_dbdata:
+  gradle_cache:
+
+networks:
+  lostark-network:
+    driver: bridge
