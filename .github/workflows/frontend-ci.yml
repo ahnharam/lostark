@@ -1,0 +1,52 @@
+name: Frontend CI
+
+on:
+  push:
+    paths:
+      - "frontend/**"
+  pull_request:
+    paths:
+      - "frontend/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node (20) with npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          # lock 파일이 서브폴더(frontend)에 있으니 이 경로를 지정해야 캐시 키가 정확해짐
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps (npm ci)
+        run: npm ci
+        env:
+          CI: "true"
+          NPM_CONFIG_AUDIT: "false"   # 불필요한 보안 감사로 시간 늘어나는 것 방지
+          NPM_CONFIG_FUND: "false"
+
+      - name: Lint (있을 때만)
+        run: |
+          if npm run | grep -q "lint"; then npm run lint; else echo "no lint script"; fi
+
+      - name: Test (있을 때만)
+        run: |
+          if npm run | grep -q "test"; then npm test -- --ci; else echo "no test script"; fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
