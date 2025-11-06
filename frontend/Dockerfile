@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 의존성 설치 (package.json이 변경되지 않으면 캐시 사용)
-RUN npm install
+RUN npm ci
 
 # 소스 코드 복사
 COPY . .
