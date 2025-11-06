@@ -100,11 +100,7 @@
               </div>
               <div class="detail-item">
                 <span class="label">아이템 레벨:</span>
-                <span class="value highlight">{{ character.itemMaxLevel }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="label">평균 아이템 레벨:</span>
-                <span class="value">{{ character.itemAvgLevel }}</span>
+                <span class="value highlight">{{ character.itemAvgLevel }}</span>
               </div>
               <div class="detail-item" v-if="character.expeditionLevel">
                 <span class="label">원정대 레벨:</span>
@@ -124,12 +120,30 @@
               <div v-if="loadingEquipment" class="loading">장비 정보 로딩 중...</div>
               <div v-else-if="equipment.length === 0" class="empty-message">장비 정보가 없습니다</div>
               <div v-else class="equipment-grid">
-                <div v-for="item in equipment" :key="item.name" class="equipment-item">
+                <div
+                  v-for="item in equipment"
+                  :key="item.name"
+                  class="equipment-item clickable"
+                  @click="showEquipmentDetail(item)"
+                >
                   <img v-if="item.icon" :src="item.icon" :alt="item.name" />
                   <div class="equipment-details">
                     <div class="equipment-type">{{ item.type }}</div>
                     <div class="equipment-name" :class="item.grade">{{ item.name }}</div>
                   </div>
+                </div>
+              </div>
+
+              <!-- 장비 상세 모달 -->
+              <div v-if="selectedEquipment" class="equipment-modal" @click="selectedEquipment = null">
+                <div class="modal-content" @click.stop>
+                  <button class="modal-close" @click="selectedEquipment = null">×</button>
+                  <h3>{{ selectedEquipment.name }}</h3>
+                  <div class="modal-info">
+                    <span class="modal-type">{{ selectedEquipment.type }}</span>
+                    <span class="modal-grade" :class="selectedEquipment.grade">{{ selectedEquipment.grade }}</span>
+                  </div>
+                  <div v-if="selectedEquipment.tooltip" class="modal-tooltip" v-html="parseTooltip(selectedEquipment.tooltip)"></div>
                 </div>
               </div>
             </div>
@@ -148,16 +162,21 @@
             <div v-if="currentTab === 'siblings'" class="siblings-info">
               <div v-if="loadingSiblings" class="loading">보유 캐릭터 로딩 중...</div>
               <div v-else-if="siblings.length === 0" class="empty-message">보유 캐릭터가 없습니다</div>
-              <div v-else class="siblings-grid">
-                <div
-                  v-for="sibling in siblings"
-                  :key="sibling.characterName"
-                  class="sibling-item"
-                  @click="searchCharacter(sibling.characterName)"
-                >
-                  <div class="sibling-name">{{ sibling.characterName }}</div>
-                  <div class="sibling-class">{{ sibling.characterClassName }}</div>
-                  <div class="sibling-level">{{ sibling.itemMaxLevel }}</div>
+              <div v-else class="siblings-by-server">
+                <div v-for="(chars, serverName) in groupedSiblings" :key="serverName" class="server-group">
+                  <h3 class="server-name">{{ serverName }}</h3>
+                  <div class="siblings-grid">
+                    <div
+                      v-for="sibling in chars"
+                      :key="sibling.characterName"
+                      class="sibling-item"
+                      @click="searchCharacter(sibling.characterName)"
+                    >
+                      <div class="sibling-name">{{ sibling.characterName }}</div>
+                      <div class="sibling-class">{{ sibling.characterClassName }}</div>
+                      <div class="sibling-level">{{ sibling.itemMaxLevel }}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -169,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { lostarkApi, type CharacterProfile, type Equipment, type Engraving, type SiblingCharacter, type SearchHistory } from '@/api/lostark'
 
 const characterName = ref('')
@@ -180,6 +199,7 @@ const isFavorite = ref(false)
 
 const equipment = ref<Equipment[]>([])
 const loadingEquipment = ref(false)
+const selectedEquipment = ref<Equipment | null>(null)
 
 const engravings = ref<Engraving[]>([])
 const loadingEngravings = ref(false)
@@ -197,6 +217,29 @@ const tabs = [
   { id: 'engravings', name: '각인' },
   { id: 'siblings', name: '보유 캐릭터' },
 ]
+
+// 보유 캐릭터를 서버별로 그룹핑하고 아이템 레벨 순으로 정렬
+const groupedSiblings = computed(() => {
+  const grouped: Record<string, SiblingCharacter[]> = {}
+
+  siblings.value.forEach(sibling => {
+    if (!grouped[sibling.serverName]) {
+      grouped[sibling.serverName] = []
+    }
+    grouped[sibling.serverName].push(sibling)
+  })
+
+  // 각 서버 내에서 아이템 레벨 높은 순으로 정렬
+  Object.keys(grouped).forEach(serverName => {
+    grouped[serverName].sort((a, b) => {
+      const levelA = parseFloat(a.itemMaxLevel.replace(/,/g, ''))
+      const levelB = parseFloat(b.itemMaxLevel.replace(/,/g, ''))
+      return levelB - levelA
+    })
+  })
+
+  return grouped
+})
 
 onMounted(() => {
   loadFavorites()
@@ -327,12 +370,47 @@ const loadHistory = async () => {
 
 const clearHistory = async () => {
   if (!confirm('검색 기록을 모두 삭제하시겠습니까?')) return
-  
+
   try {
     await lostarkApi.clearHistory()
     history.value = []
   } catch (err) {
     console.error('히스토리 삭제 실패:', err)
+  }
+}
+
+// 장비 상세 정보 표시
+const showEquipmentDetail = (item: Equipment) => {
+  selectedEquipment.value = item
+}
+
+// tooltip HTML 파싱 (간단한 텍스트 표시)
+const parseTooltip = (tooltip: string) => {
+  if (!tooltip) return ''
+
+  try {
+    // JSON 파싱 시도
+    const parsed = JSON.parse(tooltip)
+
+    // 로스트아크 tooltip 구조에 따라 간단하게 표시
+    let html = '<div class="tooltip-content">'
+
+    if (typeof parsed === 'object') {
+      // 객체인 경우 주요 정보만 표시
+      Object.keys(parsed).forEach(key => {
+        if (typeof parsed[key] === 'string' || typeof parsed[key] === 'number') {
+          html += `<div class="tooltip-line"><strong>${key}:</strong> ${parsed[key]}</div>`
+        }
+      })
+    } else {
+      html += `<pre>${JSON.stringify(parsed, null, 2)}</pre>`
+    }
+
+    html += '</div>'
+    return html
+  } catch (e) {
+    // JSON이 아닌 경우 그대로 표시
+    return `<div class="tooltip-text">${tooltip}</div>`
   }
 }
 
@@ -673,6 +751,17 @@ h1 {
   padding: 15px;
   background: #f8f9fa;
   border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.equipment-item.clickable {
+  cursor: pointer;
+}
+
+.equipment-item.clickable:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .equipment-item img {
@@ -693,6 +782,105 @@ h1 {
 .equipment-name {
   font-weight: 600;
   margin-top: 5px;
+}
+
+/* 장비 상세 모달 */
+.equipment-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-content h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.modal-info {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.modal-type,
+.modal-grade {
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.modal-type {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.modal-grade {
+  background: #667eea;
+  color: white;
+}
+
+.modal-tooltip {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.tooltip-content {
+  color: #333;
+}
+
+.tooltip-line {
+  margin-bottom: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.tooltip-line:last-child {
+  border-bottom: none;
+}
+
+.tooltip-text {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .engravings-grid {
@@ -722,6 +910,27 @@ h1 {
   font-size: 0.9rem;
 }
 
+.siblings-by-server {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.server-group {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.server-name {
+  color: #667eea;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 15px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #667eea;
+}
+
 .siblings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -730,11 +939,12 @@ h1 {
 
 .sibling-item {
   padding: 20px;
-  background: #f8f9fa;
+  background: white;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
   text-align: center;
+  border: 2px solid transparent;
 }
 
 .sibling-item:hover {
@@ -742,6 +952,7 @@ h1 {
   color: white;
   transform: translateY(-5px);
   box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  border-color: #667eea;
 }
 
 .sibling-name {
