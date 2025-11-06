@@ -7,31 +7,31 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CharacterProfileDto {
-    
-    @JsonProperty("CharacterName")
+
+    @JsonProperty(value = "CharacterName", access = JsonProperty.Access.WRITE_ONLY)
     private String characterName;
-    
-    @JsonProperty("ServerName")
+
+    @JsonProperty(value = "ServerName", access = JsonProperty.Access.WRITE_ONLY)
     private String serverName;
-    
-    @JsonProperty("CharacterClassName")
+
+    @JsonProperty(value = "CharacterClassName", access = JsonProperty.Access.WRITE_ONLY)
     private String characterClassName;
-    
-    @JsonProperty("ItemAvgLevel")
+
+    @JsonProperty(value = "ItemAvgLevel", access = JsonProperty.Access.WRITE_ONLY)
     private String itemAvgLevel;
-    
-    @JsonProperty("ItemMaxLevel")
+
+    @JsonProperty(value = "ItemMaxLevel", access = JsonProperty.Access.WRITE_ONLY)
     private String itemMaxLevel;
-    
-    @JsonProperty("CharacterImage")
+
+    @JsonProperty(value = "CharacterImage", access = JsonProperty.Access.WRITE_ONLY)
     private String characterImage;
-    
-    @JsonProperty("ExpeditionLevel")
+
+    @JsonProperty(value = "ExpeditionLevel", access = JsonProperty.Access.WRITE_ONLY)
     private Integer expeditionLevel;
-    
-    @JsonProperty("PvpGradeName")
+
+    @JsonProperty(value = "PvpGradeName", access = JsonProperty.Access.WRITE_ONLY)
     private String pvpGradeName;
-    
-    @JsonProperty("GuildName")
+
+    @JsonProperty(value = "GuildName", access = JsonProperty.Access.WRITE_ONLY)
     private String guildName;
 }

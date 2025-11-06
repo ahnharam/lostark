@@ -8,18 +8,18 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SiblingCharacterDto {
     
-    @JsonProperty("CharacterName")
+    @JsonProperty(value = "CharacterName", access = JsonProperty.Access.WRITE_ONLY)
     private String characterName;
     
-    @JsonProperty("ServerName")
+    @JsonProperty(value = "ServerName", access = JsonProperty.Access.WRITE_ONLY)
     private String serverName;
     
-    @JsonProperty("CharacterClassName")
+    @JsonProperty(value = "CharacterClassName", access = JsonProperty.Access.WRITE_ONLY)
     private String characterClassName;
     
-    @JsonProperty("ItemAvgLevel")
+    @JsonProperty(value = "ItemAvgLevel", access = JsonProperty.Access.WRITE_ONLY)
     private String itemAvgLevel;
     
-    @JsonProperty("ItemMaxLevel")
+    @JsonProperty(value = "ItemMaxLevel", access = JsonProperty.Access.WRITE_ONLY)
     private String itemMaxLevel;
 }

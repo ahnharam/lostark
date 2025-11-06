@@ -7,13 +7,13 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EngravingEffectDto {
-    
-    @JsonProperty("Name")
+
+    @JsonProperty(value = "Name", access = JsonProperty.Access.WRITE_ONLY)
     private String name;
-    
-    @JsonProperty("Icon")
+
+    @JsonProperty(value = "Icon", access = JsonProperty.Access.WRITE_ONLY)
     private String icon;
-    
-    @JsonProperty("Description")
+
+    @JsonProperty(value = "Description", access = JsonProperty.Access.WRITE_ONLY)
     private String description;
 }

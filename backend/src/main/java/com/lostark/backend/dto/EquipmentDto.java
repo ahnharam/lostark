@@ -7,19 +7,19 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EquipmentDto {
-    
-    @JsonProperty("Type")
+
+    @JsonProperty(value = "Type", access = JsonProperty.Access.WRITE_ONLY)
     private String type;
-    
-    @JsonProperty("Name")
+
+    @JsonProperty(value = "Name", access = JsonProperty.Access.WRITE_ONLY)
     private String name;
-    
-    @JsonProperty("Icon")
+
+    @JsonProperty(value = "Icon", access = JsonProperty.Access.WRITE_ONLY)
     private String icon;
-    
-    @JsonProperty("Grade")
+
+    @JsonProperty(value = "Grade", access = JsonProperty.Access.WRITE_ONLY)
     private String grade;
-    
-    @JsonProperty("Tooltip")
+
+    @JsonProperty(value = "Tooltip", access = JsonProperty.Access.WRITE_ONLY)
     private String tooltip;
 }
