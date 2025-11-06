@@ -1,7 +1,7 @@
 package com.lostark.backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;
 import java.util.List;
 
@@ -9,12 +9,12 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ArmoryDto {
 
-    @JsonProperty(value = "ArmoryProfile", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("ArmoryProfile")
     private CharacterProfileDto profile;
 
-    @JsonProperty(value = "ArmoryEquipment", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("ArmoryEquipment")
     private List<EquipmentDto> equipment;
 
-    @JsonProperty(value = "ArmoryEngraving", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("ArmoryEngraving")
     private EngravingResponseDto engraving;
 }

@@ -1,25 +1,25 @@
 package com.lostark.backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SiblingCharacterDto {
     
-    @JsonProperty(value = "CharacterName", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("CharacterName")
     private String characterName;
     
-    @JsonProperty(value = "ServerName", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("ServerName")
     private String serverName;
     
-    @JsonProperty(value = "CharacterClassName", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("CharacterClassName")
     private String characterClassName;
     
-    @JsonProperty(value = "ItemAvgLevel", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("ItemAvgLevel")
     private String itemAvgLevel;
     
-    @JsonProperty(value = "ItemMaxLevel", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("ItemMaxLevel")
     private String itemMaxLevel;
 }
