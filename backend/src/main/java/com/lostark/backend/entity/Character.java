@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "characters")
@@ -39,6 +41,12 @@ public class Character {
     
     @Column(columnDefinition = "TEXT")
     private String apiResponse;
+    
+    @OneToMany(mappedBy = "character", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Equipment> equipments = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "character", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Engraving> engravings = new ArrayList<>();
     
     private LocalDateTime createdAt;
     

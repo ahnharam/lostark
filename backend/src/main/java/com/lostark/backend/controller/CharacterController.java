@@ -9,15 +9,16 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/characters")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class CharacterController {
     
     private final CharacterService characterService;
     
     @GetMapping("/{characterName}")
-    public ResponseEntity<CharacterProfileDto> getCharacter(@PathVariable String characterName) {
+    public ResponseEntity<CharacterProfileDto> getCharacter(
+            @PathVariable String characterName,
+            @RequestParam(required = false) String userId) {
         try {
-            CharacterProfileDto profile = characterService.getCharacterProfile(characterName);
+            CharacterProfileDto profile = characterService.getCharacterProfile(characterName, userId);
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

@@ -6,6 +6,7 @@ import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.entity.Character;
 import com.lostark.backend.repository.CharacterRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CharacterService {
@@ -20,11 +22,19 @@ public class CharacterService {
     private final CharacterRepository characterRepository;
     private final LostArkApiService lostArkApiService;
     private final ObjectMapper objectMapper;
+    private final SearchHistoryService searchHistoryService;
     
     private static final Duration CACHE_DURATION = Duration.ofHours(1);
     
     @Transactional
-    public CharacterProfileDto getCharacterProfile(String characterName) {
+    public CharacterProfileDto getCharacterProfile(String characterName, String userId) {
+        log.info("캐릭터 검색 시작: {}", characterName);
+        
+        // 검색 히스토리 저장
+        if (userId != null) {
+            searchHistoryService.addSearchHistory(userId, characterName);
+        }
+        
         // 1. DB에서 캐시 확인
         Optional<Character> cachedCharacter = characterRepository.findByCharacterName(characterName);
         
@@ -32,23 +42,44 @@ public class CharacterService {
             Character character = cachedCharacter.get();
             // 캐시가 1시간 이내면 DB 데이터 반환
             if (Duration.between(character.getUpdatedAt(), LocalDateTime.now()).compareTo(CACHE_DURATION) < 0) {
+                log.info("캐시된 데이터 반환: {}", characterName);
                 return convertToDto(character);
             }
         }
         
         // 2. API 호출
-        CharacterProfileDto profile = lostArkApiService.getCharacterProfile(characterName).block();
-        
-        if (profile == null) {
+        log.info("로스트아크 API 호출: {}", characterName);
+        try {
+            CharacterProfileDto profile = lostArkApiService.getCharacterProfile(characterName).block();
+            
+            log.info("API 응답 받음: profile={}", profile);
+            
+            if (profile == null) {
+                log.error("API 응답이 null입니다: {}", characterName);
+                throw new RuntimeException("캐릭터를 찾을 수 없습니다.");
+            }
+            
+            log.info("profile.getCharacterName()={}", profile.getCharacterName());
+            log.info("profile.getServerName()={}", profile.getServerName());
+            log.info("profile.getItemMaxLevel()={}", profile.getItemMaxLevel());
+            
+            if (profile.getCharacterName() == null) {
+                log.error("캐릭터를 찾을 수 없음: {}", characterName);
+                throw new RuntimeException("캐릭터를 찾을 수 없습니다.");
+            }
+            
+            log.info("API 호출 성공: {}", profile.getCharacterName());
+            
+            // 3. DB에 저장 또는 업데이트
+            Character character = cachedCharacter.orElse(new Character());
+            updateCharacterFromDto(character, profile);
+            characterRepository.save(character);
+            
+            return profile;
+        } catch (Exception e) {
+            log.error("캐릭터 검색 실패: {} - {}", characterName, e.getMessage(), e);
             throw new RuntimeException("캐릭터를 찾을 수 없습니다.");
         }
-        
-        // 3. DB에 저장 또는 업데이트
-        Character character = cachedCharacter.orElse(new Character());
-        updateCharacterFromDto(character, profile);
-        characterRepository.save(character);
-        
-        return profile;
     }
     
     private CharacterProfileDto convertToDto(Character character) {
