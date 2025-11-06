@@ -8,13 +8,13 @@ import java.util.List;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ArmoryDto {
-    
-    @JsonProperty("ArmoryProfile")
+
+    @JsonProperty(value = "ArmoryProfile", access = JsonProperty.Access.WRITE_ONLY)
     private CharacterProfileDto profile;
-    
-    @JsonProperty("ArmoryEquipment")
+
+    @JsonProperty(value = "ArmoryEquipment", access = JsonProperty.Access.WRITE_ONLY)
     private List<EquipmentDto> equipment;
-    
-    @JsonProperty("ArmoryEngraving")
+
+    @JsonProperty(value = "ArmoryEngraving", access = JsonProperty.Access.WRITE_ONLY)
     private EngravingResponseDto engraving;
 }

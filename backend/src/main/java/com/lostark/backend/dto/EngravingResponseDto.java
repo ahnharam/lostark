@@ -9,6 +9,6 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EngravingResponseDto {
     
-    @JsonProperty("Effects")
+    @JsonProperty(value = "Effects", access = JsonProperty.Access.WRITE_ONLY)
     private List<EngravingEffectDto> effects;
 }
