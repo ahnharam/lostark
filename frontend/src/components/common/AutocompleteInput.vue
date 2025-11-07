@@ -1,19 +1,56 @@
 <template>
   <div class="autocomplete-container" ref="containerRef">
-    <input
-      ref="inputRef"
-      v-model="localValue"
-      @input="handleInput"
-      @focus="handleFocus"
-      @blur="handleBlur"
-      @keydown.down.prevent="navigateDown"
-      @keydown.up.prevent="navigateUp"
-      @keydown.enter.prevent="selectCurrent"
-      @keydown.esc="closeSuggestions"
-      :placeholder="placeholder"
-      :class="inputClass"
-      type="text"
-    />
+    <!-- 입력 프레임: Horizontal / H=52 / Radius=999 / Padding 16~20 / Gap 12 -->
+    <div class="input-frame">
+      <!-- 좌: 검색 아이콘 -->
+      <div class="icon-left">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+        </svg>
+      </div>
+
+      <!-- 중앙: 입력 필드 (W=Fill) -->
+      <input
+        ref="inputRef"
+        v-model="localValue"
+        @input="handleInput"
+        @focus="handleFocus"
+        @blur="handleBlur"
+        @keydown.down.prevent="navigateDown"
+        @keydown.up.prevent="navigateUp"
+        @keydown.enter.prevent="selectCurrent"
+        @keydown.esc="closeSuggestions"
+        :placeholder="placeholder"
+        class="search-input"
+        type="text"
+      />
+
+      <!-- 우: Clear 버튼 (W=Hug) -->
+      <button
+        v-if="localValue"
+        @click="clearInput"
+        class="icon-right clear-button"
+        type="button"
+        aria-label="Clear"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- 하단: 추천어 1줄 예시 -->
+    <div v-if="showRecommendations && !showSuggestions" class="recommendations-hint">
+      <span class="hint-label">추천:</span>
+      <button
+        v-for="(rec, idx) in recommendations.slice(0, 3)"
+        :key="`rec-${idx}`"
+        @click="selectRecommendation(rec)"
+        class="recommendation-chip"
+      >
+        {{ rec }}
+      </button>
+    </div>
 
     <!-- 자동완성 드롭다운 -->
     <div v-if="showSuggestions && filteredSuggestions.length > 0" class="suggestions-dropdown">
@@ -67,22 +104,23 @@ export interface Suggestion {
 interface Props {
   modelValue: string
   suggestions: Suggestion[]
+  recommendations?: string[]
   placeholder?: string
-  inputClass?: string
   minChars?: number
   maxSuggestions?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '',
-  inputClass: '',
+  recommendations: () => [],
+  placeholder: '캐릭터명을 입력하세요',
   minChars: 0,
   maxSuggestions: 8
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  'select': [suggestion: Suggestion]
+  'select': [suggestion: Suggestion | { id: string; name: string }]
+  'clear': []
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
@@ -90,6 +128,10 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const localValue = ref(props.modelValue)
 const showSuggestions = ref(false)
 const selectedIndex = ref(-1)
+
+const showRecommendations = computed(() => {
+  return !localValue.value && props.recommendations.length > 0
+})
 
 // 로컬 값 변경 시 부모에게 전달
 watch(localValue, (newValue) => {
@@ -155,6 +197,20 @@ const handleBlur = () => {
     showSuggestions.value = false
     selectedIndex.value = -1
   }, 200)
+}
+
+// 입력 지우기
+const clearInput = () => {
+  localValue.value = ''
+  showSuggestions.value = false
+  emit('clear')
+  inputRef.value?.focus()
+}
+
+// 추천어 선택
+const selectRecommendation = (recommendation: string) => {
+  localValue.value = recommendation
+  emit('select', { id: 'recommendation', name: recommendation })
 }
 
 // 키보드 네비게이션 - 아래
@@ -230,17 +286,120 @@ defineExpose({
 .autocomplete-container {
   position: relative;
   width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
 }
 
-.suggestions-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 8px;
+/* 입력 프레임: Horizontal / H=52 / Radius=999 / Padding 16~20 / Gap 12 */
+.input-frame {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 20px;
   background: var(--card-bg);
   border: 2px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: 999px;
+  transition: all 0.3s;
+  box-shadow: var(--shadow-sm);
+}
+
+.input-frame:focus-within {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 좌 아이콘 (W=Hug) */
+.icon-left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* 중앙 입력 (W=Fill) */
+.search-input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* 우 Clear 버튼 (W=Hug) */
+.icon-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.clear-button {
+  padding: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all 0.2s;
+  border-radius: 50%;
+}
+
+.clear-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 추천어 힌트 */
+.recommendations-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 20px;
+  flex-wrap: wrap;
+}
+
+.hint-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.recommendation-chip {
+  padding: 6px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.recommendation-chip:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+/* 자동완성 드롭다운 */
+.suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
   box-shadow: var(--shadow-lg);
   max-height: 400px;
   overflow-y: auto;
@@ -260,20 +419,20 @@ defineExpose({
 }
 
 .suggestions-header {
-  padding: 10px 15px;
+  padding: 12px 18px;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-secondary);
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
-  border-radius: 8px 8px 0 0;
+  border-radius: 10px 10px 0 0;
 }
 
 .suggestion-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 15px;
+  padding: 12px 18px;
   cursor: pointer;
   transition: all 0.2s;
   border-bottom: 1px solid var(--border-color-light);
@@ -342,7 +501,7 @@ defineExpose({
 
 .suggestions-dropdown::-webkit-scrollbar-track {
   background: var(--bg-secondary);
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 12px 12px 0;
 }
 
 .suggestions-dropdown::-webkit-scrollbar-thumb {
@@ -355,21 +514,30 @@ defineExpose({
 }
 
 /* 모바일 최적화 */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .autocomplete-container {
+    max-width: 100%;
+  }
+
+  .input-frame {
+    height: 48px;
+    padding: 0 16px;
+  }
+
+  .search-input {
+    font-size: 0.95rem;
+  }
+
+  .recommendations-hint {
+    padding: 0 16px;
+  }
+
   .suggestions-dropdown {
     max-height: 300px;
   }
 
   .suggestion-item {
-    padding: 10px 12px;
-  }
-
-  .suggestion-name {
-    font-size: 0.95rem;
-  }
-
-  .suggestion-info {
-    font-size: 0.8rem;
+    padding: 10px 16px;
   }
 }
 </style>

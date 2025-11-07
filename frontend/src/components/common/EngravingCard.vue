@@ -1,48 +1,55 @@
 <template>
-  <div class="engraving-card" :class="{ debuff: parsedData.isDebuff }">
-    <div class="engraving-icon-wrapper">
+  <div class="engraving-card">
+    <!-- 이미지 (고정 높이 176px) -->
+    <div class="card-image-wrapper">
       <LazyImage
         v-if="engraving.icon"
         :src="engraving.icon"
         :alt="engraving.name"
-        width="60"
-        height="60"
-        imageClass="engraving-icon"
+        width="288"
+        height="176"
+        imageClass="card-image"
         errorIcon="📜"
       />
       <div
         v-if="parsedData.level > 0"
-        class="engraving-level-badge"
+        class="level-badge"
         :style="{ backgroundColor: levelColor }"
       >
         {{ levelText }}
       </div>
     </div>
 
-    <div class="engraving-info">
-      <div class="engraving-name" :class="{ debuff: parsedData.isDebuff }">
+    <!-- 텍스트 정보 -->
+    <div class="card-content">
+      <!-- 이름 (16px Bold) -->
+      <h3 class="card-title" :class="{ debuff: parsedData.isDebuff }">
         {{ parsedData.name || engraving.name }}
+      </h3>
+
+      <!-- Sub: 직업 • iLv (12px) -->
+      <div class="card-subtitle">
+        <span>{{ engraving.class || '공용' }}</span>
+        <span v-if="engraving.itemLevel">• Lv.{{ engraving.itemLevel }}</span>
       </div>
 
-      <div v-if="parsedData.effectValue" class="engraving-effect">
-        {{ parsedData.effectValue }}
+      <!-- 각인 뱃지 행 (pill 형태) -->
+      <div class="badge-row">
+        <span
+          v-if="parsedData.effectValue"
+          class="badge pill"
+          :class="{ debuff: parsedData.isDebuff }"
+        >
+          {{ parsedData.effectValue }}
+        </span>
+        <span
+          v-for="(badge, idx) in additionalBadges"
+          :key="`badge-${idx}`"
+          class="badge pill"
+        >
+          {{ badge }}
+        </span>
       </div>
-
-      <!-- 설명 툴팁 (호버 시 표시) -->
-      <div v-if="showDescription && engraving.description" class="engraving-description">
-        {{ engraving.description }}
-      </div>
-    </div>
-
-    <!-- 레벨 인디케이터 (3개의 점) -->
-    <div v-if="parsedData.level > 0" class="level-indicators">
-      <div
-        v-for="i in 3"
-        :key="i"
-        class="level-dot"
-        :class="{ active: i <= parsedData.level, debuff: parsedData.isDebuff }"
-        :style="i <= parsedData.level ? { backgroundColor: levelColor } : {}"
-      ></div>
     </div>
   </div>
 </template>
@@ -56,6 +63,9 @@ interface Engraving {
   name: string
   icon: string
   description: string
+  class?: string
+  itemLevel?: string | number
+  badges?: string[]
 }
 
 interface Props {
@@ -78,160 +88,160 @@ const levelColor = computed(() => {
 const levelText = computed(() => {
   return getEngravingLevelText(parsedData.value.level)
 })
+
+const additionalBadges = computed(() => {
+  return props.engraving.badges || []
+})
 </script>
 
 <style scoped>
+/* 카드 프레임: Vertical / Gap 12 / Padding 16 / Radius 14 / W 320(Fixed) / H Hug */
 .engraving-card {
   display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 15px;
-  background: var(--bg-secondary);
-  border-radius: 10px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  width: 320px;
+  background: var(--card-bg);
+  border-radius: 14px;
   transition: all 0.3s;
   border: 2px solid transparent;
-  position: relative;
+  box-shadow: var(--shadow-sm);
 }
 
 .engraving-card:hover {
-  background: var(--bg-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
   border-color: var(--primary-color);
 }
 
-.engraving-card.debuff {
-  border-left: 4px solid #ff6b6b;
-  background: rgba(255, 107, 107, 0.05);
-}
-
-.engraving-card.debuff:hover {
-  border-color: #ff6b6b;
-}
-
-.engraving-icon-wrapper {
+/* 이미지: H=176(Fixed), W=Fill */
+.card-image-wrapper {
   position: relative;
-  flex-shrink: 0;
+  width: 100%;
+  height: 176px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-secondary);
 }
 
-:deep(.engraving-icon) {
-  border-radius: 8px;
+:deep(.card-image) {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
-.engraving-icon-wrapper :deep(.lazy-image-wrapper) {
-  border-radius: 8px;
-  border: 2px solid var(--border-color);
-  background: var(--card-bg);
+.card-image-wrapper :deep(.lazy-image-wrapper) {
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
-.engraving-level-badge {
+/* 레벨 배지 */
+.level-badge {
   position: absolute;
-  bottom: -5px;
-  right: -5px;
-  min-width: 32px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
+  top: 10px;
+  right: 10px;
+  min-width: 36px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: white;
-  border: 2px solid var(--card-bg);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
 }
 
-.engraving-info {
-  flex: 1;
-  min-width: 0;
+/* 카드 컨텐츠 */
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.engraving-name {
-  font-size: 1rem;
+/* 이름: 16px Bold */
+.card-title {
+  margin: 0;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 5px;
-  white-space: nowrap;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.engraving-name.debuff {
+.card-title.debuff {
   color: #ff6b6b;
 }
 
-.engraving-effect {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
-.engraving-description {
-  margin-top: 8px;
-  font-size: 0.85rem;
+/* Sub: 직업 • iLv (12px) */
+.card-subtitle {
+  font-size: 12px;
   color: var(--text-secondary);
+  font-weight: 500;
   line-height: 1.4;
-  padding: 8px;
-  background: var(--card-bg);
-  border-radius: 5px;
-  border-left: 3px solid var(--primary-color);
 }
 
-/* 레벨 인디케이터 */
-.level-indicators {
+/* 배지 행: Horizontal / Gap 8 / W,H=Hug */
+.badge-row {
   display: flex;
-  gap: 5px;
+  flex-wrap: wrap;
+  gap: 8px;
   align-items: center;
 }
 
-.level-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--border-color);
-  transition: all 0.3s;
+/* pill: Fill/Radius=999 → 알약 모양 */
+.badge.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--primary-color);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: all 0.2s;
 }
 
-.level-dot.active {
-  transform: scale(1.2);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+.badge.pill:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
-.level-dot.debuff {
-  background: rgba(255, 107, 107, 0.3);
+.badge.pill.debuff {
+  background: #ff6b6b;
 }
 
 /* 모바일 반응형 */
 @media (max-width: 640px) {
   .engraving-card {
-    padding: 12px;
-    gap: 12px;
+    width: 100%;
+    max-width: 320px;
   }
 
-  .engraving-icon {
-    width: 50px;
-    height: 50px;
+  .card-image-wrapper {
+    height: 160px;
   }
 
-  .engraving-name {
-    font-size: 0.95rem;
+  .card-title {
+    font-size: 15px;
   }
 
-  .engraving-effect {
-    font-size: 0.85rem;
+  .card-subtitle {
+    font-size: 11px;
   }
 
-  .level-indicators {
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .level-dot {
-    width: 8px;
-    height: 8px;
+  .badge.pill {
+    font-size: 11px;
+    padding: 5px 10px;
   }
 }
 </style>
