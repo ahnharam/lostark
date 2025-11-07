@@ -55,14 +55,16 @@
     <main class="main-content">
       <div class="search-container">
         <h1>로스트아크 캐릭터 검색</h1>
-        
+
         <div class="search-box">
-          <input
+          <AutocompleteInput
             v-model="characterName"
-            @keyup.enter="searchCharacterByInput"
-            type="text"
+            :suggestions="searchSuggestions"
             placeholder="캐릭터명을 입력하세요"
-            class="search-input"
+            inputClass="search-input"
+            :min-chars="0"
+            :max-suggestions="8"
+            @select="handleSuggestionSelect"
           />
           <button @click="searchCharacterByInput" :disabled="loading" class="search-button">
             {{ loading ? '검색 중...' : '검색' }}
@@ -267,8 +269,10 @@ import ThemeToggle from './common/ThemeToggle.vue'
 import EquipmentDetailModal from './common/EquipmentDetailModal.vue'
 import EngravingCard from './common/EngravingCard.vue'
 import LazyImage from './common/LazyImage.vue'
+import AutocompleteInput from './common/AutocompleteInput.vue'
 import { useTheme } from '@/composables/useTheme'
 import { parseEngravingDescription, calculateEngravingGrade, type ParsedEngraving } from '@/utils/engravingParser'
+import type { Suggestion } from './common/AutocompleteInput.vue'
 
 // 테마 초기화
 const { initTheme } = useTheme()
@@ -356,6 +360,37 @@ const activeEngravingsCount = computed(() => {
 
 const lv3EngravingsCount = computed(() => {
   return parsedEngravings.value.filter(e => e.level === 3 && !e.isDebuff).length
+})
+
+// 검색 제안 목록 (즐겨찾기 + 최근 검색)
+const searchSuggestions = computed<Suggestion[]>(() => {
+  const suggestions: Suggestion[] = []
+
+  // 즐겨찾기 추가
+  favorites.value.forEach(fav => {
+    suggestions.push({
+      id: `fav-${fav.characterName}`,
+      name: fav.characterName,
+      info: `${fav.serverName} • ${fav.characterClassName}`,
+      level: fav.itemMaxLevel,
+      isFavorite: true
+    })
+  })
+
+  // 최근 검색 추가 (즐겨찾기와 중복 제거)
+  const favoriteNames = new Set(favorites.value.map(f => f.characterName))
+  history.value.forEach(h => {
+    if (!favoriteNames.has(h.characterName)) {
+      suggestions.push({
+        id: `history-${h.id}`,
+        name: h.characterName,
+        info: '최근 검색',
+        isFavorite: false
+      })
+    }
+  })
+
+  return suggestions
 })
 
 onMounted(() => {
@@ -547,6 +582,11 @@ const clearCacheAndRefresh = () => {
   }
 }
 
+// 자동완성 선택 이벤트
+const handleSuggestionSelect = (suggestion: Suggestion) => {
+  searchCharacter(suggestion.name)
+}
+
 // 탭 변경 시 데이터 로딩
 const watchTab = () => {
   if (currentTab.value === 'equipment') {
@@ -700,6 +740,11 @@ h1 {
   display: flex;
   gap: 10px;
   margin-bottom: 10px;
+  align-items: flex-start;
+}
+
+.search-box :deep(.autocomplete-container) {
+  flex: 1;
 }
 
 .search-input {
