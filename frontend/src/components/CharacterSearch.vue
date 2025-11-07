@@ -58,11 +58,20 @@
           </button>
         </div>
 
-        <div v-if="error" class="error-message">
-          {{ error }}
-        </div>
+        <ErrorMessage
+          v-if="error"
+          :title="error.title"
+          :message="error.message"
+          :type="error.type"
+          :retry="true"
+          :dismissible="true"
+          @retry="retrySearch"
+          @dismiss="dismissError"
+        />
 
-        <div v-if="character" class="character-info">
+        <LoadingSpinner v-if="loading" message="캐릭터 정보를 불러오는 중..." />
+
+        <div v-if="character && !loading" class="character-info">
           <div class="character-header">
             <img 
               v-if="character.characterImage" 
@@ -117,8 +126,13 @@
             </div>
 
             <div v-if="currentTab === 'equipment'" class="equipment-info">
-              <div v-if="loadingEquipment" class="loading">장비 정보 로딩 중...</div>
-              <div v-else-if="equipment.length === 0" class="empty-message">장비 정보가 없습니다</div>
+              <LoadingSpinner v-if="loadingEquipment" message="장비 정보 로딩 중..." />
+              <EmptyState
+                v-else-if="equipment.length === 0"
+                icon="🎒"
+                title="장비 정보 없음"
+                description="이 캐릭터의 장비 정보를 불러올 수 없습니다."
+              />
               <div v-else class="equipment-grid">
                 <div
                   v-for="item in equipment"
@@ -149,8 +163,13 @@
             </div>
 
             <div v-if="currentTab === 'engravings'" class="engravings-info">
-              <div v-if="loadingEngravings" class="loading">각인 정보 로딩 중...</div>
-              <div v-else-if="engravings.length === 0" class="empty-message">각인 정보가 없습니다</div>
+              <LoadingSpinner v-if="loadingEngravings" message="각인 정보 로딩 중..." />
+              <EmptyState
+                v-else-if="engravings.length === 0"
+                icon="📜"
+                title="각인 정보 없음"
+                description="이 캐릭터의 각인 정보를 불러올 수 없습니다."
+              />
               <div v-else class="engravings-grid">
                 <div v-for="eng in engravings" :key="eng.name" class="engraving-item">
                   <img v-if="eng.icon" :src="eng.icon" :alt="eng.name" />
@@ -160,8 +179,13 @@
             </div>
 
             <div v-if="currentTab === 'siblings'" class="siblings-info">
-              <div v-if="loadingSiblings" class="loading">보유 캐릭터 로딩 중...</div>
-              <div v-else-if="siblings.length === 0" class="empty-message">보유 캐릭터가 없습니다</div>
+              <LoadingSpinner v-if="loadingSiblings" message="보유 캐릭터 로딩 중..." />
+              <EmptyState
+                v-else-if="siblings.length === 0"
+                icon="👥"
+                title="보유 캐릭터 없음"
+                description="이 계정의 다른 캐릭터 정보를 불러올 수 없습니다."
+              />
               <div v-else class="siblings-by-server">
                 <div v-for="(chars, serverName) in groupedSiblings" :key="serverName" class="server-group">
                   <h3 class="server-name">{{ serverName }}</h3>
@@ -190,11 +214,20 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { lostarkApi, type CharacterProfile, type Equipment, type Engraving, type SiblingCharacter, type SearchHistory } from '@/api/lostark'
+import LoadingSpinner from './common/LoadingSpinner.vue'
+import ErrorMessage from './common/ErrorMessage.vue'
+import EmptyState from './common/EmptyState.vue'
+
+interface ErrorState {
+  message: string
+  type: 'error' | 'warning' | 'info'
+  title?: string
+}
 
 const characterName = ref('')
 const character = ref<CharacterProfile | null>(null)
 const loading = ref(false)
-const error = ref('')
+const error = ref<ErrorState | null>(null)
 const isFavorite = ref(false)
 
 const equipment = ref<Equipment[]>([])
@@ -249,7 +282,10 @@ onMounted(() => {
 
 const searchCharacterByInput = () => {
   if (!characterName.value.trim()) {
-    error.value = '캐릭터명을 입력해주세요.'
+    error.value = {
+      message: '캐릭터명을 입력해주세요.',
+      type: 'warning'
+    }
     return
   }
   searchCharacter(characterName.value.trim())
@@ -257,7 +293,7 @@ const searchCharacterByInput = () => {
 
 const searchCharacter = async (name: string) => {
   loading.value = true
-  error.value = ''
+  error.value = null
   character.value = null
   equipment.value = []
   engravings.value = []
@@ -268,19 +304,47 @@ const searchCharacter = async (name: string) => {
     const response = await lostarkApi.getCharacter(name)
     character.value = response.data
     characterName.value = name
-    
-    await checkFavoriteStatus(name)
-    await loadHistory()
+
+    await Promise.all([
+      checkFavoriteStatus(name),
+      loadHistory()
+    ])
   } catch (err: any) {
+    const errorData = err.response?.data
+
     if (err.response?.status === 404) {
-      error.value = '캐릭터를 찾을 수 없습니다.'
+      error.value = {
+        title: '캐릭터를 찾을 수 없습니다',
+        message: errorData?.message || `'${name}' 캐릭터가 존재하지 않습니다. 캐릭터명을 확인해주세요.`,
+        type: 'error'
+      }
+    } else if (err.response?.status === 503) {
+      error.value = {
+        title: 'API 서비스 오류',
+        message: errorData?.message || '로스트아크 API 서비스에 일시적인 문제가 발생했습니다.',
+        type: 'warning'
+      }
     } else {
-      error.value = '검색 중 오류가 발생했습니다.'
+      error.value = {
+        title: '검색 실패',
+        message: errorData?.message || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        type: 'error'
+      }
     }
     console.error('검색 실패:', err)
   } finally {
     loading.value = false
   }
+}
+
+const retrySearch = () => {
+  if (characterName.value) {
+    searchCharacter(characterName.value)
+  }
+}
+
+const dismissError = () => {
+  error.value = null
 }
 
 const loadEquipment = async () => {
@@ -980,5 +1044,139 @@ h1 {
 
 .sibling-item:hover .sibling-level {
   color: white;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 1024px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .character-image {
+    width: 80px;
+    height: 80px;
+  }
+
+  .character-basic h2 {
+    font-size: 1.5rem;
+  }
+
+  .equipment-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .siblings-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-content {
+    padding: 20px 10px;
+  }
+
+  .search-container {
+    padding: 0 10px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+
+  .search-box {
+    flex-direction: column;
+  }
+
+  .search-button {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .character-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .character-image {
+    width: 100px;
+    height: 100px;
+  }
+
+  .header-top {
+    justify-content: center;
+  }
+
+  .character-basic h2 {
+    font-size: 1.3rem;
+  }
+
+  .character-info {
+    padding: 20px;
+  }
+
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .equipment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .engravings-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .siblings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    max-width: 90%;
+    max-height: 90vh;
+    padding: 20px;
+  }
+
+  .sidebar h2 {
+    font-size: 1rem;
+  }
+
+  .favorite-list,
+  .history-list {
+    max-height: 200px;
+    overflow-y: auto;
+  }
 }
 </style>
