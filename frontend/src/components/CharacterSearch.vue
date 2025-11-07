@@ -67,6 +67,14 @@
           <button @click="searchCharacterByInput" :disabled="loading" class="search-button">
             {{ loading ? '검색 중...' : '검색' }}
           </button>
+          <button @click="clearCacheAndRefresh" class="cache-button" title="캐시 초기화">
+            🔄
+          </button>
+        </div>
+
+        <!-- 캐시 상태 표시 -->
+        <div v-if="fromCache" class="cache-indicator">
+          ⚡ 캐시에서 불러온 데이터 (빠른 로딩)
         </div>
 
         <ErrorMessage
@@ -277,6 +285,7 @@ const character = ref<CharacterProfile | null>(null)
 const loading = ref(false)
 const error = ref<ErrorState | null>(null)
 const isFavorite = ref(false)
+const fromCache = ref(false)
 
 const equipment = ref<Equipment[]>([])
 const loadingEquipment = ref(false)
@@ -373,11 +382,13 @@ const searchCharacter = async (name: string) => {
   engravings.value = []
   siblings.value = []
   currentTab.value = 'basic'
+  fromCache.value = false
 
   try {
     const response = await lostarkApi.getCharacter(name)
     character.value = response.data
     characterName.value = name
+    fromCache.value = (response as any).fromCache || false
 
     await Promise.all([
       checkFavoriteStatus(name),
@@ -521,6 +532,19 @@ const clearHistory = async () => {
 // 장비 상세 정보 표시
 const showEquipmentDetail = (item: Equipment) => {
   selectedEquipment.value = item
+}
+
+// 캐시 초기화 및 새로고침
+const clearCacheAndRefresh = () => {
+  if (confirm('모든 캐시를 초기화하고 새로 불러오시겠습니까?')) {
+    lostarkApi.clearCache()
+    fromCache.value = false
+
+    // 현재 캐릭터가 있으면 재검색
+    if (characterName.value) {
+      searchCharacter(characterName.value)
+    }
+  }
 }
 
 // 탭 변경 시 데이터 로딩
@@ -675,7 +699,7 @@ h1 {
 .search-box {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .search-input {
@@ -714,6 +738,45 @@ h1 {
 .search-button:disabled {
   background-color: var(--text-tertiary);
   cursor: not-allowed;
+}
+
+.cache-button {
+  padding: 15px 20px;
+  font-size: 1.3rem;
+  background-color: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cache-button:hover {
+  background-color: var(--bg-hover);
+  transform: rotate(180deg);
+}
+
+/* 캐시 인디케이터 */
+.cache-indicator {
+  padding: 10px 15px;
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 8px;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  animation: slideInDown 0.3s;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .character-info {
@@ -1103,12 +1166,27 @@ h1 {
   }
 
   .search-box {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    flex: 1 1 100%;
   }
 
   .search-button {
-    width: 100%;
+    flex: 1;
     padding: 12px;
+  }
+
+  .cache-button {
+    padding: 12px 20px;
+    flex-shrink: 0;
+  }
+
+  .cache-indicator {
+    font-size: 0.85rem;
+    padding: 8px 12px;
   }
 
   .character-header {
