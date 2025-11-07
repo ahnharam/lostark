@@ -15,7 +15,15 @@
           class="favorite-item"
           @click="searchCharacter(fav.characterName)"
         >
-          <img v-if="fav.characterImage" :src="fav.characterImage" alt="" />
+          <LazyImage
+            v-if="fav.characterImage"
+            :src="fav.characterImage"
+            :alt="fav.characterName"
+            width="40"
+            height="40"
+            imageClass="fav-image"
+            errorIcon="👤"
+          />
           <div>
             <div class="fav-name">{{ fav.characterName }}</div>
             <div class="fav-level">{{ fav.itemMaxLevel }}</div>
@@ -76,11 +84,15 @@
 
         <div v-if="character && !loading" class="character-info">
           <div class="character-header">
-            <img 
-              v-if="character.characterImage" 
-              :src="character.characterImage" 
+            <LazyImage
+              v-if="character.characterImage"
+              :src="character.characterImage"
               :alt="character.characterName"
-              class="character-image"
+              width="120"
+              height="120"
+              imageClass="character-image"
+              errorIcon="👤"
+              :lazy="false"
             />
             <div class="character-basic">
               <div class="header-top">
@@ -143,7 +155,15 @@
                   class="equipment-item clickable"
                   @click="showEquipmentDetail(item)"
                 >
-                  <img v-if="item.icon" :src="item.icon" :alt="item.name" />
+                  <LazyImage
+                    v-if="item.icon"
+                    :src="item.icon"
+                    :alt="item.name"
+                    width="50"
+                    height="50"
+                    imageClass="equipment-icon"
+                    errorIcon="⚔️"
+                  />
                   <div class="equipment-details">
                     <div class="equipment-type">{{ item.type }}</div>
                     <div class="equipment-name" :class="item.grade">{{ item.name }}</div>
@@ -238,6 +258,7 @@ import EmptyState from './common/EmptyState.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
 import EquipmentDetailModal from './common/EquipmentDetailModal.vue'
 import EngravingCard from './common/EngravingCard.vue'
+import LazyImage from './common/LazyImage.vue'
 import { useTheme } from '@/composables/useTheme'
 import { parseEngravingDescription, calculateEngravingGrade, type ParsedEngraving } from '@/utils/engravingParser'
 
@@ -577,11 +598,14 @@ watch(currentTab, watchTab)
   background: var(--bg-hover);
 }
 
-.favorite-item img {
-  width: 40px;
-  height: 40px;
+.favorite-item :deep(.fav-image) {
   border-radius: 50%;
   object-fit: cover;
+}
+
+.favorite-item :deep(.lazy-image-wrapper) {
+  border-radius: 50%;
+  overflow: hidden;
 }
 
 .fav-name {
@@ -720,11 +744,13 @@ h1 {
   border-bottom: 2px solid var(--border-color-light);
 }
 
-.character-image {
-  width: 120px;
-  height: 120px;
+:deep(.character-image) {
   border-radius: 10px;
   object-fit: cover;
+}
+
+:deep(.character-header .lazy-image-wrapper) {
+  border-radius: 10px;
   box-shadow: var(--shadow-md);
 }
 
@@ -855,10 +881,12 @@ h1 {
   box-shadow: var(--shadow-md);
 }
 
-.equipment-item img {
-  width: 50px;
-  height: 50px;
+.equipment-item :deep(.equipment-icon) {
   object-fit: contain;
+}
+
+.equipment-item :deep(.lazy-image-wrapper) {
+  flex-shrink: 0;
 }
 
 .equipment-details {

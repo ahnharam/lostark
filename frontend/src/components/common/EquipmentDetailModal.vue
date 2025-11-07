@@ -5,7 +5,16 @@
 
       <!-- 아이템 헤더 -->
       <div class="item-header">
-        <img v-if="equipment.icon" :src="equipment.icon" :alt="equipment.name" class="item-icon" />
+        <LazyImage
+          v-if="equipment.icon"
+          :src="equipment.icon"
+          :alt="equipment.name"
+          width="80"
+          height="80"
+          imageClass="item-icon"
+          errorIcon="⚔️"
+          :lazy="false"
+        />
         <div class="item-title-section">
           <h3 :style="{ color: gradeColor }" class="item-name">{{ equipment.name }}</h3>
           <div class="item-meta">
@@ -106,6 +115,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { parseTooltip, getQualityColor, getGradeColor, type ParsedTooltip } from '@/utils/tooltipParser'
+import LazyImage from './LazyImage.vue'
 
 interface Equipment {
   type: string
@@ -217,9 +227,12 @@ const gradeColor = computed(() => {
   border-bottom: 2px solid var(--border-color);
 }
 
-.item-icon {
-  width: 80px;
-  height: 80px;
+:deep(.item-icon) {
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.item-header :deep(.lazy-image-wrapper) {
   border-radius: 10px;
   border: 2px solid var(--border-color);
   background: var(--bg-secondary);

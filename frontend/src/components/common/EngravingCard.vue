@@ -1,7 +1,15 @@
 <template>
   <div class="engraving-card" :class="{ debuff: parsedData.isDebuff }">
     <div class="engraving-icon-wrapper">
-      <img v-if="engraving.icon" :src="engraving.icon" :alt="engraving.name" class="engraving-icon" />
+      <LazyImage
+        v-if="engraving.icon"
+        :src="engraving.icon"
+        :alt="engraving.name"
+        width="60"
+        height="60"
+        imageClass="engraving-icon"
+        errorIcon="📜"
+      />
       <div
         v-if="parsedData.level > 0"
         class="engraving-level-badge"
@@ -42,6 +50,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { parseEngravingDescription, getEngravingLevelColor, getEngravingLevelText, type ParsedEngraving } from '@/utils/engravingParser'
+import LazyImage from './LazyImage.vue'
 
 interface Engraving {
   name: string
@@ -105,9 +114,12 @@ const levelText = computed(() => {
   flex-shrink: 0;
 }
 
-.engraving-icon {
-  width: 60px;
-  height: 60px;
+:deep(.engraving-icon) {
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.engraving-icon-wrapper :deep(.lazy-image-wrapper) {
   border-radius: 8px;
   border: 2px solid var(--border-color);
   background: var(--card-bg);
