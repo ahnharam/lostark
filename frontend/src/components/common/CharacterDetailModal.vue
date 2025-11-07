@@ -1,9 +1,15 @@
 <template>
-  <!-- 오버레이 배경 -->
-  <Transition name="modal-fade">
-    <div v-if="isOpen" class="modal-overlay" @click="handleOverlayClick">
-      <!-- 모달 컨테이너: 960×800 (중앙 오버레이) -->
-      <div class="modal-container" @click.stop>
+  <div class="character-detail-panel">
+    <div v-if="loading" class="detail-placeholder">
+      <LoadingSpinner message="상세 정보를 불러오는 중입니다..." />
+    </div>
+    <div v-else-if="errorMessage" class="detail-placeholder">
+      {{ errorMessage }}
+    </div>
+    <div v-else-if="!character" class="detail-placeholder">
+      캐릭터를 선택하면 상세 정보가 표시됩니다.
+    </div>
+    <div v-else class="modal-container" @click.stop>
         <!-- 헤더: 캐릭터명/직업/레벨 + 닫기 버튼 -->
         <div class="modal-header">
           <div class="character-info-header">
@@ -21,11 +27,6 @@
               <p>{{ character.characterClassName }} • iLv. {{ character.itemMaxLevel }}</p>
             </div>
           </div>
-          <button class="close-button" @click="close" aria-label="닫기">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
         </div>
 
         <!-- 탭: 장비 / 각인 / 세트효과 -->
@@ -124,14 +125,14 @@
             <p class="placeholder-text">세트 효과 정보가 여기에 표시됩니다.</p>
           </div>
         </div>
-      </div>
     </div>
-  </Transition>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import LazyImage from './LazyImage.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 interface Character {
   characterName: string
@@ -156,20 +157,20 @@ interface Engraving {
 }
 
 interface Props {
-  isOpen: boolean
-  character: Character
+  character: Character | null
   equipment?: Equipment[]
   engravings?: Engraving[]
+  loading?: boolean
+  errorMessage?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  character: null,
   equipment: () => [],
-  engravings: () => []
+  engravings: () => [],
+  loading: false,
+  errorMessage: null
 })
-
-const emit = defineEmits<{
-  close: []
-}>()
 
 const currentTab = ref<'equipment' | 'engravings' | 'sets'>('equipment')
 const selectedEquipment = ref<Equipment | null>(null)
@@ -182,79 +183,59 @@ const tabs = [
 
 // 첫 장비 자동 선택
 watch(() => props.equipment, (newEquipment) => {
-  if (newEquipment.length > 0 && !selectedEquipment.value) {
-    selectedEquipment.value = newEquipment[0]
-  }
+  selectedEquipment.value = newEquipment.length > 0 ? newEquipment[0] : null
 }, { immediate: true })
 
 const selectEquipment = (item: Equipment) => {
   selectedEquipment.value = item
 }
 
-const handleOverlayClick = () => {
-  close()
-}
-
-const close = () => {
+watch(() => props.character, () => {
   currentTab.value = 'equipment'
-  selectedEquipment.value = null
-  emit('close')
-}
-
-// ESC 키로 닫기
-watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) {
-    document.addEventListener('keydown', handleEscape)
-  } else {
-    document.removeEventListener('keydown', handleEscape)
-  }
-})
-
-const handleEscape = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-    close()
-  }
-}
+  selectedEquipment.value = props.equipment.length > 0 ? props.equipment[0] : null
+}, { immediate: true })
 </script>
 
 <style scoped>
-/* 오버레이 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 20px;
+/* 인라인 컨테이너 */
+.character-detail-panel {
+  width: 100%;
+  background: transparent;
+}
+
+.detail-placeholder {
+  padding: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--card-bg);
+  text-align: center;
+  color: var(--text-secondary);
 }
 
 /* 모달 컨테이너: 960×800 */
 .modal-container {
   width: 100%;
   max-width: 960px;
-  height: 800px;
-  max-height: 90vh;
+  min-height: 400px;
   background: var(--card-bg);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color);
   overflow: hidden;
+  margin: 0 auto;
 }
 
 /* 헤더 */
 .modal-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   padding: 24px;
   border-bottom: 2px solid var(--border-color);
   background: var(--bg-secondary);
+  gap: 16px;
 }
 
 .character-info-header {
@@ -280,25 +261,6 @@ const handleEscape = (e: KeyboardEvent) => {
   font-size: 14px;
   color: var(--text-secondary);
   margin: 0;
-}
-
-.close-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  border: none;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.close-button:hover {
-  background: var(--error-color);
-  color: white;
 }
 
 /* 탭 */

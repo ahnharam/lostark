@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="app-container">
     <header class="page-header">
       <h1>LOA Character Search</h1>
@@ -12,7 +12,7 @@
             <AutocompleteInput
               v-model="characterName"
               :suggestions="searchSuggestions"
-              placeholder="캐릭터명을 입력하고 Enter 또는 추천어를 선택"
+              placeholder="罹먮┃?곕챸?��낅젰?섍퀬 Enter ?먮뒗 異붿쿇?대? ?좏깮"
               inputClass="search-input"
               :min-chars="0"
               :max-suggestions="8"
@@ -26,10 +26,10 @@
 
           <div class="hints">
             <span class="hint-label">Hints:</span>
-            <span class="hint-text">• Header autocomplete • Enter submits • Arrow selects suggestion</span>
+            <span class="hint-text">??Header autocomplete ??Enter submits ??Arrow selects suggestion</span>
           </div>
 
-          <section class="states-section">
+          <section class="states-section" v-if="false">
             <h2>States</h2>
             <div class="states-grid">
               <div class="state-card">
@@ -45,7 +45,7 @@
           </section>
 
           <div v-if="loading" class="loading-display">
-            <LoadingSpinner message="캐릭터 정보를 불러오는 중..." />
+            <LoadingSpinner message="罹먮┃?��뺣낫瑜?遺덈윭?ㅻ뒗 以?.." />
           </div>
 
           <div v-if="error && !loading" class="error-display">
@@ -62,48 +62,75 @@
 
           <div v-if="!loading && !character && !error" class="empty-display">
             <EmptyState
-              icon="🔍"
-              title="캐릭터를 검색해주세요"
-              description="캐릭터명을 입력하고 Enter를 누르거나 추천 목록에서 선택하세요."
+              icon="?뵇"
+              title="罹먮┃?곕? 寃?됲빐二쇱꽭??
+              description="罹먮┃?곕챸?��낅젰?섍퀬 Enter瑜??꾨Ⅴ嫄곕굹 異붿쿇 紐⑸줉?먯꽌 ?좏깮?섏꽭??"
             />
           </div>
 
           <section v-if="character && !loading" class="results-section">
-            <h2>Results</h2>
-            <div class="character-grid">
-              <div 
-                v-for="sibling in displayCharacters" 
-                :key="sibling.characterName" 
-                class="character-card"
-                @click="openModalForCharacter(sibling)"
+            <div class="result-tabs">
+              <button
+                v-for="tab in resultTabs"
+                :key="tab.id"
+                :class="['result-tab-button', { active: activeResultTab === tab.id }]"
+                @click="activeResultTab = tab.id"
               >
-                <div class="character-image">
-                  <LazyImage
-                    v-if="sibling.characterImage"
-                    :src="sibling.characterImage"
-                    :alt="sibling.characterName"
-                    width="100%"
-                    height="200"
-                    imageClass="char-img"
-                    errorIcon="👤"
-                  />
-                </div>
-                <div class="character-info">
-                  <h3>{{ sibling.characterName }}</h3>
-                  <p class="character-class">
-                    {{ sibling.characterClassName }} • iLv. {{ sibling.itemMaxLevel }}
-                  </p>
-                  <div class="engravings-mini" v-if="characterEngravings[sibling.characterName]">
-                    <span 
-                      v-for="(eng, idx) in characterEngravings[sibling.characterName].slice(0, 5)" 
-                      :key="idx" 
-                      class="engraving-tag"
-                    >
-                      {{ eng }}
-                    </span>
+                {{ tab.label }}
+              </button>
+            </div>
+
+            <div v-show="activeResultTab === 'characters'" class="tab-panel">
+              <h2>보유캐릭터</h2>
+              <div class="character-grid">
+                <div 
+                  v-for="sibling in displayCharacters" 
+                  :key="sibling.characterName" 
+                  class="character-card"
+                  :class="{ unavailable: characterAvailability[sibling.characterName] === 'unavailable' }"
+                  @click="selectCharacterFromCard(sibling)"
+                >
+                  <div class="unavailable-badge" v-if="characterAvailability[sibling.characterName] === 'unavailable'">
+                    정보 없음
+                  </div>
+                  <div class="character-image">
+                    <LazyImage
+                      v-if="getCharacterImage(sibling)"
+                      :src="getCharacterImage(sibling)"
+                      :alt="sibling.characterName"
+                      width="100%"
+                      height="200"
+                      imageClass="char-img"
+                      errorIcon="?��"
+                    />
+                  </div>
+                  <div class="character-info">
+                    <h3>{{ sibling.characterName }}</h3>
+                    <p class="character-class">
+                      {{ sibling.characterClassName }} ??iLv. {{ sibling.itemMaxLevel }}
+                    </p>
+                    <div class="engravings-mini" v-if="characterEngravings[sibling.characterName]">
+                      <span 
+                        v-for="(eng, idx) in characterEngravings[sibling.characterName].slice(0, 5)" 
+                        :key="idx" 
+                        class="engraving-tag"
+                      >
+                        {{ eng }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div v-show="activeResultTab === 'details'" class="tab-panel detail-panel">
+              <CharacterDetailModal
+                :character="selectedCharacterProfile"
+                :equipment="detailEquipment"
+                :engravings="detailEngravings"
+                :loading="detailLoading"
+                :error-message="detailError"
+              />
             </div>
           </section>
         </div>
@@ -111,9 +138,9 @@
 
       <aside class="sidebar">
         <div class="sidebar-section">
-          <h2>🌟 즐겨찾기</h2>
+          <h2>?뙚 利먭꺼李얘린</h2>
           <div v-if="favorites.length === 0" class="empty-message">
-            즐겨찾기가 비어있습니다
+            利먭꺼李얘린媛 鍮꾩뼱?덉뒿?덈떎
           </div>
           <div v-else class="favorite-list">
             <div
@@ -129,7 +156,7 @@
                 width="40"
                 height="40"
                 imageClass="fav-image"
-                errorIcon="👤"
+                errorIcon="?뫀"
               />
               <div class="fav-details">
                 <div class="fav-name">{{ fav.characterName }}</div>
@@ -141,13 +168,13 @@
 
         <div class="sidebar-section">
           <div class="section-header">
-            <h2>🕒 최근 검색</h2>
+            <h2>?븩 理쒓렐 寃??/h2>
             <button v-if="history.length > 0" @click="clearHistory" class="clear-btn-sm">
-              전체 삭제
+              ?꾩껜 ??젣
             </button>
           </div>
           <div v-if="history.length === 0" class="empty-message">
-            검색 기록이 없습니다
+            寃??湲곕줉?��놁뒿?덈떎
           </div>
           <div v-else class="history-list">
             <div
@@ -162,15 +189,6 @@
         </div>
       </aside>
     </div>
-    <!-- Character Detail Modal -->
-    <CharacterDetailModal
-      v-if="isModalOpen"
-      :is-open="isModalOpen"
-      :character="modalCharacter"
-      :equipment="modalEquipment"
-      :engravings="modalEngravings"
-      @close="isModalOpen = false"
-    />
   </div>
 </template>
 
@@ -204,17 +222,20 @@ const siblings = ref<SiblingCharacter[]>([])
 const favorites = ref<CharacterProfile[]>([])
 const history = ref<SearchHistory[]>([])
 const characterEngravings = ref<Record<string, string[]>>({})
+const characterImages = ref<Record<string, string>>({})
+const characterAvailability = ref<Record<string, 'available' | 'unavailable' | 'loading'>>({})
 
-// Modal state for Card → Modal (상세 보기)
-const isModalOpen = ref(false)
-const modalCharacter = ref<{ characterName: string; characterClassName: string; characterImage?: string; itemMaxLevel: string }>({
-  characterName: '',
-  characterClassName: '',
-  characterImage: '',
-  itemMaxLevel: ''
-})
-const modalEquipment = ref<Equipment[]>([])
-const modalEngravings = ref<Engraving[]>([])
+const resultTabs = [
+  { id: 'characters', label: '보유캐릭터' },
+  { id: 'details', label: '상세 보기' }
+]
+const activeResultTab = ref<'characters' | 'details'>('characters')
+
+const selectedCharacterProfile = ref<CharacterProfile | null>(null)
+const detailEquipment = ref<Equipment[]>([])
+const detailEngravings = ref<Engraving[]>([])
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
 
 const displayCharacters = computed(() => {
   const chars: SiblingCharacter[] = []
@@ -241,7 +262,7 @@ const searchSuggestions = computed<Suggestion[]>(() => {
     suggestions.push({
       id: `fav-${fav.characterName}`,
       name: fav.characterName,
-      info: `${fav.serverName} • ${fav.characterClassName}`,
+      info: `${fav.serverName} ??${fav.characterClassName}`,
       level: fav.itemMaxLevel,
       isFavorite: true
     })
@@ -253,7 +274,7 @@ const searchSuggestions = computed<Suggestion[]>(() => {
       suggestions.push({
         id: `history-${h.id}`,
         name: h.characterName,
-        info: '최근 검색',
+        info: '理쒓렐 寃??,
         isFavorite: false
       })
     }
@@ -267,22 +288,17 @@ onMounted(() => {
   loadHistory()
 })
 
-const searchCharacterByInput = () => {
-  if (!characterName.value.trim()) {
-    error.value = {
-      message: '캐릭터명을 입력해주세요.',
-      type: 'warning'
-    }
-    return
-  }
-  searchCharacter(characterName.value.trim())
-}
-
 const searchCharacter = async (name: string) => {
   loading.value = true
   error.value = null
   character.value = null
   siblings.value = []
+  activeResultTab.value = 'characters'
+  selectedCharacterProfile.value = null
+  detailEquipment.value = []
+  detailEngravings.value = []
+  detailError.value = null
+  characterAvailability.value = {}
 
   try {
     const charResponse = await lostarkApi.getCharacter(name)
@@ -291,6 +307,10 @@ const searchCharacter = async (name: string) => {
 
     const siblingsResponse = await lostarkApi.getSiblings(name)
     siblings.value = siblingsResponse.data
+
+    if (character.value?.characterImage) {
+      characterImages.value[character.value.characterName] = character.value.characterImage
+    }
 
     const engravingsPromises = displayCharacters.value.map(async (char) => {
       try {
@@ -303,20 +323,22 @@ const searchCharacter = async (name: string) => {
         characterEngravings.value[char.characterName] = []
       }
     })
-    
-    await Promise.all([...engravingsPromises, loadHistory()])
+
+    const historyPromise = loadHistory()
+    await Promise.all([...engravingsPromises, historyPromise])
+    await loadCharacterDetails(name, { profile: charResponse.data })
   } catch (err: any) {
     const errorData = err.response?.data
     if (err.response?.status === 404) {
       error.value = {
         title: '캐릭터를 찾을 수 없습니다',
-        message: errorData?.message || `'${name}' 캐릭터가 존재하지 않습니다.`,
+        message: errorData?.message || `'${name}' 캐릭터가 존재하지 않아요.`,
         type: 'error'
       }
     } else {
       error.value = {
         title: '검색 실패',
-        message: errorData?.message || '알 수 없는 오류가 발생했습니다.',
+        message: errorData?.message || '예상치 못한 오류가 발생했어요.',
         type: 'error'
       }
     }
@@ -324,7 +346,6 @@ const searchCharacter = async (name: string) => {
     loading.value = false
   }
 }
-
 const retrySearch = () => {
   if (characterName.value) {
     searchCharacter(characterName.value)
@@ -340,6 +361,12 @@ const clearSearch = () => {
   character.value = null
   siblings.value = []
   error.value = null
+  selectedCharacterProfile.value = null
+  detailEquipment.value = []
+  detailEngravings.value = []
+  detailError.value = null
+  activeResultTab.value = 'characters'
+  characterAvailability.value = {}
 }
 
 const loadFavorites = async () => {
@@ -347,26 +374,75 @@ const loadFavorites = async () => {
     const response = await lostarkApi.getFavorites()
     favorites.value = response.data
   } catch (err) {
-    console.error('즐겨찾기 로딩 실패:', err)
+    console.error('利먭꺼李얘린 濡쒕뵫 ?ㅽ뙣:', err)
   }
 }
 
 const loadHistory = async () => {
   try {
     const response = await lostarkApi.getHistory()
-    history.value = response.data
+    const items = response.data
+      .slice()
+      .sort((a, b) => new Date(b.searchedAt).getTime() - new Date(a.searchedAt).getTime())
+    const seen = new Set<string>()
+    const unique: typeof items = []
+    for (const it of items) {
+      if (!seen.has(it.characterName)) {
+        seen.add(it.characterName)
+        unique.push(it)
+      }
+    }
+    history.value = unique
   } catch (err) {
-    console.error('히스토리 로딩 실패:', err)
+    console.error('?덉뒪?좊━ 濡쒕뵫 ?ㅽ뙣:', err)
   }
 }
 
 const clearHistory = async () => {
-  if (!confirm('검색 기록을 모두 삭제하시겠습니까?')) return
+  if (!confirm('寃??湲곕줉??紐⑤몢 ??젣?섏떆寃좎뒿?덇퉴?')) return
   try {
     await lostarkApi.clearHistory()
     history.value = []
   } catch (err) {
-    console.error('히스토리 삭제 실패:', err)
+    console.error('?덉뒪?좊━ ??젣 ?ㅽ뙣:', err)
+  }
+}
+
+const loadCharacterDetails = async (name: string, options: { profile?: CharacterProfile } = {}) => {
+  detailLoading.value = true
+  detailError.value = null
+  activeResultTab.value = 'details'
+  characterAvailability.value[name] = 'loading'
+
+  try {
+    const profilePromise = options.profile
+      ? Promise.resolve(options.profile)
+      : lostarkApi.getCharacter(name).then(res => res.data)
+
+    const [profile, equipmentResponse, engravingsResponse] = await Promise.all([
+      profilePromise,
+      lostarkApi.getEquipment(name),
+      lostarkApi.getEngravings(name)
+    ])
+
+    selectedCharacterProfile.value = profile
+    detailEquipment.value = equipmentResponse.data
+    detailEngravings.value = engravingsResponse.data
+    characterImages.value[name] = profile.characterImage || ''
+    characterAvailability.value[name] = 'available'
+  } catch (err: any) {
+    characterAvailability.value[name] = 'unavailable'
+    selectedCharacterProfile.value = options.profile || null
+    detailEquipment.value = []
+    detailEngravings.value = []
+    if (err.response?.status === 404) {
+      detailError.value = `'${name}' 캐릭터 정보를 불러올 수 없어요. 오랜 기간 미접속 캐릭터일 수 있습니다.`
+    } else {
+      detailError.value = err.response?.data?.message || '상세 정보를 불러오지 못했어요.'
+    }
+    console.error('Failed to load character details', err)
+  } finally {
+    detailLoading.value = false
   }
 }
 
@@ -374,28 +450,18 @@ const handleSuggestionSelect = (suggestion: Suggestion) => {
   searchCharacter(suggestion.name)
 }
 
-// Open modal for selected character card
-const openModalForCharacter = async (sibling: SiblingCharacter) => {
-  modalCharacter.value = {
-    characterName: sibling.characterName,
-    characterClassName: sibling.characterClassName,
-    characterImage: (sibling as any).characterImage || '',
-    itemMaxLevel: sibling.itemMaxLevel
+const selectCharacterFromCard = (sibling: SiblingCharacter) => {
+  activeResultTab.value = 'details'
+  if (characterAvailability.value[sibling.characterName] === 'unavailable') {
+    detailError.value = `'${sibling.characterName}' 정보가 없어요.`
+    selectedCharacterProfile.value = null
+    return
   }
-  isModalOpen.value = true
-  modalEquipment.value = []
-  modalEngravings.value = []
-  try {
-    const [eq, eng] = await Promise.all([
-      lostarkApi.getEquipment(sibling.characterName),
-      lostarkApi.getEngravings(sibling.characterName)
-    ])
-    modalEquipment.value = eq.data
-    modalEngravings.value = eng.data
-  } catch (e) {
-    // Fail silently in modal; keep it open with whatever data we have
-    console.error('Failed to load modal data', e)
-  }
+  loadCharacterDetails(sibling.characterName)
+}
+
+const getCharacterImage = (sibling: SiblingCharacter) => {
+  return sibling.characterImage || characterImages.value[sibling.characterName] || ''
 }
 </script>
 
@@ -533,6 +599,43 @@ const openModalForCharacter = async (sibling: SiblingCharacter) => {
   margin-top: 30px;
 }
 
+.result-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.result-tab-button {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 2px solid var(--border-color);
+  background: var(--card-bg);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.result-tab-button.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+.tab-panel {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.tab-panel.detail-panel {
+  padding: 0;
+  background: transparent;
+  border: none;
+  margin-top: 20px;
+}
+
 .results-section h2 {
   font-size: 1.3rem;
   color: var(--text-primary);
@@ -553,6 +656,7 @@ const openModalForCharacter = async (sibling: SiblingCharacter) => {
   border: 2px solid var(--border-color);
   transition: all 0.3s;
   cursor: pointer;
+  position: relative;
 }
 
 .character-card:hover {
@@ -603,6 +707,24 @@ const openModalForCharacter = async (sibling: SiblingCharacter) => {
   color: var(--text-inverse);
   border-radius: 10px;
   font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.character-card.unavailable {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.unavailable-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text-inverse);
+  border-radius: 999px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -747,3 +869,4 @@ const openModalForCharacter = async (sibling: SiblingCharacter) => {
   }
 }
 </style>
+
