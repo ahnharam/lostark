@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.entity.Character;
+import com.lostark.backend.exception.ApiException;
+import com.lostark.backend.exception.CharacterNotFoundException;
 import com.lostark.backend.repository.CharacterRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,12 +20,12 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class CharacterService {
-    
+
     private final CharacterRepository characterRepository;
     private final LostArkApiService lostArkApiService;
     private final ObjectMapper objectMapper;
     private final SearchHistoryService searchHistoryService;
-    
+
     private static final Duration CACHE_DURATION = Duration.ofHours(1);
     
     @Transactional
@@ -51,34 +53,25 @@ public class CharacterService {
         log.info("로스트아크 API 호출: {}", characterName);
         try {
             CharacterProfileDto profile = lostArkApiService.getCharacterProfile(characterName).block();
-            
-            log.info("API 응답 받음: profile={}", profile);
-            
-            if (profile == null) {
-                log.error("API 응답이 null입니다: {}", characterName);
-                throw new RuntimeException("캐릭터를 찾을 수 없습니다.");
-            }
-            
-            log.info("profile.getCharacterName()={}", profile.getCharacterName());
-            log.info("profile.getServerName()={}", profile.getServerName());
-            log.info("profile.getItemMaxLevel()={}", profile.getItemMaxLevel());
-            
-            if (profile.getCharacterName() == null) {
+
+            if (profile == null || profile.getCharacterName() == null) {
                 log.error("캐릭터를 찾을 수 없음: {}", characterName);
-                throw new RuntimeException("캐릭터를 찾을 수 없습니다.");
+                throw new CharacterNotFoundException("캐릭터를 찾을 수 없습니다: " + characterName);
             }
-            
+
             log.info("API 호출 성공: {}", profile.getCharacterName());
-            
+
             // 3. DB에 저장 또는 업데이트
             Character character = cachedCharacter.orElse(new Character());
             updateCharacterFromDto(character, profile);
             characterRepository.save(character);
-            
+
             return profile;
+        } catch (CharacterNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("캐릭터 검색 실패: {} - {}", characterName, e.getMessage(), e);
-            throw new RuntimeException("캐릭터를 찾을 수 없습니다.");
+            throw new ApiException("로스트아크 API 호출 중 오류가 발생했습니다.", e);
         }
     }
     

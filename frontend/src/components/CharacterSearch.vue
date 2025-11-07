@@ -232,8 +232,9 @@ const groupedSiblings = computed(() => {
   // 각 서버 내에서 아이템 레벨 높은 순으로 정렬
   Object.keys(grouped).forEach(serverName => {
     grouped[serverName].sort((a, b) => {
-      const levelA = parseFloat(a.itemMaxLevel.replace(/,/g, ''))
-      const levelB = parseFloat(b.itemMaxLevel.replace(/,/g, ''))
+      // null 체크 추가
+      const levelA = a.itemMaxLevel ? parseFloat(a.itemMaxLevel.replace(/,/g, '')) : 0
+      const levelB = b.itemMaxLevel ? parseFloat(b.itemMaxLevel.replace(/,/g, '')) : 0
       return levelB - levelA
     })
   })
