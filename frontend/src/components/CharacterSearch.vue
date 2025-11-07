@@ -1,7 +1,10 @@
 <template>
   <div class="app-container">
     <aside class="sidebar">
-      <h2>🌟 즐겨찾기</h2>
+      <div class="sidebar-header">
+        <h2>🌟 즐겨찾기</h2>
+        <ThemeToggle />
+      </div>
       <div v-if="favorites.length === 0" class="empty-message">
         즐겨찾기가 비어있습니다
       </div>
@@ -217,6 +220,12 @@ import { lostarkApi, type CharacterProfile, type Equipment, type Engraving, type
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
 import EmptyState from './common/EmptyState.vue'
+import ThemeToggle from './common/ThemeToggle.vue'
+import { useTheme } from '@/composables/useTheme'
+
+// 테마 초기화
+const { initTheme } = useTheme()
+initTheme()
 
 interface ErrorState {
   message: string
@@ -499,25 +508,34 @@ watch(currentTab, watchTab)
 .app-container {
   display: flex;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
 }
 
 .sidebar {
   width: 280px;
-  background: white;
+  background: var(--sidebar-bg);
   padding: 20px;
   overflow-y: auto;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 10px var(--sidebar-shadow);
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border-color-light);
 }
 
 .sidebar h2 {
   font-size: 1.2rem;
-  margin: 20px 0 10px 0;
-  color: #333;
+  margin: 0;
+  color: var(--text-primary);
 }
 
 .empty-message {
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
   padding: 10px;
   text-align: center;
@@ -535,14 +553,14 @@ watch(currentTab, watchTab)
   align-items: center;
   gap: 10px;
   padding: 10px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .favorite-item:hover {
-  background: #e9ecef;
+  background: var(--bg-hover);
 }
 
 .favorite-item img {
@@ -554,12 +572,12 @@ watch(currentTab, watchTab)
 
 .fav-name {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .fav-level {
   font-size: 0.85rem;
-  color: #667eea;
+  color: var(--primary-color);
 }
 
 .history-header {
@@ -571,8 +589,8 @@ watch(currentTab, watchTab)
 .clear-btn {
   padding: 5px 10px;
   font-size: 0.85rem;
-  background: #ff6b6b;
-  color: white;
+  background: var(--error-color);
+  color: var(--text-inverse);
   border: none;
   border-radius: 5px;
   cursor: pointer;
@@ -586,7 +604,7 @@ watch(currentTab, watchTab)
 
 .history-item {
   padding: 10px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s;
@@ -594,7 +612,7 @@ watch(currentTab, watchTab)
 }
 
 .history-item:hover {
-  background: #e9ecef;
+  background: var(--bg-hover);
 }
 
 .main-content {
@@ -610,10 +628,10 @@ watch(currentTab, watchTab)
 
 h1 {
   text-align: center;
-  color: white;
+  color: var(--text-inverse);
   font-size: 2.5rem;
   margin-bottom: 40px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .search-box {
@@ -626,51 +644,45 @@ h1 {
   flex: 1;
   padding: 15px 20px;
   font-size: 1.1rem;
-  border: none;
+  border: 2px solid var(--input-border);
   border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-input:focus {
   outline: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow);
 }
 
 .search-button {
   padding: 15px 40px;
   font-size: 1.1rem;
-  background-color: #4CAF50;
-  color: white;
+  background-color: var(--success-color);
+  color: var(--text-inverse);
   border: none;
   border-radius: 10px;
   cursor: pointer;
   transition: background-color 0.3s;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-button:hover:not(:disabled) {
-  background-color: #45a049;
+  background-color: var(--success-hover);
 }
 
 .search-button:disabled {
-  background-color: #cccccc;
+  background-color: var(--text-tertiary);
   cursor: not-allowed;
 }
 
-.error-message {
-  background-color: #ff6b6b;
-  color: white;
-  padding: 15px;
-  border-radius: 10px;
-  text-align: center;
-  margin-bottom: 20px;
-}
-
 .character-info {
-  background: white;
+  background: var(--card-bg);
   border-radius: 15px;
   padding: 30px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   animation: fadeIn 0.5s;
 }
 
@@ -691,7 +703,7 @@ h1 {
   gap: 20px;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 2px solid var(--border-color-light);
 }
 
 .character-image {
@@ -699,7 +711,7 @@ h1 {
   height: 120px;
   border-radius: 10px;
   object-fit: cover;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .character-basic {
@@ -713,7 +725,7 @@ h1 {
 }
 
 .character-basic h2 {
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
   font-size: 2rem;
 }
@@ -731,7 +743,7 @@ h1 {
 }
 
 .server {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 1.1rem;
   margin: 10px 0 0 0;
 }
@@ -740,7 +752,7 @@ h1 {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 2px solid var(--border-color-light);
 }
 
 .tab {
@@ -749,18 +761,18 @@ h1 {
   border: none;
   cursor: pointer;
   font-size: 1rem;
-  color: #666;
+  color: var(--text-secondary);
   border-bottom: 3px solid transparent;
   transition: all 0.3s;
 }
 
 .tab:hover {
-  color: #667eea;
+  color: var(--primary-color);
 }
 
 .tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
   font-weight: 600;
 }
 
@@ -777,22 +789,22 @@ h1 {
   display: flex;
   justify-content: space-between;
   padding: 15px;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   border-radius: 8px;
 }
 
 .label {
   font-weight: 600;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .value {
-  color: #333;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .value.highlight {
-  color: #667eea;
+  color: var(--primary-color);
   font-size: 1.2rem;
   font-weight: 700;
 }
@@ -800,7 +812,7 @@ h1 {
 .loading {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .equipment-grid {
@@ -814,7 +826,7 @@ h1 {
   align-items: center;
   gap: 10px;
   padding: 15px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   transition: all 0.3s;
 }
@@ -824,9 +836,9 @@ h1 {
 }
 
 .equipment-item.clickable:hover {
-  background: #e9ecef;
+  background: var(--bg-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .equipment-item img {
@@ -841,12 +853,13 @@ h1 {
 
 .equipment-type {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .equipment-name {
   font-weight: 600;
   margin-top: 5px;
+  color: var(--text-primary);
 }
 
 /* 장비 상세 모달 */
@@ -856,7 +869,7 @@ h1 {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -865,14 +878,14 @@ h1 {
 }
 
 .modal-content {
-  background: white;
+  background: var(--modal-bg);
   border-radius: 15px;
   padding: 30px;
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-xl);
 }
 
 .modal-close {
@@ -883,17 +896,17 @@ h1 {
   background: none;
   border: none;
   cursor: pointer;
-  color: #999;
+  color: var(--text-tertiary);
   line-height: 1;
 }
 
 .modal-close:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .modal-content h3 {
   margin: 0 0 15px 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 1.5rem;
 }
 
@@ -912,17 +925,17 @@ h1 {
 }
 
 .modal-type {
-  background: #e9ecef;
-  color: #495057;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .modal-grade {
-  background: #667eea;
-  color: white;
+  background: var(--primary-color);
+  color: var(--text-inverse);
 }
 
 .modal-tooltip {
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   padding: 15px;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -930,13 +943,13 @@ h1 {
 }
 
 .tooltip-content {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .tooltip-line {
   margin-bottom: 8px;
   padding: 5px 0;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tooltip-line:last-child {
@@ -959,7 +972,7 @@ h1 {
   flex-direction: column;
   align-items: center;
   padding: 15px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   text-align: center;
 }
@@ -973,6 +986,7 @@ h1 {
 .engraving-name {
   font-weight: 600;
   font-size: 0.9rem;
+  color: var(--text-primary);
 }
 
 .siblings-by-server {
@@ -982,18 +996,18 @@ h1 {
 }
 
 .server-group {
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   padding: 20px;
   border-radius: 12px;
 }
 
 .server-name {
-  color: #667eea;
+  color: var(--primary-color);
   font-size: 1.3rem;
   font-weight: 700;
   margin: 0 0 15px 0;
   padding-bottom: 10px;
-  border-bottom: 2px solid #667eea;
+  border-bottom: 2px solid var(--primary-color);
 }
 
 .siblings-grid {
@@ -1004,7 +1018,7 @@ h1 {
 
 .sibling-item {
   padding: 20px;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
@@ -1013,21 +1027,26 @@ h1 {
 }
 
 .sibling-item:hover {
-  background: #667eea;
-  color: white;
+  background: var(--primary-color);
+  color: var(--text-inverse);
   transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-  border-color: #667eea;
+  box-shadow: 0 5px 15px var(--shadow-color);
+  border-color: var(--primary-color);
 }
 
 .sibling-name {
   font-weight: 700;
   font-size: 1.1rem;
   margin-bottom: 5px;
+  color: var(--text-primary);
+}
+
+.sibling-item:hover .sibling-name {
+  color: var(--text-inverse);
 }
 
 .sibling-class {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   margin-bottom: 5px;
 }
@@ -1037,13 +1056,13 @@ h1 {
 }
 
 .sibling-level {
-  color: #667eea;
+  color: var(--primary-color);
   font-weight: 600;
   font-size: 1rem;
 }
 
 .sibling-item:hover .sibling-level {
-  color: white;
+  color: var(--text-inverse);
 }
 
 /* 모바일 반응형 */
