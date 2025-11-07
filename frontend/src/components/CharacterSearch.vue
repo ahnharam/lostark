@@ -152,17 +152,11 @@
               </div>
 
               <!-- 장비 상세 모달 -->
-              <div v-if="selectedEquipment" class="equipment-modal" @click="selectedEquipment = null">
-                <div class="modal-content" @click.stop>
-                  <button class="modal-close" @click="selectedEquipment = null">×</button>
-                  <h3>{{ selectedEquipment.name }}</h3>
-                  <div class="modal-info">
-                    <span class="modal-type">{{ selectedEquipment.type }}</span>
-                    <span class="modal-grade" :class="selectedEquipment.grade">{{ selectedEquipment.grade }}</span>
-                  </div>
-                  <div v-if="selectedEquipment.tooltip" class="modal-tooltip" v-html="parseTooltip(selectedEquipment.tooltip)"></div>
-                </div>
-              </div>
+              <EquipmentDetailModal
+                v-if="selectedEquipment"
+                :equipment="selectedEquipment"
+                @close="selectedEquipment = null"
+              />
             </div>
 
             <div v-if="currentTab === 'engravings'" class="engravings-info">
@@ -221,6 +215,7 @@ import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
 import EmptyState from './common/EmptyState.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
+import EquipmentDetailModal from './common/EquipmentDetailModal.vue'
 import { useTheme } from '@/composables/useTheme'
 
 // 테마 초기화
@@ -456,36 +451,6 @@ const clearHistory = async () => {
 // 장비 상세 정보 표시
 const showEquipmentDetail = (item: Equipment) => {
   selectedEquipment.value = item
-}
-
-// tooltip HTML 파싱 (간단한 텍스트 표시)
-const parseTooltip = (tooltip: string) => {
-  if (!tooltip) return ''
-
-  try {
-    // JSON 파싱 시도
-    const parsed = JSON.parse(tooltip)
-
-    // 로스트아크 tooltip 구조에 따라 간단하게 표시
-    let html = '<div class="tooltip-content">'
-
-    if (typeof parsed === 'object') {
-      // 객체인 경우 주요 정보만 표시
-      Object.keys(parsed).forEach(key => {
-        if (typeof parsed[key] === 'string' || typeof parsed[key] === 'number') {
-          html += `<div class="tooltip-line"><strong>${key}:</strong> ${parsed[key]}</div>`
-        }
-      })
-    } else {
-      html += `<pre>${JSON.stringify(parsed, null, 2)}</pre>`
-    }
-
-    html += '</div>'
-    return html
-  } catch (e) {
-    // JSON이 아닌 경우 그대로 표시
-    return `<div class="tooltip-text">${tooltip}</div>`
-  }
 }
 
 // 탭 변경 시 데이터 로딩
@@ -860,105 +825,6 @@ h1 {
   font-weight: 600;
   margin-top: 5px;
   color: var(--text-primary);
-}
-
-/* 장비 상세 모달 */
-.equipment-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--modal-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.3s;
-}
-
-.modal-content {
-  background: var(--modal-bg);
-  border-radius: 15px;
-  padding: 30px;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  position: relative;
-  box-shadow: var(--shadow-xl);
-}
-
-.modal-close {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  font-size: 2rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-}
-
-.modal-close:hover {
-  color: var(--text-primary);
-}
-
-.modal-content h3 {
-  margin: 0 0 15px 0;
-  color: var(--text-primary);
-  font-size: 1.5rem;
-}
-
-.modal-info {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.modal-type,
-.modal-grade {
-  padding: 5px 12px;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.modal-type {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.modal-grade {
-  background: var(--primary-color);
-  color: var(--text-inverse);
-}
-
-.modal-tooltip {
-  background: var(--bg-secondary);
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-.tooltip-content {
-  color: var(--text-primary);
-}
-
-.tooltip-line {
-  margin-bottom: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.tooltip-line:last-child {
-  border-bottom: none;
-}
-
-.tooltip-text {
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .engravings-grid {
