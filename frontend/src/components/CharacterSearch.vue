@@ -167,10 +167,31 @@
                 title="각인 정보 없음"
                 description="이 캐릭터의 각인 정보를 불러올 수 없습니다."
               />
-              <div v-else class="engravings-grid">
-                <div v-for="eng in engravings" :key="eng.name" class="engraving-item">
-                  <img v-if="eng.icon" :src="eng.icon" :alt="eng.name" />
-                  <div class="engraving-name">{{ eng.name }}</div>
+              <div v-else>
+                <!-- 각인 등급 요약 -->
+                <div class="engravings-summary">
+                  <div class="summary-item">
+                    <span class="summary-label">각인 등급</span>
+                    <span class="summary-value" :class="engravingGradeClass">{{ engravingGrade }}</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-label">활성 각인</span>
+                    <span class="summary-value">{{ activeEngravingsCount }}개</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-label">Lv.3 각인</span>
+                    <span class="summary-value primary">{{ lv3EngravingsCount }}개</span>
+                  </div>
+                </div>
+
+                <!-- 각인 목록 -->
+                <div class="engravings-list">
+                  <EngravingCard
+                    v-for="eng in engravings"
+                    :key="eng.name"
+                    :engraving="eng"
+                    :show-description="false"
+                  />
                 </div>
               </div>
             </div>
@@ -216,7 +237,9 @@ import ErrorMessage from './common/ErrorMessage.vue'
 import EmptyState from './common/EmptyState.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
 import EquipmentDetailModal from './common/EquipmentDetailModal.vue'
+import EngravingCard from './common/EngravingCard.vue'
 import { useTheme } from '@/composables/useTheme'
+import { parseEngravingDescription, calculateEngravingGrade, type ParsedEngraving } from '@/utils/engravingParser'
 
 // 테마 초기화
 const { initTheme } = useTheme()
@@ -277,6 +300,32 @@ const groupedSiblings = computed(() => {
   })
 
   return grouped
+})
+
+// 각인 데이터 파싱 및 계산
+const parsedEngravings = computed<ParsedEngraving[]>(() => {
+  return engravings.value.map(eng => parseEngravingDescription(eng.description))
+})
+
+const engravingGrade = computed(() => {
+  return calculateEngravingGrade(parsedEngravings.value)
+})
+
+const engravingGradeClass = computed(() => {
+  const grade = engravingGrade.value
+  if (grade === '최상급') return 'grade-supreme'
+  if (grade === '상급') return 'grade-high'
+  if (grade === '중상급') return 'grade-medium-high'
+  if (grade === '중급') return 'grade-medium'
+  return 'grade-low'
+})
+
+const activeEngravingsCount = computed(() => {
+  return parsedEngravings.value.filter(e => e.level > 0 && !e.isDebuff).length
+})
+
+const lv3EngravingsCount = computed(() => {
+  return parsedEngravings.value.filter(e => e.level === 3 && !e.isDebuff).length
 })
 
 onMounted(() => {
@@ -827,32 +876,69 @@ h1 {
   color: var(--text-primary);
 }
 
-.engravings-grid {
+/* 각인 요약 */
+.engravings-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 15px;
+  margin-bottom: 25px;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
 }
 
-.engraving-item {
+.summary-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 15px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  text-align: center;
+  gap: 8px;
+  padding: 10px;
 }
 
-.engraving-item img {
-  width: 60px;
-  height: 60px;
-  margin-bottom: 10px;
-}
-
-.engraving-name {
+.summary-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
   font-weight: 600;
-  font-size: 0.9rem;
+}
+
+.summary-value {
+  font-size: 1.3rem;
+  font-weight: 700;
   color: var(--text-primary);
+}
+
+.summary-value.primary {
+  color: var(--primary-color);
+}
+
+/* 각인 등급 색상 */
+.summary-value.grade-supreme {
+  color: #ff6b35;
+  text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+}
+
+.summary-value.grade-high {
+  color: #9333ea;
+}
+
+.summary-value.grade-medium-high {
+  color: #3b82f6;
+}
+
+.summary-value.grade-medium {
+  color: #10b981;
+}
+
+.summary-value.grade-low {
+  color: var(--text-tertiary);
+}
+
+/* 각인 목록 */
+.engravings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .siblings-by-server {
@@ -1040,8 +1126,17 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .engravings-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  .engravings-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-item {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .summary-value {
+    font-size: 1.1rem;
   }
 
   .siblings-grid {
