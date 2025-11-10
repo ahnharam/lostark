@@ -4,7 +4,7 @@
       <h1>LOA Character Search</h1>
       <ThemeToggle />
     </header>
-    
+
     <div class="content-wrapper">
       <main class="main-content">
         <div class="search-container">
@@ -84,10 +84,9 @@
                   errorIcon="👤"
                 />
                 <div class="hero-text">
-                  <div class="hero-level">Lv. {{ character.characterLevel || '-' }}</div>
                   <h2>{{ character.characterName }}</h2>
-                  <p>{{ character.characterClassName }} · iLv. {{ formatItemLevel(character.itemMaxLevel) }}</p>
                   <div class="hero-meta">
+                    <span>{{ character.characterClassName }}</span>
                     <span>{{ character.serverName }}</span>
                     <span v-if="character.guildName">길드 {{ character.guildName }}</span>
                     <span v-if="character.pvpGradeName">PVP {{ character.pvpGradeName }}</span>
@@ -97,7 +96,7 @@
               <div class="hero-actions">
                 <div class="hero-stats">
                   <div>
-                    <span>평균 아이템 레벨</span>
+                    <span>아이템 레벨</span>
                     <strong>{{ formatItemLevel(character.itemAvgLevel) }}</strong>
                   </div>
                   <div>
