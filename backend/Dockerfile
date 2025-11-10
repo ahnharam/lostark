@@ -1,23 +1,33 @@
-FROM eclipse-temurin:17-jdk-alpine
+# Build stage
+FROM eclipse-temurin:17-jdk-alpine AS build
 
 WORKDIR /app
 
-# Gradle Wrapper 및 빌드 파일만 먼저 복사 (캐시 활용)
+# Gradle Wrapper 복사
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
 
-# 실행 권한 부여
+# 실행 권한
 RUN chmod +x ./gradlew
 
-# 의존성만 먼저 다운로드 (캐시 활용)
+# 의존성 다운로드
 RUN ./gradlew dependencies --no-daemon || true
 
-# 소스 코드 복사
+# 소스 복사 및 빌드
 COPY src src
+RUN ./gradlew bootJar --no-daemon
 
-# 포트 노출
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# 빌드된 JAR 복사
+COPY --from=build /app/build/libs/*.jar app.jar
+
+# 포트
 EXPOSE 8080
 
-# 애플리케이션 실행
-CMD ["./gradlew", "bootRun", "--no-daemon"]
+# 실행
+ENTRYPOINT ["java", "-jar", "app.jar"]
