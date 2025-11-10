@@ -12,13 +12,16 @@
             <AutocompleteInput
               v-model="characterName"
               :suggestions="searchSuggestions"
-              placeholder="罹먮┃?곕챸?��낅젰?섍퀬 Enter ?먮뒗 異붿쿇?대? ?좏깮"
+              placeholder="캐릭터명을 입력하고 Enter를 누르거나 추천 목록에서 선택하세요"
               inputClass="search-input"
               :min-chars="0"
               :max-suggestions="8"
               @select="handleSuggestionSelect"
               @keyup.enter="searchCharacterByInput"
             />
+            <button @click="searchCharacterByInput" class="search-button" :disabled="loading">
+              {{ loading ? '검색 중...' : '검색' }}
+            </button>
             <button @click="clearSearch" class="clear-button">
               Clear
             </button>
@@ -26,7 +29,7 @@
 
           <div class="hints">
             <span class="hint-label">Hints:</span>
-            <span class="hint-text">??Header autocomplete ??Enter submits ??Arrow selects suggestion</span>
+            <span class="hint-text">⌨️ 자동완성 · Enter로 검색 · 화살표로 추천 선택</span>
           </div>
 
           <section class="states-section" v-if="false">
@@ -45,7 +48,7 @@
           </section>
 
           <div v-if="loading" class="loading-display">
-            <LoadingSpinner message="罹먮┃?��뺣낫瑜?遺덈윭?ㅻ뒗 以?.." />
+            <LoadingSpinner message="캐릭터 정보를 불러오는 중..." />
           </div>
 
           <div v-if="error && !loading" class="error-display">
@@ -62,68 +65,67 @@
 
           <div v-if="!loading && !character && !error" class="empty-display">
             <EmptyState
-              icon="?뵇"
-              title="罹먮┃?곕? 寃?됲빐二쇱꽭??
-              description="罹먮┃?곕챸?��낅젰?섍퀬 Enter瑜??꾨Ⅴ嫄곕굹 異붿쿇 紐⑸줉?먯꽌 ?좏깮?섏꽭??"
+              icon="🔍"
+              title="캐릭터를 검색해 주세요"
+              description="캐릭터명을 입력하고 Enter를 누르거나 추천 목록에서 선택해 주세요"
             />
           </div>
 
-          <section v-if="character && !loading" class="results-section">
-            <div class="result-tabs">
-              <button
-                v-for="tab in resultTabs"
-                :key="tab.id"
-                :class="['result-tab-button', { active: activeResultTab === tab.id }]"
-                @click="activeResultTab = tab.id"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
-
-            <div v-show="activeResultTab === 'characters'" class="tab-panel">
-              <h2>보유캐릭터</h2>
-              <div class="character-grid">
-                <div 
-                  v-for="sibling in displayCharacters" 
-                  :key="sibling.characterName" 
-                  class="character-card"
-                  :class="{ unavailable: characterAvailability[sibling.characterName] === 'unavailable' }"
-                  @click="selectCharacterFromCard(sibling)"
-                >
-                  <div class="unavailable-badge" v-if="characterAvailability[sibling.characterName] === 'unavailable'">
-                    정보 없음
+          <section v-if="character && !loading" class="character-results">
+            <div class="character-overview-card">
+              <div class="hero-info">
+                <LazyImage
+                  v-if="character.characterImage"
+                  :src="character.characterImage"
+                  :alt="character.characterName"
+                  width="96"
+                  height="96"
+                  imageClass="hero-avatar"
+                  errorIcon="👤"
+                />
+                <div class="hero-text">
+                  <div class="hero-level">Lv. {{ character.characterLevel || '-' }}</div>
+                  <h2>{{ character.characterName }}</h2>
+                  <p>{{ character.characterClassName }} · iLv. {{ formatItemLevel(character.itemMaxLevel) }}</p>
+                  <div class="hero-meta">
+                    <span>{{ character.serverName }}</span>
+                    <span v-if="character.guildName">길드 {{ character.guildName }}</span>
+                    <span v-if="character.pvpGradeName">PVP {{ character.pvpGradeName }}</span>
                   </div>
-                  <div class="character-image">
-                    <LazyImage
-                      v-if="getCharacterImage(sibling)"
-                      :src="getCharacterImage(sibling)"
-                      :alt="sibling.characterName"
-                      width="100%"
-                      height="200"
-                      imageClass="char-img"
-                      errorIcon="?��"
-                    />
+                </div>
+              </div>
+              <div class="hero-actions">
+                <div class="hero-stats">
+                  <div>
+                    <span>평균 아이템 레벨</span>
+                    <strong>{{ formatItemLevel(character.itemAvgLevel) }}</strong>
                   </div>
-                  <div class="character-info">
-                    <h3>{{ sibling.characterName }}</h3>
-                    <p class="character-class">
-                      {{ sibling.characterClassName }} ??iLv. {{ sibling.itemMaxLevel }}
-                    </p>
-                    <div class="engravings-mini" v-if="characterEngravings[sibling.characterName]">
-                      <span 
-                        v-for="(eng, idx) in characterEngravings[sibling.characterName].slice(0, 5)" 
-                        :key="idx" 
-                        class="engraving-tag"
-                      >
-                        {{ eng }}
-                      </span>
-                    </div>
+                  <div>
+                    <span>원정대 레벨</span>
+                    <strong>{{ character.expeditionLevel || '-' }}</strong>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div v-show="activeResultTab === 'details'" class="tab-panel detail-panel">
+            <div class="view-tabs">
+              <button
+                class="view-tab-button"
+                :class="{ active: activeResultTab === 'detail' }"
+                @click="activeResultTab = 'detail'"
+              >
+                상세 보기
+              </button>
+              <button
+                class="view-tab-button"
+                :class="{ active: activeResultTab === 'expedition' }"
+                @click="activeResultTab = 'expedition'"
+              >
+                보유 캐릭터
+              </button>
+            </div>
+
+            <section v-if="activeResultTab === 'detail'" class="detail-panel">
               <CharacterDetailModal
                 :character="selectedCharacterProfile"
                 :equipment="detailEquipment"
@@ -131,16 +133,53 @@
                 :loading="detailLoading"
                 :error-message="detailError"
               />
-            </div>
+            </section>
+
+            <section v-else class="expedition-section">
+              <div class="section-header-bar">
+                <div>
+                  <h3>원정대 보유 캐릭터</h3>
+                  <p class="section-subtitle">클릭하면 상세 정보가 열립니다.</p>
+                </div>
+                <span class="count-pill">{{ (character ? 1 : 0) + siblings.length }}명</span>
+              </div>
+              <template v-if="expeditionGroups.length">
+                <div
+                  v-for="group in expeditionGroups"
+                  :key="group.server"
+                  class="expedition-group"
+                >
+                  <h4>{{ group.server }}</h4>
+                  <div class="expedition-grid">
+                    <article
+                      v-for="member in group.members"
+                      :key="member.characterName"
+                      class="expedition-card"
+                      :class="{ active: selectedCharacterProfile?.characterName === member.characterName }"
+                      @click="viewCharacterDetail(member)"
+                    >
+                      <div class="member-top">
+                        <span class="member-level">Lv. {{ member.characterLevel || '—' }}</span>
+                        <span class="member-class">{{ member.characterClassName }}</span>
+                      </div>
+                      <strong class="member-name">{{ member.characterName }}</strong>
+                      <span class="member-ilvl">iLv. {{ formatItemLevel(member.itemMaxLevel) }}</span>
+                      <span class="member-detail">상세 보기</span>
+                    </article>
+                  </div>
+                </div>
+              </template>
+              <p v-else class="empty-message">원정대 캐릭터가 없습니다.</p>
+            </section>
           </section>
         </div>
       </main>
 
       <aside class="sidebar">
         <div class="sidebar-section">
-          <h2>?뙚 利먭꺼李얘린</h2>
+          <h2>내 즐겨찾기</h2>
           <div v-if="favorites.length === 0" class="empty-message">
-            利먭꺼李얘린媛 鍮꾩뼱?덉뒿?덈떎
+            즐겨찾기가 비어있어요
           </div>
           <div v-else class="favorite-list">
             <div
@@ -156,7 +195,7 @@
                 width="40"
                 height="40"
                 imageClass="fav-image"
-                errorIcon="?뫀"
+                errorIcon="❔"
               />
               <div class="fav-details">
                 <div class="fav-name">{{ fav.characterName }}</div>
@@ -168,13 +207,13 @@
 
         <div class="sidebar-section">
           <div class="section-header">
-            <h2>?븩 理쒓렐 寃??/h2>
+            <h2>최근 검색</h2>
             <button v-if="history.length > 0" @click="clearHistory" class="clear-btn-sm">
-              ?꾩껜 ??젣
+              전체 삭제
             </button>
           </div>
           <div v-if="history.length === 0" class="empty-message">
-            寃??湲곕줉?��놁뒿?덈떎
+            검색 기록이 없습니다
           </div>
           <div v-else class="history-list">
             <div
@@ -221,39 +260,14 @@ const error = ref<ErrorState | null>(null)
 const siblings = ref<SiblingCharacter[]>([])
 const favorites = ref<CharacterProfile[]>([])
 const history = ref<SearchHistory[]>([])
-const characterEngravings = ref<Record<string, string[]>>({})
-const characterImages = ref<Record<string, string>>({})
 const characterAvailability = ref<Record<string, 'available' | 'unavailable' | 'loading'>>({})
-
-const resultTabs = [
-  { id: 'characters', label: '보유캐릭터' },
-  { id: 'details', label: '상세 보기' }
-]
-const activeResultTab = ref<'characters' | 'details'>('characters')
+const activeResultTab = ref<'detail' | 'expedition'>('detail')
 
 const selectedCharacterProfile = ref<CharacterProfile | null>(null)
 const detailEquipment = ref<Equipment[]>([])
 const detailEngravings = ref<Engraving[]>([])
 const detailLoading = ref(false)
 const detailError = ref<string | null>(null)
-
-const displayCharacters = computed(() => {
-  const chars: SiblingCharacter[] = []
-  
-  if (character.value) {
-    chars.push({
-      serverName: character.value.serverName,
-      characterName: character.value.characterName,
-      characterLevel: character.value.characterLevel || 0,
-      characterClassName: character.value.characterClassName,
-      itemAvgLevel: character.value.itemAvgLevel,
-      itemMaxLevel: character.value.itemMaxLevel || character.value.itemAvgLevel,
-      characterImage: character.value.characterImage || ''
-    })
-  }
-  
-  return [...chars, ...siblings.value].slice(0, 10)
-})
 
 const searchSuggestions = computed<Suggestion[]>(() => {
   const suggestions: Suggestion[] = []
@@ -262,7 +276,7 @@ const searchSuggestions = computed<Suggestion[]>(() => {
     suggestions.push({
       id: `fav-${fav.characterName}`,
       name: fav.characterName,
-      info: `${fav.serverName} ??${fav.characterClassName}`,
+      info: `${fav.serverName} · ${fav.characterClassName}`,
       level: fav.itemMaxLevel,
       isFavorite: true
     })
@@ -274,7 +288,7 @@ const searchSuggestions = computed<Suggestion[]>(() => {
       suggestions.push({
         id: `history-${h.id}`,
         name: h.characterName,
-        info: '理쒓렐 寃??,
+        info: '최근 검색',
         isFavorite: false
       })
     }
@@ -283,17 +297,56 @@ const searchSuggestions = computed<Suggestion[]>(() => {
   return suggestions
 })
 
+const expeditionGroups = computed(() => {
+  const groups = new Map<string, SiblingCharacter[]>()
+  const addToGroup = (member: SiblingCharacter) => {
+    const key = member.serverName || '기타'
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(member)
+  }
+
+  if (character.value) {
+    addToGroup({
+      serverName: character.value.serverName,
+      characterName: character.value.characterName,
+      characterLevel: character.value.characterLevel || 0,
+      characterClassName: character.value.characterClassName,
+      itemAvgLevel: character.value.itemAvgLevel,
+      itemMaxLevel: character.value.itemMaxLevel || character.value.itemAvgLevel,
+      characterImage: character.value.characterImage || ''
+    })
+  }
+  siblings.value.forEach(addToGroup)
+
+  return Array.from(groups.entries()).map(([server, members]) => ({
+    server,
+    members
+  }))
+})
+
 onMounted(() => {
   loadFavorites()
   loadHistory()
 })
+
+const searchCharacterByInput = () => {
+  const name = characterName.value.trim()
+  if (!name) {
+    error.value = {
+      title: '검색어 필요',
+      message: '캐릭터명을 입력해 주세요.',
+      type: 'warning'
+    }
+    return
+  }
+  executeSearch(name)
+}
 
 const searchCharacter = async (name: string) => {
   loading.value = true
   error.value = null
   character.value = null
   siblings.value = []
-  activeResultTab.value = 'characters'
   selectedCharacterProfile.value = null
   detailEquipment.value = []
   detailEngravings.value = []
@@ -306,27 +359,19 @@ const searchCharacter = async (name: string) => {
     characterName.value = name
 
     const siblingsResponse = await lostarkApi.getSiblings(name)
-    siblings.value = siblingsResponse.data
-
-    if (character.value?.characterImage) {
-      characterImages.value[character.value.characterName] = character.value.characterImage
-    }
-
-    const engravingsPromises = displayCharacters.value.map(async (char) => {
-      try {
-        const engResponse = await lostarkApi.getEngravings(char.characterName)
-        const engNames = engResponse.data
-          .map(e => e.name.split(' ')[0])
-          .slice(0, 5)
-        characterEngravings.value[char.characterName] = engNames
-      } catch {
-        characterEngravings.value[char.characterName] = []
+    const unique = new Map<string, SiblingCharacter>()
+    siblingsResponse.data.forEach(member => {
+      if (member.characterName === charResponse.data.characterName) return
+      const key = `${member.serverName}-${member.characterName}`
+      if (!unique.has(key)) {
+        unique.set(key, member)
       }
     })
+    siblings.value = Array.from(unique.values())
 
-    const historyPromise = loadHistory()
-    await Promise.all([...engravingsPromises, historyPromise])
     await loadCharacterDetails(name, { profile: charResponse.data })
+    activeResultTab.value = 'detail'
+    await loadHistory()
   } catch (err: any) {
     const errorData = err.response?.data
     if (err.response?.status === 404) {
@@ -365,8 +410,8 @@ const clearSearch = () => {
   detailEquipment.value = []
   detailEngravings.value = []
   detailError.value = null
-  activeResultTab.value = 'characters'
   characterAvailability.value = {}
+  activeResultTab.value = 'detail'
 }
 
 const loadFavorites = async () => {
@@ -374,7 +419,7 @@ const loadFavorites = async () => {
     const response = await lostarkApi.getFavorites()
     favorites.value = response.data
   } catch (err) {
-    console.error('利먭꺼李얘린 濡쒕뵫 ?ㅽ뙣:', err)
+    console.error('즐겨찾기 로딩 실패:', err)
   }
 }
 
@@ -394,24 +439,23 @@ const loadHistory = async () => {
     }
     history.value = unique
   } catch (err) {
-    console.error('?덉뒪?좊━ 濡쒕뵫 ?ㅽ뙣:', err)
+    console.error('검색 기록 로딩 실패:', err)
   }
 }
 
 const clearHistory = async () => {
-  if (!confirm('寃??湲곕줉??紐⑤몢 ??젣?섏떆寃좎뒿?덇퉴?')) return
+  if (!confirm('검색 기록을 모두 삭제할까요?')) return
   try {
     await lostarkApi.clearHistory()
     history.value = []
   } catch (err) {
-    console.error('?덉뒪?좊━ ??젣 ?ㅽ뙣:', err)
+    console.error('검색 기록 삭제 실패:', err)
   }
 }
 
 const loadCharacterDetails = async (name: string, options: { profile?: CharacterProfile } = {}) => {
   detailLoading.value = true
   detailError.value = null
-  activeResultTab.value = 'details'
   characterAvailability.value[name] = 'loading'
 
   try {
@@ -428,7 +472,6 @@ const loadCharacterDetails = async (name: string, options: { profile?: Character
     selectedCharacterProfile.value = profile
     detailEquipment.value = equipmentResponse.data
     detailEngravings.value = engravingsResponse.data
-    characterImages.value[name] = profile.characterImage || ''
     characterAvailability.value[name] = 'available'
   } catch (err: any) {
     characterAvailability.value[name] = 'unavailable'
@@ -446,22 +489,30 @@ const loadCharacterDetails = async (name: string, options: { profile?: Character
   }
 }
 
+const executeSearch = (name: string) => {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  characterName.value = trimmed
+  searchCharacter(trimmed)
+}
+
 const handleSuggestionSelect = (suggestion: Suggestion) => {
-  searchCharacter(suggestion.name)
+  executeSearch(suggestion.name)
 }
 
-const selectCharacterFromCard = (sibling: SiblingCharacter) => {
-  activeResultTab.value = 'details'
-  if (characterAvailability.value[sibling.characterName] === 'unavailable') {
-    detailError.value = `'${sibling.characterName}' 정보가 없어요.`
-    selectedCharacterProfile.value = null
-    return
-  }
-  loadCharacterDetails(sibling.characterName)
+const viewCharacterDetail = (summary: CharacterProfile | SiblingCharacter) => {
+  if (characterAvailability.value[summary.characterName] === 'loading') return
+  activeResultTab.value = 'detail'
+  const isPrimary = character.value?.characterName === summary.characterName
+  const profile = isPrimary ? character.value : undefined
+  loadCharacterDetails(summary.characterName, { profile })
 }
 
-const getCharacterImage = (sibling: SiblingCharacter) => {
-  return sibling.characterImage || characterImages.value[sibling.characterName] || ''
+const formatItemLevel = (value?: string | number) => {
+  if (value === undefined || value === null) return '—'
+  const raw = typeof value === 'number' ? value : Number(value.replace(/,/g, ''))
+  if (Number.isNaN(raw)) return typeof value === 'string' ? value : '—'
+  return raw.toFixed(2)
 }
 </script>
 
@@ -514,6 +565,22 @@ const getCharacterImage = (sibling: SiblingCharacter) => {
 
 .search-section :deep(.autocomplete-container) {
   flex: 1;
+}
+
+.search-button {
+  padding: 0 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.search-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .search-input {
@@ -595,136 +662,207 @@ const getCharacterImage = (sibling: SiblingCharacter) => {
   margin-bottom: 10px;
 }
 
-.results-section {
+.character-results {
   margin-top: 30px;
-}
-
-.result-tabs {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.result-tab-button {
-  padding: 10px 22px;
+.view-tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.view-tab-button {
+  padding: 8px 18px;
   border-radius: 999px;
-  border: 2px solid var(--border-color);
-  background: var(--card-bg);
-  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
   color: var(--text-secondary);
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
 }
 
-.result-tab-button.active {
+.view-tab-button.active {
   background: var(--primary-color);
   border-color: var(--primary-color);
   color: var(--text-inverse);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.25);
 }
 
-.tab-panel {
+.view-tab-button:not(.active):hover {
+  background: var(--bg-hover);
+}
+
+.character-overview-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   background: var(--card-bg);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 20px;
+  padding: 24px 32px;
   border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  gap: 30px;
 }
 
-.tab-panel.detail-panel {
-  padding: 0;
-  background: transparent;
-  border: none;
-  margin-top: 20px;
-}
-
-.results-section h2 {
-  font-size: 1.3rem;
-  color: var(--text-primary);
-  margin-bottom: 20px;
-  font-weight: 700;
-}
-
-.character-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+.hero-info {
+  display: flex;
   gap: 20px;
+  align-items: center;
 }
 
-.character-card {
-  background: var(--card-bg);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 2px solid var(--border-color);
-  transition: all 0.3s;
-  cursor: pointer;
-  position: relative;
-}
-
-.character-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-color);
-}
-
-.character-image {
-  width: 100%;
-  height: 180px;
-  background: var(--bg-secondary);
-  overflow: hidden;
-}
-
-.character-image :deep(.char-img) {
-  width: 100%;
-  height: 100%;
+.hero-info :deep(.hero-avatar) {
+  border-radius: 16px;
   object-fit: cover;
 }
 
-.character-info {
-  padding: 15px;
-}
-
-.character-card h3 {
-  font-size: 1rem;
+.hero-text h2 {
+  margin: 4px 0;
+  font-size: 1.6rem;
   color: var(--text-primary);
-  margin: 0 0 6px 0;
-  font-weight: 700;
 }
 
-.character-class {
+.hero-level {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.hero-text p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.hero-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  margin: 0 0 10px 0;
+  margin-top: 6px;
 }
 
-.engravings-mini {
+.hero-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  align-items: center;
+  gap: 20px;
 }
 
-.engraving-tag {
-  padding: 3px 8px;
-  background: var(--primary-color);
-  color: var(--text-inverse);
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
+.hero-stats {
+  display: flex;
+  gap: 20px;
 }
 
-.character-card.unavailable {
-  opacity: 0.6;
-  cursor: not-allowed;
-  pointer-events: none;
+.hero-stats div {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
 }
 
-.unavailable-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 4px 10px;
-  background: rgba(0, 0, 0, 0.6);
-  color: var(--text-inverse);
+.hero-stats strong {
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.expedition-section,
+.detail-panel {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.section-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section-header-bar h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.section-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.count-pill {
+  padding: 6px 14px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.expedition-group + .expedition-group {
+  margin-top: 20px;
+}
+
+.expedition-group h4 {
+  margin: 0 0 10px 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.expedition-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.expedition-card {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border 0.2s, transform 0.2s;
+}
+
+.expedition-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-3px);
+}
+
+.expedition-card.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+}
+
+.member-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.member-name {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.member-ilvl {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.member-detail {
+  font-size: 0.8rem;
+  color: var(--primary-color);
   font-weight: 600;
 }
 
@@ -842,8 +980,13 @@ const getCharacterImage = (sibling: SiblingCharacter) => {
     grid-template-columns: 1fr;
   }
 
-  .character-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  .character-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -864,9 +1007,18 @@ const getCharacterImage = (sibling: SiblingCharacter) => {
     flex-direction: column;
   }
 
-  .character-grid {
-    grid-template-columns: 1fr;
+  .character-overview-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-stats {
+    flex-direction: column;
   }
 }
 </style>
-

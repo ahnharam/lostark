@@ -9,130 +9,85 @@
     <div v-else-if="!character" class="detail-placeholder">
       캐릭터를 선택하면 상세 정보가 표시됩니다.
     </div>
-    <div v-else class="modal-container" @click.stop>
-        <!-- 헤더: 캐릭터명/직업/레벨 + 닫기 버튼 -->
-        <div class="modal-header">
-          <div class="character-info-header">
-            <LazyImage
-              v-if="character.characterImage"
-              :src="character.characterImage"
-              :alt="character.characterName"
-              width="60"
-              height="60"
-              imageClass="header-avatar"
-              errorIcon="👤"
-            />
-            <div class="header-text">
-              <h2>{{ character.characterName }}</h2>
-              <p>{{ character.characterClassName }} • iLv. {{ character.itemMaxLevel }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 탭: 장비 / 각인 / 세트효과 -->
-        <div class="modal-tabs">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            :class="['tab-button', { active: currentTab === tab.id }]"
-            @click="currentTab = tab.id"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
-
-        <!-- 본문 스크롤 영역 -->
-        <div class="modal-body">
-          <!-- 장비 탭 -->
-          <div v-if="currentTab === 'equipment'" class="equipment-grid">
-            <!-- 좌: 슬롯/아이콘/베이스스펙 -->
-            <div class="equipment-slots">
-              <div
-                v-for="item in equipment"
-                :key="item.name"
-                class="equipment-slot"
-                @click="selectEquipment(item)"
-                :class="{ selected: selectedEquipment?.name === item.name }"
-              >
-                <LazyImage
-                  v-if="item.icon"
-                  :src="item.icon"
-                  :alt="item.name"
-                  width="56"
-                  height="56"
-                  imageClass="equipment-icon"
-                  errorIcon="⚔️"
-                />
-                <div class="equipment-slot-info">
-                  <div class="equipment-type">{{ item.type }}</div>
-                  <div class="equipment-name" :class="item.grade">{{ item.name }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 우: 세부 옵션/품질/세트/트포 -->
-            <div class="equipment-detail" v-if="selectedEquipment">
-              <h3>{{ selectedEquipment.name }}</h3>
-              <div class="equipment-grade">{{ selectedEquipment.grade }}</div>
-              
-              <div class="detail-section">
-                <h4>기본 정보</h4>
-                <div class="detail-item">
-                  <span>부위</span>
-                  <span>{{ selectedEquipment.type }}</span>
-                </div>
-                <div class="detail-item" v-if="selectedEquipment.quality">
-                  <span>품질</span>
-                  <span class="quality-value">{{ selectedEquipment.quality }}</span>
-                </div>
-              </div>
-
-              <div class="detail-section" v-if="selectedEquipment.tooltip">
-                <h4>상세 정보</h4>
-                <div class="tooltip-content" v-html="selectedEquipment.tooltip"></div>
-              </div>
-            </div>
-            <div v-else class="equipment-placeholder">
-              <p>장비를 선택하여 상세 정보를 확인하세요</p>
-            </div>
-          </div>
-
-          <!-- 각인 탭 -->
-          <div v-if="currentTab === 'engravings'" class="engravings-list">
-            <div
-              v-for="eng in engravings"
-              :key="eng.name"
-              class="engraving-item"
-            >
+    <div v-else class="detail-content" @click.stop>
+      <section class="gear-columns">
+        <div class="gear-column" v-for="(column, idx) in gearColumnList" :key="idx">
+          <article v-for="item in column" :key="item.name" class="gear-card">
+            <div class="card-left">
               <LazyImage
-                v-if="eng.icon"
-                :src="eng.icon"
-                :alt="eng.name"
-                width="48"
-                height="48"
-                imageClass="engraving-icon"
-                errorIcon="📜"
+                v-if="item.icon"
+                :src="item.icon"
+                :alt="item.name"
+                width="52"
+                height="52"
+                imageClass="gear-icon"
+                errorIcon="⚔️"
               />
-              <div class="engraving-info">
-                <div class="engraving-name">{{ eng.name }}</div>
-                <div class="engraving-description">{{ eng.description }}</div>
+              <div class="tier-stack">
+                <span class="tier-chip">{{ formatGrade(item.grade) }}</span>
+                <span v-if="getParsedEquipment(item)?.quality !== undefined" class="quality-chip">
+                  {{ getParsedEquipment(item)?.quality }}
+                </span>
               </div>
             </div>
-          </div>
+            <div class="card-body">
+              <h3>{{ item.name }}</h3>
+              <small>{{ item.type }}</small>
 
-          <!-- 세트효과 탭 -->
-          <div v-if="currentTab === 'sets'" class="sets-content">
-            <p class="placeholder-text">세트 효과 정보가 여기에 표시됩니다.</p>
-          </div>
+              <div class="value-lines" v-if="getCoreValues(item).length">
+                <span v-for="(line, lineIdx) in getCoreValues(item)" :key="`core-${lineIdx}`">
+                  {{ line }}
+                </span>
+              </div>
+              <div class="value-lines subtle" v-if="getExtraValues(item).length">
+                <span v-for="(line, lineIdx) in getExtraValues(item)" :key="`extra-${lineIdx}`">
+                  {{ line }}
+                </span>
+              </div>
+
+              <div class="pill-row" v-if="getEffectPills(item).length">
+                <span
+                  v-for="(pill, pillIdx) in getEffectPills(item)"
+                  :key="`pill-${pillIdx}`"
+                  :class="['effect-pill', pill.variant]"
+                >
+                  {{ pill.text }}
+                </span>
+              </div>
+            </div>
+          </article>
         </div>
+      </section>
+
+      <section class="engraving-card" v-if="engravings.length">
+        <h4>각인 정보</h4>
+        <ul>
+          <li v-for="engraving in engravings" :key="engraving.name">
+            <LazyImage
+              v-if="engraving.icon"
+              :src="engraving.icon"
+              :alt="engraving.name"
+              width="36"
+              height="36"
+              imageClass="engraving-icon"
+              errorIcon="📜"
+            />
+            <div>
+              <strong>{{ engraving.name }}</strong>
+              <p>{{ engraving.description }}</p>
+            </div>
+          </li>
+        </ul>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed } from 'vue'
 import LazyImage from './LazyImage.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
+import { parseTooltip, type ParsedTooltip } from '@/utils/tooltipParser'
 
 interface Character {
   characterName: string
@@ -172,35 +127,89 @@ const props = withDefaults(defineProps<Props>(), {
   errorMessage: null
 })
 
-const currentTab = ref<'equipment' | 'engravings' | 'sets'>('equipment')
-const selectedEquipment = ref<Equipment | null>(null)
+const parsedEquipment = computed<Record<string, ParsedTooltip>>(() => {
+  const map: Record<string, ParsedTooltip> = {}
+  props.equipment.forEach(item => {
+    if (item.tooltip) {
+      map[item.name] = parseTooltip(item.tooltip)
+    }
+  })
+  return map
+})
 
-const tabs = [
-  { id: 'equipment', label: '장비' },
-  { id: 'engravings', label: '각인' },
-  { id: 'sets', label: '세트효과' }
-]
+const tooltipValueMap = computed<Record<string, string[]>>(() => {
+  const map: Record<string, string[]> = {}
+  props.equipment.forEach(item => {
+    map[item.name] = extractTooltipValues(item)
+  })
+  return map
+})
 
-// 첫 장비 자동 선택
-watch(() => props.equipment, (newEquipment) => {
-  selectedEquipment.value = newEquipment.length > 0 ? newEquipment[0] : null
-}, { immediate: true })
+const getParsedEquipment = (item: Equipment) => parsedEquipment.value[item.name]
+const getTooltipValues = (item: Equipment) => tooltipValueMap.value[item.name] || []
+const getCoreValues = (item: Equipment) => getTooltipValues(item).slice(0, 3)
+const getExtraValues = (item: Equipment) => getTooltipValues(item).slice(3, 7)
 
-const selectEquipment = (item: Equipment) => {
-  selectedEquipment.value = item
+const getEffectPills = (item: Equipment) => {
+  const pills: { text: string; variant: 'engraving' | 'elixir' }[] = []
+  getParsedEquipment(item)?.engravingEffects?.forEach(effect =>
+    pills.push({ text: effect, variant: 'engraving' })
+  )
+  getParsedEquipment(item)?.elixirEffects?.forEach(effect =>
+    pills.push({ text: effect, variant: 'elixir' })
+  )
+  return pills
 }
 
-watch(() => props.character, () => {
-  currentTab.value = 'equipment'
-  selectedEquipment.value = props.equipment.length > 0 ? props.equipment[0] : null
-}, { immediate: true })
+const leftKeywords = ['무기', '투구', '상의', '하의', '장갑', '어깨', '엘릭서', '초월', '보석', '스톤']
+const gearColumnList = computed(() => {
+  const left: Equipment[] = []
+  const right: Equipment[] = []
+  props.equipment.forEach(item => {
+    const type = item.type || ''
+    if (leftKeywords.some(keyword => type.includes(keyword))) {
+      left.push(item)
+    } else {
+      right.push(item)
+    }
+  })
+  return [left, right]
+})
+
+const formatGrade = (grade?: string) => grade || '장비'
+
+const extractTooltipValues = (item: Equipment): string[] => {
+  if (!item.tooltip) return []
+  try {
+    const raw = JSON.parse(item.tooltip)
+    const normalize = (value: any): string[] => {
+      if (!value) return []
+      if (typeof value === 'string') return [cleanText(value)]
+      if (Array.isArray(value)) return value.flatMap(normalize)
+      if (typeof value === 'object') {
+        if ('value' in value) return normalize(value.value)
+        return Object.values(value).flatMap(normalize)
+      }
+      return []
+    }
+    return Object.values(raw).flatMap(normalize).filter(Boolean)
+  } catch {
+    return [cleanText(item.tooltip)]
+  }
+}
+
+const cleanText = (text: string) =>
+  text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\\n/g, ' ')
+    .replace(/&[^;]+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 </script>
 
 <style scoped>
-/* 인라인 컨테이너 */
 .character-detail-panel {
   width: 100%;
-  background: transparent;
 }
 
 .detail-placeholder {
@@ -212,346 +221,157 @@ watch(() => props.character, () => {
   color: var(--text-secondary);
 }
 
-/* 모달 컨테이너: 960×800 */
-.modal-container {
-  width: 100%;
-  max-width: 960px;
-  min-height: 400px;
-  background: var(--card-bg);
-  border-radius: 16px;
+.detail-content {
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-  margin: 0 auto;
-}
-
-/* 헤더 */
-.modal-header {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 24px;
-  border-bottom: 2px solid var(--border-color);
-  background: var(--bg-secondary);
-  gap: 16px;
-}
-
-.character-info-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.character-info-header :deep(.header-avatar) {
-  border-radius: 12px;
-  object-fit: cover;
-  border: 2px solid var(--border-color);
-}
-
-.header-text h2 {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
-}
-
-.header-text p {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-/* 탭 */
-.modal-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 16px 24px;
-  background: var(--bg-secondary);
-  border-bottom: 2px solid var(--border-color);
-}
-
-.tab-button {
-  padding: 10px 20px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.tab-button:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.tab-button.active {
-  background: var(--primary-color);
-  color: white;
-}
-
-/* 본문 */
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-/* 장비 그리드 (좌우 분할) */
-.equipment-grid {
-  display: grid;
-  grid-template-columns: 400px 1fr;
   gap: 24px;
-  height: 100%;
 }
 
-.equipment-slots {
+.gear-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.gear-column {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.equipment-slot {
+.gear-card {
   display: flex;
-  align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-md);
 }
 
-.equipment-slot:hover {
-  background: var(--bg-hover);
-  border-color: var(--primary-color);
+.card-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
-.equipment-slot.selected {
-  border-color: var(--primary-color);
-  background: var(--primary-color);
-  color: white;
-}
-
-.equipment-slot.selected .equipment-type,
-.equipment-slot.selected .equipment-name {
-  color: white;
-}
-
-.equipment-slot :deep(.equipment-icon) {
-  border-radius: 8px;
-  object-fit: contain;
-}
-
-.equipment-slot-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.equipment-type {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin-bottom: 4px;
-}
-
-.equipment-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 장비 상세 */
-.equipment-detail {
-  background: var(--bg-secondary);
+.gear-icon {
   border-radius: 12px;
-  padding: 20px;
-  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  object-fit: cover;
 }
 
-.equipment-detail h3 {
-  font-size: 18px;
+.tier-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.tier-chip {
+  font-size: 0.7rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 8px 0;
-}
-
-.equipment-grade {
-  display: inline-block;
-  padding: 4px 12px;
-  background: var(--primary-color);
-  color: white;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.detail-section {
-  margin-bottom: 20px;
-}
-
-.detail-section h4 {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  margin: 0 0 12px 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #fbbf24;
   text-transform: uppercase;
 }
 
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 14px;
+.quality-chip {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
 }
 
-.detail-item span:first-child {
-  color: var(--text-secondary);
-}
-
-.detail-item span:last-child {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.quality-value {
-  color: var(--primary-color) !important;
-}
-
-.tooltip-content {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.equipment-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  color: var(--text-tertiary);
-}
-
-/* 각인 리스트 */
-.engravings-list {
+.card-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
-.engraving-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
-}
-
-.engraving-item :deep(.engraving-icon) {
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-
-.engraving-info {
-  flex: 1;
-}
-
-.engraving-name {
-  font-size: 16px;
-  font-weight: 700;
+.card-body h3 {
+  margin: 0;
+  font-size: 1rem;
   color: var(--text-primary);
-  margin-bottom: 8px;
 }
 
-.engraving-description {
-  font-size: 14px;
-  line-height: 1.6;
+.card-body small {
   color: var(--text-secondary);
 }
 
-/* 세트 컨텐츠 */
-.sets-content {
-  text-align: center;
-  padding: 40px;
-  color: var(--text-tertiary);
+.value-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
 }
 
-.placeholder-text {
-  font-size: 14px;
+.value-lines.subtle {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
 }
 
-/* 애니메이션 */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.3s ease;
+.pill-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.modal-fade-enter-active .modal-container,
-.modal-fade-leave-active .modal-container {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+.effect-pill {
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: var(--primary-color);
+  background: rgba(99, 102, 241, 0.12);
 }
 
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
+.effect-pill.elixir {
+  color: #0f9d58;
+  border-color: rgba(15, 157, 88, 0.2);
+  background: rgba(15, 157, 88, 0.12);
 }
 
-.modal-fade-enter-from .modal-container,
-.modal-fade-leave-to .modal-container {
-  transform: scale(0.9);
-  opacity: 0;
+.engraving-card {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 18px;
+  background: var(--card-bg);
 }
 
-/* 반응형 */
-@media (max-width: 1024px) {
-  .modal-container {
-    max-width: 100%;
-    height: 100%;
-    max-height: 100%;
-    border-radius: 0;
-  }
-
-  .equipment-grid {
-    grid-template-columns: 1fr;
-  }
+.engraving-card h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
 }
 
-@media (max-width: 640px) {
-  .modal-header {
-    padding: 16px;
-  }
+.engraving-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-  .modal-tabs {
-    padding: 12px 16px;
-    overflow-x: auto;
-  }
+.engraving-card li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
 
-  .modal-body {
-    padding: 16px;
-  }
+.engraving-card p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
 
-  .character-info-header {
-    gap: 12px;
-  }
-
-  .header-text h2 {
-    font-size: 16px;
-  }
-
-  .header-text p {
-    font-size: 12px;
+@media (max-width: 900px) {
+  .detail-content {
+    gap: 16px;
   }
 }
 </style>

@@ -24,6 +24,7 @@ export interface CharacterProfile {
   expeditionLevel: number
   pvpGradeName: string
   guildName: string
+  characterLevel?: number
 }
 
 export interface Equipment {
@@ -46,6 +47,8 @@ export interface SiblingCharacter {
   characterClassName: string
   itemAvgLevel: string
   itemMaxLevel: string
+  characterLevel?: number
+  characterImage?: string
 }
 
 export interface SearchHistory {

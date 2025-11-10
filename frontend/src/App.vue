@@ -1,11 +1,11 @@
 <template>
   <div id="app">
-    <CharacterSearch />
+    <RouterView />
   </div>
 </template>
 
 <script setup lang="ts">
-import CharacterSearch from './components/CharacterSearch.vue'
+import { RouterView } from 'vue-router'
 </script>
 
 <style>
