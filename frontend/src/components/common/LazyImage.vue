@@ -1,5 +1,10 @@
 <template>
-  <div class="lazy-image-wrapper" :class="{ loading: isLoading, error: hasError }" :style="wrapperStyle">
+  <div
+    ref="wrapperRef"
+    class="lazy-image-wrapper"
+    :class="{ loading: isLoading, error: hasError }"
+    :style="wrapperStyle"
+  >
     <!-- 로딩 스켈레톤 -->
     <div v-if="isLoading && showSkeleton" class="skeleton-loader"></div>
 
@@ -10,6 +15,7 @@
       :src="currentSrc"
       :alt="alt"
       :class="imageClass"
+      :referrerpolicy="referrerPolicy"
       @load="onLoad"
       @error="onError"
     />
@@ -22,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 
 interface Props {
   src: string
@@ -34,6 +40,7 @@ interface Props {
   errorIcon?: string
   showSkeleton?: boolean
   lazy?: boolean
+  referrerPolicy?: ReferrerPolicy
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -44,22 +51,50 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   errorIcon: '🖼️',
   showSkeleton: true,
-  lazy: true
+  lazy: true,
+  referrerPolicy: 'no-referrer'
 })
 
 const imgRef = ref<HTMLImageElement | null>(null)
+const wrapperRef = ref<HTMLElement | null>(null)
 const isLoading = ref(true)
 const hasError = ref(false)
 const currentSrc = ref(props.placeholder || '')
 const observer = ref<IntersectionObserver | null>(null)
 
+const formatSize = (value?: string | number) => {
+  if (typeof value === 'number') {
+    return `${value}px`
+  }
+  if (!value || value === 'auto') {
+    return 'auto'
+  }
+  // "96"처럼 단위가 없는 문자열도 px로 간주
+  if (/^\d+(\.\d+)?$/.test(value)) {
+    return `${value}px`
+  }
+  return value
+}
+
 const wrapperStyle = computed(() => ({
-  width: typeof props.width === 'number' ? `${props.width}px` : props.width,
-  height: typeof props.height === 'number' ? `${props.height}px` : props.height,
+  width: formatSize(props.width),
+  height: formatSize(props.height)
 }))
 
+const normalizeSrc = (value: string) => {
+  if (!value) return ''
+  let normalized = value.trim()
+  if (normalized.startsWith('//')) {
+    normalized = `https:${normalized}`
+  } else if (normalized.startsWith('http://')) {
+    normalized = normalized.replace('http://', 'https://')
+  }
+  return normalized
+}
+
 const loadImage = () => {
-  currentSrc.value = props.src
+  if (!props.src) return
+  currentSrc.value = normalizeSrc(props.src)
 }
 
 const onLoad = () => {
@@ -72,42 +107,68 @@ const onError = () => {
   hasError.value = true
 }
 
-onMounted(() => {
+const destroyObserver = () => {
+  if (observer.value) {
+    observer.value.disconnect()
+    observer.value = null
+  }
+}
+
+const setupObserver = () => {
   if (!props.lazy) {
-    // 레이지 로딩 비활성화 시 즉시 로드
     loadImage()
     return
   }
 
-  // Intersection Observer 설정
-  observer.value = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && isLoading.value && !hasError.value) {
-          loadImage()
-          // 한 번 로드되면 observer 해제
-          if (observer.value && imgRef.value) {
-            observer.value.unobserve(entry.target)
-          }
-        }
-      })
-    },
-    {
-      rootMargin: '50px', // 뷰포트에서 50px 전에 미리 로드
-      threshold: 0.01
-    }
-  )
-
-  if (imgRef.value) {
-    observer.value.observe(imgRef.value.parentElement as Element)
+  if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+    loadImage()
+    return
   }
+
+  if (!observer.value) {
+    observer.value = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && isLoading.value && !hasError.value) {
+            loadImage()
+            if (observer.value) {
+              observer.value.unobserve(entry.target)
+            }
+          }
+        })
+      },
+      {
+        rootMargin: '50px',
+        threshold: 0.01
+      }
+    )
+  }
+
+  if (wrapperRef.value) {
+    observer.value.observe(wrapperRef.value)
+  } else {
+    // DOM 참조를 못 잡으면 즉시 로드
+    loadImage()
+  }
+}
+
+onMounted(() => {
+  setupObserver()
 })
 
 onUnmounted(() => {
-  if (observer.value) {
-    observer.value.disconnect()
-  }
+  destroyObserver()
 })
+
+watch(
+  () => props.src,
+  () => {
+    isLoading.value = true
+    hasError.value = false
+    currentSrc.value = props.placeholder || ''
+    setupObserver()
+  }
+)
 </script>
 
 <style scoped>
