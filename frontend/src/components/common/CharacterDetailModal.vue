@@ -14,7 +14,6 @@
         <div class="gear-column" v-for="(column, idx) in gearColumnList" :key="idx">
           <article v-for="item in column" :key="item.name" class="gear-card">
             <div class="card-left">
-              {{ console.log('[CharacterDetail] Rendering item:', item.name, 'icon:', item.icon) }}
               <LazyImage
                 v-if="item.icon"
                 :src="item.icon"
@@ -36,11 +35,11 @@
               <h3>{{ item.name }}</h3>
               <small>{{ item.type }}</small>
 
-              <div class="value-lines" v-if="getCoreValues(item).length">
+              <!-- <div class="value-lines" v-if="getCoreValues(item).length">
                 <span v-for="(line, lineIdx) in getCoreValues(item)" :key="`core-${lineIdx}`">
                   {{ line }}
                 </span>
-              </div>
+              </div> -->
               <div class="value-lines subtle" v-if="getExtraValues(item).length">
                 <span v-for="(line, lineIdx) in getExtraValues(item)" :key="`extra-${lineIdx}`">
                   {{ line }}
@@ -130,6 +129,13 @@ const props = withDefaults(defineProps<Props>(), {
   errorMessage: null
 })
 
+const specialEquipmentKeywords = ['나침반', '부적', '문장', '보주']
+
+const isSpecialEquipment = (item: Equipment) => {
+  const target = `${item.type ?? ''} ${item.name ?? ''}`.toLowerCase()
+  return specialEquipmentKeywords.some(keyword => target.includes(keyword.toLowerCase()))
+}
+
 const parsedEquipment = computed<Record<string, ParsedTooltip>>(() => {
   const map: Record<string, ParsedTooltip> = {}
   props.equipment.forEach(item => {
@@ -140,24 +146,98 @@ const parsedEquipment = computed<Record<string, ParsedTooltip>>(() => {
   return map
 })
 
-const tooltipValueMap = computed<Record<string, string[]>>(() => {
-  const map: Record<string, string[]> = {}
+interface TooltipValueBuckets {
+  // stats: 수치 기반 정보 (아이템 레벨, 능력치 등)
+  stats: string[]
+  // descriptions: 장비 종류/품질 등 서술형 설명
+  descriptions: string[]
+  // restrictions: 착용 조건이나 전용 문구 등 제한 조건
+  restrictions: string[]
+  // urls: 이미지 혹은 외부 리소스 링크
+  urls: string[]
+  // flavor: 아이템 배경, 연출 등 분위기 문장
+  flavor: string[]
+  // system: 제작, 재활용, 분해 같은 시스템 안내
+  system: string[]
+  // enhancements: 연마/초월/슬롯 등 강화 관련 설명
+  enhancements: string[]
+  // ownership: 귀속/거래불가 등 소유권 제약
+  ownership: string[]
+  // durability: 내구도 정보
+  durability: string[]
+  // summary: 누적 수치/총합 요약 문구
+  summary: string[]
+  // misc: 위 분류로 묶기 애매한 기타 문장
+  misc: string[]
+}
+
+type TooltipCategory = keyof TooltipValueBuckets
+
+interface TooltipDisplayRule {
+  primary: TooltipCategory[]
+  secondary: TooltipCategory[]
+}
+
+// 장비 부위별로 tooltip 문자열을 의미별로 나눠 저장
+const tooltipValueMap = computed<Record<string, TooltipValueBuckets>>(() => {
+  const map: Record<string, TooltipValueBuckets> = {}
   props.equipment.forEach(item => {
-    map[item.name] = extractTooltipValues(item)
+    const values = extractTooltipValues(item)
+    map[item.name] = categorizeTooltipValues(values)
   })
   return map
 })
 
 const getParsedEquipment = (item: Equipment) => parsedEquipment.value[item.name]
-const getTooltipValues = (item: Equipment) => tooltipValueMap.value[item.name] || []
-const getCoreValues = (item: Equipment) => getTooltipValues(item).slice(0, 3)
-const getExtraValues = (item: Equipment) => getTooltipValues(item).slice(3, 7)
+const getTooltipValues = (item: Equipment, categories: TooltipCategory[]) => {
+  const buckets = tooltipValueMap.value[item.name]
+  if (!buckets) return []
+  return categories.flatMap(category => buckets[category] ?? [])
+}
+
+const getDisplayRule = (item: Equipment): TooltipDisplayRule => {
+  const type = item.type?.toLowerCase() ?? ''
+  if (matchKeywords(type, ['무기', 'weapon', '창', '검', '활', '건'])) {
+    return {
+      primary: ['stats', 'descriptions'],
+      secondary: ['restrictions', 'urls', 'enhancements', 'ownership', 'durability', 'summary', 'flavor', 'system', 'misc']
+    }
+  }
+  if (matchKeywords(type, ['투구', '상의', '하의', '장갑', '어깨', '벨트', 'armor'])) {
+    return {
+      primary: ['stats'],
+      secondary: ['descriptions', 'restrictions', 'enhancements', 'ownership', 'durability', 'summary', 'flavor', 'system', 'misc']
+    }
+  }
+  if (matchKeywords(type, ['목걸이', '귀걸이', '반지', '팔찌', 'accessory'])) {
+    return {
+      primary: ['stats'],
+      secondary: ['restrictions', 'descriptions', 'enhancements', 'ownership', 'durability', 'summary', 'flavor', 'system', 'misc']
+    }
+  }
+  if (matchKeywords(type, ['어빌리티 스톤', '스톤'])) {
+    return {
+      primary: ['stats', 'restrictions'],
+      secondary: ['descriptions', 'enhancements', 'ownership', 'durability', 'summary', 'flavor', 'system', 'misc']
+    }
+  }
+  if (matchKeywords(type, ['보석', 'gem'])) {
+    return {
+      primary: ['descriptions'],
+      secondary: ['stats', 'enhancements', 'ownership', 'summary', 'system', 'misc']
+    }
+  }
+  return {
+    primary: ['stats'],
+    secondary: ['descriptions', 'restrictions', 'urls', 'enhancements', 'ownership', 'durability', 'summary', 'flavor', 'system', 'misc']
+  }
+}
+
+const getCoreValues = (item: Equipment) => getTooltipValues(item, getDisplayRule(item).primary)
+const getExtraValues = (item: Equipment) => getTooltipValues(item, getDisplayRule(item).secondary)
 
 // 디버깅: 아이템 아이콘 URL 확인
-const logItemIcon = (item: Equipment) => {
-  console.log('[CharacterDetail] Item:', item.name, 'Icon URL:', item.icon)
-  return item.icon
-}
+const logItemIcon = (item: Equipment) => item.icon
 
 const getEffectPills = (item: Equipment) => {
   const pills: { text: string; variant: 'engraving' | 'elixir' }[] = []
@@ -175,6 +255,9 @@ const gearColumnList = computed(() => {
   const left: Equipment[] = []
   const right: Equipment[] = []
   props.equipment.forEach(item => {
+    if (isSpecialEquipment(item)) {
+      return
+    }
     const type = item.type || ''
     if (leftKeywords.some(keyword => type.includes(keyword))) {
       left.push(item)
@@ -206,6 +289,56 @@ const extractTooltipValues = (item: Equipment): string[] => {
     return [cleanText(item.tooltip)]
   }
 }
+
+const categorizeTooltipValues = (values: string[]): TooltipValueBuckets => {
+  const buckets: TooltipValueBuckets = {
+    stats: [],
+    descriptions: [],
+    restrictions: [],
+    urls: [],
+    flavor: [],
+    system: [],
+    enhancements: [],
+    ownership: [],
+    durability: [],
+    summary: [],
+    misc: []
+  }
+
+  values.forEach(value => {
+    const text = value.trim()
+    if (!text) return
+
+    if (/https?:\/\//i.test(text)) {
+      buckets.urls.push(text)
+    } else if (/(장착|전용|요구|불가|사용 가능)/.test(text)) {
+      buckets.restrictions.push(text)
+    } else if (/(레벨|티어|힘|민첩|지능|체력|치명|특화|신속|제압|인내|숙련|공격력|방어력|품질|피해|생명력)/.test(text)) {
+      buckets.stats.push(text)
+    } else if (/(무기|방패|창|검|활|장갑|투구|어깨|상의|하의|악세서리|보석|목걸이|귀걸이|반지)/.test(text)) {
+      buckets.descriptions.push(text)
+    } else if (/(연마|초월|추가 효과|슬롯 효과|강화|아크 패시브)/.test(text)) {
+      buckets.enhancements.push(text)
+    } else if (/(귀속|거래 불가|교환 불가|캐릭터 귀속)/.test(text)) {
+      buckets.ownership.push(text)
+    } else if (/(내구도)/.test(text)) {
+      buckets.durability.push(text)
+    } else if (/(총|전체|모든 장비|적용된)/.test(text)) {
+      buckets.summary.push(text)
+    } else if (/(제작|재련|해체|분해|거래|획득|교환|연성)/.test(text)) {
+      buckets.system.push(text)
+    } else if (/(느껴|전설|고대|기억|전해지|신화)/.test(text)) {
+      buckets.flavor.push(text)
+    } else {
+      buckets.misc.push(text)
+    }
+  })
+
+  return buckets
+}
+
+const matchKeywords = (text: string, keywords: string[]) =>
+  keywords.some(keyword => text.includes(keyword))
 
 const cleanText = (text: string) =>
   text

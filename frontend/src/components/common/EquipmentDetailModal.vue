@@ -42,16 +42,13 @@
               <div class="item-title-section">
                 <h3 :style="{ color: gradeColor }" class="item-name">{{ equipment.name }}</h3>
                 <div class="item-meta">
-                  <span class="item-type">{{ equipment.type }}</span>
-                  <span class="item-grade" :style="{ color: gradeColor }">{{ equipment.grade }}</span>
+                  <span class="meta-pill">{{ equipment.type }}</span>
+                  <span class="meta-pill" :style="{ color: gradeColor }">{{ equipment.grade }}</span>
+                  <span v-if="parsedData.itemLevel" class="meta-pill level-pill">
+                    아이템 레벨 {{ parsedData.itemLevel }}
+                  </span>
                 </div>
               </div>
-            </div>
-
-            <!-- 아이템 레벨 -->
-            <div v-if="parsedData.itemLevel" class="item-level-section">
-              <span class="section-label">아이템 레벨</span>
-              <span class="item-level-value">{{ parsedData.itemLevel }}</span>
             </div>
 
             <!-- 기본 스탯 -->
@@ -399,7 +396,7 @@ const gradeColor = computed(() => {
   flex-wrap: wrap;
 }
 
-.item-type {
+ .meta-pill {
   padding: 3px 10px;
   background: var(--card-bg);
   color: var(--text-secondary);
@@ -408,9 +405,9 @@ const gradeColor = computed(() => {
   font-weight: 600;
 }
 
-.item-grade {
-  font-weight: 700;
-  font-size: 0.9rem;
+.level-pill {
+  color: var(--primary-color);
+  background: rgba(99, 102, 241, 0.12);
 }
 
 /* 품질 바 */

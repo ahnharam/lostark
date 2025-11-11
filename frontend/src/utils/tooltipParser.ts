@@ -53,10 +53,49 @@ function extractColor(html: string): string | null {
 /**
  * 품질 값 추출
  */
-function parseQuality(html: string): number | null {
-  const text = stripHtml(html)
-  const match = text.match(/품질.*?(\d+)/i)
+function parseQualityText(input: string): number | null {
+  const text = stripHtml(input)
+  const match = text.match(/품질[^0-9]*(\d{1,3})/i)
   return match ? parseInt(match[1], 10) : null
+}
+
+function toNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isNaN(value) ? null : value
+  if (typeof value === 'string' && value.trim().length) {
+    const numeric = parseInt(value.replace(/[^\d]/g, ''), 10)
+    return Number.isNaN(numeric) ? null : numeric
+  }
+  return null
+}
+
+function parseQuality(element: unknown): number | null {
+  if (!element) return null
+  if (typeof element === 'object') {
+    const value = (element as any).value || (element as any).Value
+    if (value) {
+      const direct =
+        toNumber(value.QualityValue) ??
+        toNumber(value.qualityValue) ??
+        toNumber(value.ProgressValue) ??
+        toNumber(value.progressValue)
+      if (direct !== null) {
+        return direct
+      }
+      if (value.leftStr || value.rightStr) {
+        const normalized = [value.leftStr, value.rightStr]
+          .filter(Boolean)
+          .map((str: string) => parseQualityText(str))
+          .find(q => q !== null)
+        if (normalized !== undefined) {
+          return normalized ?? null
+        }
+      }
+    }
+  }
+  
+  const serialized = typeof element === 'string' ? element : JSON.stringify(element)
+  return parseQualityText(serialized)
 }
 
 /**
@@ -85,12 +124,6 @@ function parseStats(html: string): StatItem[] {
       stats.push({
         type: match[1].trim(),
         value: match[2]
-      })
-    } else if (line.trim()) {
-      // 다른 형태의 스탯
-      stats.push({
-        type: line.trim(),
-        value: ''
       })
     }
   }
@@ -183,10 +216,7 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
 
     // Element_001: 품질 정보
     if (tooltip.Element_001) {
-      const qualityHtml = typeof tooltip.Element_001 === 'string'
-        ? tooltip.Element_001
-        : JSON.stringify(tooltip.Element_001)
-      const quality = parseQuality(qualityHtml)
+      const quality = parseQuality(tooltip.Element_001)
       if (quality !== null) {
         parsed.quality = quality
       }

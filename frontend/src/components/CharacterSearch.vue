@@ -126,7 +126,6 @@
                     </div>
                   </div>
                 </div>
-
                 <div class="hero-row hero-row--profile-stats" v-if="character.stats && character.stats.length">
                   <h3>전투 특성</h3>
                   <div class="profile-stats-grid">
@@ -140,6 +139,36 @@
                     </div>
                   </div>
                 </div>
+                 <div class="hero-row hero-row--special" v-if="specialEquipmentsDetailed.length">
+                  <div class="special-header">
+                    <h3>항해 장비</h3>
+                    <span class="special-count">{{ specialEquipmentsDetailed.length }}개</span>
+                  </div>
+                  <div class="special-grid">
+                    <article v-for="special in specialEquipmentsDetailed" :key="special.item.name" class="special-card">
+                      <LazyImage
+                        v-if="special.item.icon"
+                        :src="special.item.icon"
+                        :alt="special.item.name"
+                        width="48"
+                        height="48"
+                        imageClass="special-icon"
+                        errorIcon="🧭"
+                        :useProxy="true"
+                      />
+                      <div class="special-info">
+                        <strong>{{ special.item.name }}</strong>
+                        <span class="special-type">{{ special.item.type }}</span>
+                        <ul v-if="special.highlights.length" class="special-highlights">
+                          <li v-for="(line, idx) in special.highlights" :key="`${special.item.name}-${idx}`">
+                            {{ line }}
+                          </li>
+                        </ul>
+                      </div>
+                    </article>
+                  </div>
+                </div>
+
               </div>
 
               <div class="results-panel">
@@ -306,6 +335,23 @@ const detailEquipment = ref<Equipment[]>([])
 const detailEngravings = ref<Engraving[]>([])
 const detailLoading = ref(false)
 const detailError = ref<string | null>(null)
+const specialEquipmentKeywords = ['나침반', '부적', '문장', '보주']
+
+const isSpecialEquipment = (item: Equipment) => {
+  const target = `${item.type ?? ''} ${item.name ?? ''}`.toLowerCase()
+  return specialEquipmentKeywords.some(keyword => target.includes(keyword.toLowerCase()))
+}
+
+const specialEquipments = computed(() => {
+  return detailEquipment.value.filter(item => isSpecialEquipment(item))
+})
+
+const specialEquipmentsDetailed = computed(() => {
+  return specialEquipments.value.map(item => ({
+    item,
+    highlights: getSpecialHighlights(item)
+  }))
+})
 
 const searchSuggestions = computed<Suggestion[]>(() => {
   const suggestions: Suggestion[] = []
@@ -555,6 +601,43 @@ const formatItemLevel = (value?: string | number) => {
   const raw = typeof value === 'number' ? value : Number(value.replace(/,/g, ''))
   if (Number.isNaN(raw)) return typeof value === 'string' ? value : '—'
   return raw.toFixed(2)
+}
+
+const extractTooltipLines = (tooltip?: string): string[] => {
+  if (!tooltip) return []
+  try {
+    const raw = JSON.parse(tooltip)
+    const normalize = (value: any): string[] => {
+      if (!value) return []
+      if (typeof value === 'string') return [cleanTooltipLine(value)]
+      if (Array.isArray(value)) return value.flatMap(normalize)
+      if (typeof value === 'object') {
+        if ('value' in value) return normalize(value.value)
+        return Object.values(value).flatMap(normalize)
+      }
+      return []
+    }
+    return Object.values(raw).flatMap(normalize).filter(Boolean)
+  } catch {
+    return [cleanTooltipLine(tooltip)]
+  }
+}
+
+const cleanTooltipLine = (text: string) =>
+  text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\\n/g, ' ')
+    .replace(/&[^;]+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const getSpecialHighlights = (item: Equipment): string[] => {
+  const lines = extractTooltipLines(item.tooltip)
+  if (!lines.length) return []
+  const highlightRegex = /(기본 효과|추가 효과|연마 효과|슬롯 효과|추가 피해|전투 중|아크 패시브|내구도|캐릭터 귀속|소지품)/i
+  const preferred = lines.filter(line => highlightRegex.test(line))
+  const list = preferred.length ? preferred : lines
+  return Array.from(new Set(list)).slice(0, 4)
 }
 
 const normalizeStatValue = (value?: string | string[]) => {
@@ -829,6 +912,7 @@ const formatProfileStat = (value?: string | string[]) => {
   margin: 4px 0;
   font-size: 1.6rem;
   color: var(--text-primary);
+  text-align: center;
 }
 
 .hero-meta-grid {
@@ -852,6 +936,75 @@ const formatProfileStat = (value?: string | string[]) => {
 .meta-item strong {
   font-size: 1rem;
   color: var(--text-primary);
+}
+
+.hero-row--special {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.special-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.special-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.special-count {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.special-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.special-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  flex: 1 1 220px;
+  background: var(--bg-secondary);
+}
+
+.special-card :deep(.special-icon) {
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.special-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.special-type {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.special-highlights {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.special-highlights li {
+  list-style: disc;
 }
 
 .profile-stats-grid {
