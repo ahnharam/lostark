@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CharacterProfileDto {
@@ -26,6 +28,9 @@ public class CharacterProfileDto {
     @JsonAlias("ItemMaxLevel")
     private String itemMaxLevel;
 
+    @JsonAlias("Title")
+    private String title;
+
     @JsonAlias("CharacterImage")
     private String characterImage;
 
@@ -37,4 +42,7 @@ public class CharacterProfileDto {
 
     @JsonAlias("GuildName")
     private String guildName;
+
+    @JsonAlias("Stats")
+    private List<CharacterStatDto> stats;
 }

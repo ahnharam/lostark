@@ -68,6 +68,7 @@ public class FavoriteService {
         dto.setItemAvgLevel(character.getItemAvgLevel());
         dto.setItemMaxLevel(character.getItemMaxLevel());
         dto.setCharacterImage(character.getCharacterImage());
+        dto.setTitle(character.getTitle());
         dto.setExpeditionLevel(character.getExpeditionLevel() != null ? 
                 Integer.parseInt(character.getExpeditionLevel()) : null);
         dto.setPvpGradeName(character.getPvpGradeName());

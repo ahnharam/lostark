@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -51,6 +52,9 @@ public class EngravingService {
             }
 
             return armory.getEngraving().getEffects();
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("로스트아크 API에서 각인 정보를 찾을 수 없음: {}", characterName);
+            return List.of();
         } catch (Exception e) {
             log.error("각인 정보 조회 실패: {} - {}", characterName, e.getMessage(), e);
             throw new ApiException("각인 정보를 불러오는 중 오류가 발생했습니다.", e);

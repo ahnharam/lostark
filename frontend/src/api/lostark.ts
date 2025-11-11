@@ -16,6 +16,12 @@ const CACHE_TTL = {
 }
 
 // 캐릭터 기본 프로필 응답
+export interface CharacterStat {
+  type: string
+  value: string | string[]
+  tooltip?: string | string[]
+}
+
 export interface CharacterProfile {
   characterName: string        // 캐릭터명
   serverName: string           // 소속 서버
@@ -27,6 +33,8 @@ export interface CharacterProfile {
   pvpGradeName: string         // PVP 등급명
   guildName: string            // 가입 길드명
   characterLevel?: number      // 캐릭터(전투) 레벨
+  title?: string               // 칭호
+  stats?: CharacterStat[]      // 전투 특성
 }
 
 // 장비 목록 응답

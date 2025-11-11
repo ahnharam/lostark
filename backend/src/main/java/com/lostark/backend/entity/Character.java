@@ -34,12 +34,17 @@ public class Character {
     
     @Column(columnDefinition = "TEXT")
     private String characterImage;
+
+    private String title;
     
     private String expeditionLevel;
     
     private String pvpGradeName;
     
     private String guildName;
+
+    @Column(columnDefinition = "TEXT")
+    private String statsJson;
     
     @Column(columnDefinition = "TEXT")
     private String apiResponse;

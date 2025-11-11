@@ -1,8 +1,10 @@
 package com.lostark.backend.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lostark.backend.dto.CharacterProfileDto;
+import com.lostark.backend.dto.CharacterStatDto;
 import com.lostark.backend.entity.Character;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.exception.CharacterNotFoundException;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -42,10 +45,17 @@ public class CharacterService {
         
         if (cachedCharacter.isPresent()) {
             Character character = cachedCharacter.get();
-            // 캐시가 1시간 이내면 DB 데이터 반환
-            if (Duration.between(character.getUpdatedAt(), LocalDateTime.now()).compareTo(CACHE_DURATION) < 0) {
+            boolean cacheFresh = Duration.between(character.getUpdatedAt(), LocalDateTime.now())
+                    .compareTo(CACHE_DURATION) < 0;
+            boolean needsUpgrade = character.getTitle() == null || character.getStatsJson() == null;
+            
+            if (cacheFresh && !needsUpgrade) {
                 log.info("캐시된 데이터 반환: {}", characterName);
                 return convertToDto(character);
+            }
+            
+            if (needsUpgrade) {
+                log.info("캐시 데이터에 누락된 필드가 있어 재요청: {}", characterName);
             }
         }
         
@@ -84,11 +94,37 @@ public class CharacterService {
         dto.setItemAvgLevel(character.getItemAvgLevel());
         dto.setItemMaxLevel(character.getItemMaxLevel());
         dto.setCharacterImage(character.getCharacterImage());
+        dto.setTitle(character.getTitle());
         dto.setExpeditionLevel(character.getExpeditionLevel() != null ? 
                 Integer.parseInt(character.getExpeditionLevel()) : null);
         dto.setPvpGradeName(character.getPvpGradeName());
         dto.setGuildName(character.getGuildName());
+        List<CharacterStatDto> stats = parseStats(character.getStatsJson());
+        if (stats != null) {
+            dto.setStats(stats);
+        } else if (character.getApiResponse() != null) {
+            try {
+                CharacterProfileDto cachedDto = objectMapper.readValue(character.getApiResponse(), CharacterProfileDto.class);
+                dto.setStats(cachedDto.getStats());
+                if (dto.getTitle() == null) {
+                    dto.setTitle(cachedDto.getTitle());
+                }
+            } catch (JsonProcessingException e) {
+                dto.setStats(null);
+            }
+        }
         return dto;
+    }
+    
+    private List<CharacterStatDto> parseStats(String statsJson) {
+        if (statsJson == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(statsJson, new TypeReference<List<CharacterStatDto>>() {});
+        } catch (JsonProcessingException e) {
+            return null;
+        }
     }
     
     private void updateCharacterFromDto(Character character, CharacterProfileDto dto) {
@@ -99,10 +135,17 @@ public class CharacterService {
         character.setItemAvgLevel(dto.getItemAvgLevel());
         character.setItemMaxLevel(dto.getItemMaxLevel());
         character.setCharacterImage(dto.getCharacterImage());
+        character.setTitle(dto.getTitle());
         character.setExpeditionLevel(dto.getExpeditionLevel() != null ? 
                 dto.getExpeditionLevel().toString() : null);
         character.setPvpGradeName(dto.getPvpGradeName());
         character.setGuildName(dto.getGuildName());
+        try {
+            character.setStatsJson(dto.getStats() != null ?
+                    objectMapper.writeValueAsString(dto.getStats()) : null);
+        } catch (JsonProcessingException e) {
+            character.setStatsJson(null);
+        }
         
         try {
             character.setApiResponse(objectMapper.writeValueAsString(dto));

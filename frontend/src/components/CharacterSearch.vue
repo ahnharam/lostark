@@ -72,109 +72,144 @@
           </div>
 
           <section v-if="character && !loading" class="character-results">
-            <div class="character-overview-card">
-              <div class="hero-info">
-                <LazyImage
-                  :src="character.characterImage || ''"
-                  :alt="character.characterName"
-                  width="96"
-                  height="96"
-                  imageClass="hero-avatar"
-                  errorIcon="👤"
-                />
-                <div class="hero-text">
-                  <h2>{{ character.characterName }}</h2>
-                  <div class="hero-meta">
-                    <span>{{ character.characterClassName }}</span>
-                    <span>{{ character.serverName }}</span>
-                    <span v-if="character.guildName">길드 {{ character.guildName }}</span>
-                    <span v-if="character.pvpGradeName">PVP {{ character.pvpGradeName }}</span>
+            <div class="results-layout">
+              <div class="character-overview-card">
+                <div class="hero-row hero-row--levels">
+                  <div class="hero-levels">
+                    <div class="level-item">
+                      <span>전투 레벨</span>
+                      <strong>Lv. {{ character.characterLevel != null ? character.characterLevel : '—' }}</strong>
+                    </div>
+                    <div class="level-item">
+                      <span>아이템 레벨</span>
+                      <strong>{{ formatItemLevel(character.itemAvgLevel) }}</strong>
+                    </div>
+                    <div class="level-item">
+                      <span>원정대 레벨</span>
+                      <strong>{{ character.expeditionLevel || '-' }}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="hero-actions">
-                <div class="hero-stats">
-                  <div>
-                    <span>전투 레벨</span>
-                    <strong>Lv. {{ character.characterLevel != null ? character.characterLevel : '—' }}</strong>
-                  </div>
-                  <div>
-                    <span>아이템 레벨</span>
-                    <strong>{{ formatItemLevel(character.itemAvgLevel) }}</strong>
-                  </div>
-                  <div>
-                    <span>원정대 레벨</span>
-                    <strong>{{ character.expeditionLevel || '-' }}</strong>
+
+                <div class="hero-row hero-row--image">
+                  <LazyImage
+                    :src="character.characterImage || ''"
+                    :alt="character.characterName"
+                    width="140"
+                    height="140"
+                    imageClass="hero-avatar"
+                    errorIcon="👤"
+                  />
+                  <div class="hero-text">
+                    <h2>{{ character.characterName }}</h2>
+                    <span class="hero-title" v-if="character.title">{{ character.title }}</span>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div class="view-tabs">
-              <button
-                class="view-tab-button"
-                :class="{ active: activeResultTab === 'detail' }"
-                @click="activeResultTab = 'detail'"
-              >
-                상세 보기
-              </button>
-              <button
-                class="view-tab-button"
-                :class="{ active: activeResultTab === 'expedition' }"
-                @click="activeResultTab = 'expedition'"
-              >
-                보유 캐릭터
-              </button>
-            </div>
-
-            <section v-if="activeResultTab === 'detail'" class="detail-panel">
-              <CharacterDetailModal
-                :character="selectedCharacterProfile"
-                :equipment="detailEquipment"
-                :engravings="detailEngravings"
-                :loading="detailLoading"
-                :error-message="detailError"
-              />
-            </section>
-
-            <section v-else class="expedition-section">
-              <div class="section-header-bar">
-                <div>
-                  <h3>원정대 보유 캐릭터</h3>
-                  <p class="section-subtitle">클릭하면 상세 정보가 열립니다.</p>
+                <div class="hero-row hero-row--meta">
+                  <div class="hero-meta-grid">
+                    <div class="meta-item">
+                      <span>직업</span>
+                      <strong>{{ character.characterClassName }}</strong>
+                    </div>
+                    <div class="meta-item">
+                      <span>서버</span>
+                      <strong>{{ character.serverName }}</strong>
+                    </div>
+                    <div class="meta-item" v-if="character.guildName">
+                      <span>길드</span>
+                      <strong>{{ character.guildName }}</strong>
+                    </div>
+                    <div class="meta-item" v-if="character.pvpGradeName">
+                      <span>PVP</span>
+                      <strong>{{ character.pvpGradeName }}</strong>
+                    </div>
+                  </div>
                 </div>
-                <span class="count-pill">{{ (character ? 1 : 0) + siblings.length }}명</span>
-              </div>
-              <template v-if="expeditionGroups.length">
-                <div
-                  v-for="group in expeditionGroups"
-                  :key="group.server"
-                  class="expedition-group"
-                >
-                  <h4>{{ group.server }}</h4>
-                  <div class="expedition-grid">
-                    <article
-                      v-for="member in group.members"
-                      :key="member.characterName"
-                      class="expedition-card"
-                      :class="{ active: selectedCharacterProfile?.characterName === member.characterName }"
-                      @click="viewCharacterDetail(member)"
+
+                <div class="hero-row hero-row--profile-stats" v-if="character.stats && character.stats.length">
+                  <h3>전투 특성</h3>
+                  <div class="profile-stats-grid">
+                    <div
+                      v-for="stat in character.stats"
+                      :key="`${stat.type}-${stat.value}`"
+                      class="profile-stat"
                     >
-                      <div class="member-top">
-                        <span class="member-level">Lv. {{ member.characterLevel || '—' }}</span>
-                        <span class="member-class">{{ member.characterClassName }}</span>
-                      </div>
-                      <strong class="member-name">{{ member.characterName }}</strong>
-                      <span class="member-ilvl">
-                        iLv. {{ formatItemLevel(member.itemAvgLevel || member.itemMaxLevel) }}
-                      </span>
-                      <span class="member-detail">상세 보기</span>
-                    </article>
+                      <span>{{ stat.type }}</span>
+                      <strong>{{ formatProfileStat(stat.value) }}</strong>
+                    </div>
                   </div>
                 </div>
-              </template>
-              <p v-else class="empty-message">원정대 캐릭터가 없습니다.</p>
-            </section>
+              </div>
+
+              <div class="results-panel">
+                <div class="view-tabs">
+                  <button
+                    class="view-tab-button"
+                    :class="{ active: activeResultTab === 'detail' }"
+                    @click="activeResultTab = 'detail'"
+                  >
+                    상세 보기
+                  </button>
+                  <button
+                    class="view-tab-button"
+                    :class="{ active: activeResultTab === 'expedition' }"
+                    @click="activeResultTab = 'expedition'"
+                  >
+                    보유 캐릭터
+                  </button>
+                </div>
+
+                <section v-if="activeResultTab === 'detail'" class="detail-panel">
+                  <CharacterDetailModal
+                    :character="selectedCharacterProfile"
+                    :equipment="detailEquipment"
+                    :engravings="detailEngravings"
+                    :loading="detailLoading"
+                    :error-message="detailError"
+                  />
+                </section>
+
+                <section v-else class="expedition-section">
+                  <div class="section-header-bar">
+                    <div>
+                      <h3>원정대 보유 캐릭터</h3>
+                      <p class="section-subtitle">클릭하면 상세 정보가 열립니다.</p>
+                    </div>
+                    <span class="count-pill">{{ (character ? 1 : 0) + siblings.length }}명</span>
+                  </div>
+                  <template v-if="expeditionGroups.length">
+                    <div
+                      v-for="group in expeditionGroups"
+                      :key="group.server"
+                      class="expedition-group"
+                    >
+                      <h4>{{ group.server }}</h4>
+                      <div class="expedition-grid">
+                        <article
+                          v-for="member in group.members"
+                          :key="member.characterName"
+                          class="expedition-card"
+                          :class="{ active: selectedCharacterProfile?.characterName === member.characterName }"
+                          @click="viewCharacterDetail(member)"
+                        >
+                          <div class="member-top">
+                            <span class="member-level">Lv. {{ member.characterLevel || '—' }}</span>
+                            <span class="member-class">{{ member.characterClassName }}</span>
+                          </div>
+                          <strong class="member-name">{{ member.characterName }}</strong>
+                          <span class="member-ilvl">
+                            iLv. {{ formatItemLevel(member.itemAvgLevel || member.itemMaxLevel) }}
+                          </span>
+                          <span class="member-detail">상세 보기</span>
+                        </article>
+                      </div>
+                    </div>
+                  </template>
+                  <p v-else class="empty-message">원정대 캐릭터가 없습니다.</p>
+                </section>
+              </div>
+            </div>
           </section>
         </div>
       </main>
@@ -521,6 +556,23 @@ const formatItemLevel = (value?: string | number) => {
   if (Number.isNaN(raw)) return typeof value === 'string' ? value : '—'
   return raw.toFixed(2)
 }
+
+const normalizeStatValue = (value?: string | string[]) => {
+  if (!value) return ''
+  if (Array.isArray(value)) {
+    return value.join(' / ')
+  }
+  return value
+    .replace(/<br\s*\/?>/gi, ' / ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim()
+}
+
+const formatProfileStat = (value?: string | string[]) => {
+  const normalized = normalizeStatValue(value)
+  return normalized.length ? normalized : '—'
+}
 </script>
 
 <style scoped>
@@ -676,6 +728,19 @@ const formatItemLevel = (value?: string | number) => {
   gap: 24px;
 }
 
+.results-layout {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.results-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .view-tabs {
   display: flex;
   gap: 10px;
@@ -705,25 +770,59 @@ const formatItemLevel = (value?: string | number) => {
 
 .character-overview-card {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   background: var(--card-bg);
   border-radius: 20px;
   padding: 24px 32px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
-  gap: 30px;
+  gap: 20px;
+  flex: 0 0 380px;
+  height: fit-content;
 }
 
-.hero-info {
+.hero-row {
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hero-row--levels .hero-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 12px;
+}
+
+.level-item {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.level-item span {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.hero-row--image {
+  display: flex;
+  gap: 16px;
   align-items: center;
 }
 
-.hero-info :deep(.hero-avatar) {
+.hero-row--image :deep(.hero-avatar) {
   border-radius: 16px;
   object-fit: cover;
+}
+
+.hero-title {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
 }
 
 .hero-text h2 {
@@ -732,48 +831,54 @@ const formatItemLevel = (value?: string | number) => {
   color: var(--text-primary);
 }
 
-.hero-level {
-  font-size: 0.85rem;
-  color: var(--text-tertiary);
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
+.hero-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
-.hero-text p {
+.meta-item {
+  padding: 10px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.meta-item span {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-right: 5px;
+}
+
+.meta-item strong {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.hero-row--profile-stats h3 {
   margin: 0;
+  font-size: 1rem;
   color: var(--text-secondary);
 }
 
-.hero-meta {
+.profile-stat {
+  padding: 10px;
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-top: 6px;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
-.hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.hero-stats {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.hero-stats div {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.85rem;
+.profile-stat span {
+  font-size: 0.8rem;
   color: var(--text-tertiary);
 }
 
-.hero-stats strong {
-  font-size: 1.2rem;
+.profile-stat strong {
+  font-size: 1rem;
   color: var(--text-primary);
 }
 
@@ -784,6 +889,16 @@ const formatItemLevel = (value?: string | number) => {
   padding: 24px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 1024px) {
+  .results-layout {
+    flex-direction: column;
+  }
+
+  .character-overview-card {
+    flex: 1;
+  }
 }
 
 .section-header-bar {
@@ -992,10 +1107,6 @@ const formatItemLevel = (value?: string | number) => {
     grid-template-columns: 1fr;
   }
 
-  .hero-actions {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1015,18 +1126,17 @@ const formatItemLevel = (value?: string | number) => {
     flex-direction: column;
   }
 
-  .character-overview-card {
+  .hero-row--image {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .hero-info {
-    flex-direction: column;
-    align-items: flex-start;
+  .hero-row--levels .hero-levels {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
-  .hero-stats {
-    flex-direction: column;
+  .profile-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }
 </style>
