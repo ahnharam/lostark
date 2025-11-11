@@ -14,6 +14,7 @@
         <div class="gear-column" v-for="(column, idx) in gearColumnList" :key="idx">
           <article v-for="item in column" :key="item.name" class="gear-card">
             <div class="card-left">
+              {{ console.log('[CharacterDetail] Rendering item:', item.name, 'icon:', item.icon) }}
               <LazyImage
                 v-if="item.icon"
                 :src="item.icon"
@@ -22,6 +23,7 @@
                 height="52"
                 imageClass="gear-icon"
                 errorIcon="⚔️"
+                :useProxy="true"
               />
               <div class="tier-stack">
                 <span class="tier-chip">{{ formatGrade(item.grade) }}</span>
@@ -71,6 +73,7 @@
               height="36"
               imageClass="engraving-icon"
               errorIcon="📜"
+              :useProxy="true"
             />
             <div>
               <strong>{{ engraving.name }}</strong>
@@ -149,6 +152,12 @@ const getParsedEquipment = (item: Equipment) => parsedEquipment.value[item.name]
 const getTooltipValues = (item: Equipment) => tooltipValueMap.value[item.name] || []
 const getCoreValues = (item: Equipment) => getTooltipValues(item).slice(0, 3)
 const getExtraValues = (item: Equipment) => getTooltipValues(item).slice(3, 7)
+
+// 디버깅: 아이템 아이콘 URL 확인
+const logItemIcon = (item: Equipment) => {
+  console.log('[CharacterDetail] Item:', item.name, 'Icon URL:', item.icon)
+  return item.icon
+}
 
 const getEffectPills = (item: Equipment) => {
   const pills: { text: string; variant: 'engraving' | 'elixir' }[] = []

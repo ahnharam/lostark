@@ -75,8 +75,7 @@
             <div class="character-overview-card">
               <div class="hero-info">
                 <LazyImage
-                  v-if="character.characterImage"
-                  :src="character.characterImage"
+                  :src="character.characterImage || ''"
                   :alt="character.characterName"
                   width="96"
                   height="96"
@@ -188,8 +187,7 @@
               @click="searchCharacter(fav.characterName)"
             >
               <LazyImage
-                v-if="fav.characterImage"
-                :src="fav.characterImage"
+                :src="fav.characterImage || ''"
                 :alt="fav.characterName"
                 width="40"
                 height="40"

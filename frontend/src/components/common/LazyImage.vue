@@ -10,18 +10,19 @@
 
     <!-- 실제 이미지 -->
     <img
-      v-show="!isLoading && !hasError"
+      v-if="!hasError"
       ref="imgRef"
       :src="currentSrc"
       :alt="alt"
       :class="imageClass"
       :referrerpolicy="referrerPolicy"
+      crossorigin="anonymous"
       @load="onLoad"
       @error="onError"
     />
 
     <!-- 에러 플레이스홀더 -->
-    <div v-if="hasError" class="error-placeholder">
+    <div v-else class="error-placeholder">
       <span class="error-icon">{{ errorIcon }}</span>
     </div>
   </div>
@@ -29,6 +30,47 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+
+/**
+ * 이미지 URL을 프록시 URL로 변환
+ */
+function getProxyImageUrl(imageUrl: string): string {
+  console.log('[getProxyImageUrl] Input:', imageUrl)
+  
+  if (!imageUrl) {
+    console.log('[getProxyImageUrl] Empty URL, returning empty string')
+    return ''
+  }
+  
+  // 이미 프록시 URL이면 그대로 반환
+  if (imageUrl.includes('/api/proxy/image')) {
+    console.log('[getProxyImageUrl] Already proxy URL, returning as-is')
+    return imageUrl
+  }
+  
+  // 로컬 이미지면 그대로 반환
+  if (imageUrl.startsWith('/') || imageUrl.startsWith('data:')) {
+    console.log('[getProxyImageUrl] Local image, returning as-is')
+    return imageUrl
+  }
+  
+  // API 기본 URL 가져오기
+  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  console.log('[getProxyImageUrl] API Base URL:', apiBaseUrl)
+  
+  // /api로 끝나면 제거 (중복 방지)
+  if (apiBaseUrl.endsWith('/api')) {
+    apiBaseUrl = apiBaseUrl.slice(0, -4)
+    console.log('[getProxyImageUrl] Removed /api suffix, new base URL:', apiBaseUrl)
+  }
+  
+  // URL 인코딩
+  const encodedUrl = encodeURIComponent(imageUrl)
+  const proxyUrl = `${apiBaseUrl}/api/proxy/image?url=${encodedUrl}`
+  
+  console.log('[getProxyImageUrl] Final proxy URL:', proxyUrl)
+  return proxyUrl
+}
 
 interface Props {
   src: string
@@ -41,6 +83,7 @@ interface Props {
   showSkeleton?: boolean
   lazy?: boolean
   referrerPolicy?: ReferrerPolicy
+  useProxy?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -51,8 +94,9 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   errorIcon: '🖼️',
   showSkeleton: true,
-  lazy: true,
-  referrerPolicy: 'no-referrer'
+  lazy: false,  // lazy를 false로 변경하여 즉시 로드
+  referrerPolicy: 'no-referrer',
+  useProxy: true
 })
 
 const imgRef = ref<HTMLImageElement | null>(null)
@@ -93,8 +137,43 @@ const normalizeSrc = (value: string) => {
 }
 
 const loadImage = () => {
-  if (!props.src) return
-  currentSrc.value = normalizeSrc(props.src)
+  console.log('[loadImage] Starting image load, src:', props.src)
+  console.log('[loadImage] useProxy:', props.useProxy)
+  
+  if (!props.src) {
+    console.warn('[loadImage] No src provided, setting error')
+    hasError.value = true
+    isLoading.value = false
+    return
+  }
+  
+  let processedSrc = props.src.trim()
+  
+  if (!processedSrc) {
+    console.warn('[loadImage] Empty processed src, setting error')
+    hasError.value = true
+    isLoading.value = false
+    return
+  }
+  
+  // 로컬 이미지나 data URL은 프록시 없이 사용
+  if (processedSrc.startsWith('/') || processedSrc.startsWith('data:')) {
+    currentSrc.value = processedSrc
+    console.log('[loadImage] Local image, using directly:', currentSrc.value)
+    return
+  }
+  
+  // 프록시 사용 여부 확인
+  if (props.useProxy) {
+    console.log('[loadImage] Applying proxy transformation')
+    processedSrc = getProxyImageUrl(processedSrc)
+  } else {
+    console.log('[loadImage] Proxy disabled, normalizing URL')
+    processedSrc = normalizeSrc(processedSrc)
+  }
+  
+  currentSrc.value = processedSrc
+  console.log('[loadImage] Final currentSrc:', currentSrc.value)
 }
 
 const onLoad = () => {
@@ -102,7 +181,8 @@ const onLoad = () => {
   hasError.value = false
 }
 
-const onError = () => {
+const onError = (event: Event) => {
+  console.error('Image load error:', currentSrc.value, event)
   isLoading.value = false
   hasError.value = true
 }
