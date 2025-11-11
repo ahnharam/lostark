@@ -95,6 +95,10 @@
               <div class="hero-actions">
                 <div class="hero-stats">
                   <div>
+                    <span>전투 레벨</span>
+                    <strong>Lv. {{ character.characterLevel != null ? character.characterLevel : '—' }}</strong>
+                  </div>
+                  <div>
                     <span>아이템 레벨</span>
                     <strong>{{ formatItemLevel(character.itemAvgLevel) }}</strong>
                   </div>
@@ -161,7 +165,9 @@
                         <span class="member-class">{{ member.characterClassName }}</span>
                       </div>
                       <strong class="member-name">{{ member.characterName }}</strong>
-                      <span class="member-ilvl">iLv. {{ formatItemLevel(member.itemMaxLevel) }}</span>
+                      <span class="member-ilvl">
+                        iLv. {{ formatItemLevel(member.itemAvgLevel || member.itemMaxLevel) }}
+                      </span>
                       <span class="member-detail">상세 보기</span>
                     </article>
                   </div>
@@ -299,14 +305,18 @@ const expeditionGroups = computed(() => {
   const addToGroup = (member: SiblingCharacter) => {
     const key = member.serverName || '기타'
     if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(member)
+    const normalizedMember: SiblingCharacter = {
+      ...member,
+      itemMaxLevel: member.itemMaxLevel || member.itemAvgLevel
+    }
+    groups.get(key)!.push(normalizedMember)
   }
 
   if (character.value) {
     addToGroup({
       serverName: character.value.serverName,
       characterName: character.value.characterName,
-      characterLevel: character.value.characterLevel || 0,
+      characterLevel: character.value.characterLevel ?? undefined,
       characterClassName: character.value.characterClassName,
       itemAvgLevel: character.value.itemAvgLevel,
       itemMaxLevel: character.value.itemMaxLevel || character.value.itemAvgLevel,
@@ -752,6 +762,7 @@ const formatItemLevel = (value?: string | number) => {
 .hero-stats {
   display: flex;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .hero-stats div {

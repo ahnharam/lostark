@@ -25,6 +25,8 @@ public class Character {
     private String serverName;
     
     private String characterClassName;
+
+    private Integer characterLevel;
     
     private String itemAvgLevel;
     

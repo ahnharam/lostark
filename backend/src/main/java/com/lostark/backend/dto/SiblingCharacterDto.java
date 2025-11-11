@@ -16,6 +16,9 @@ public class SiblingCharacterDto {
     
     @JsonAlias("CharacterClassName")
     private String characterClassName;
+
+    @JsonAlias("CharacterLevel")
+    private Integer characterLevel;
     
     @JsonAlias("ItemAvgLevel")
     private String itemAvgLevel;

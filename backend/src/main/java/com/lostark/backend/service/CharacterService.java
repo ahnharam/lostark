@@ -80,6 +80,7 @@ public class CharacterService {
         dto.setCharacterName(character.getCharacterName());
         dto.setServerName(character.getServerName());
         dto.setCharacterClassName(character.getCharacterClassName());
+        dto.setCharacterLevel(character.getCharacterLevel());
         dto.setItemAvgLevel(character.getItemAvgLevel());
         dto.setItemMaxLevel(character.getItemMaxLevel());
         dto.setCharacterImage(character.getCharacterImage());
@@ -94,6 +95,7 @@ public class CharacterService {
         character.setCharacterName(dto.getCharacterName());
         character.setServerName(dto.getServerName());
         character.setCharacterClassName(dto.getCharacterClassName());
+        character.setCharacterLevel(dto.getCharacterLevel());
         character.setItemAvgLevel(dto.getItemAvgLevel());
         character.setItemMaxLevel(dto.getItemMaxLevel());
         character.setCharacterImage(dto.getCharacterImage());

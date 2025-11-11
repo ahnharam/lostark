@@ -64,6 +64,7 @@ public class FavoriteService {
         dto.setCharacterName(character.getCharacterName());
         dto.setServerName(character.getServerName());
         dto.setCharacterClassName(character.getCharacterClassName());
+        dto.setCharacterLevel(character.getCharacterLevel());
         dto.setItemAvgLevel(character.getItemAvgLevel());
         dto.setItemMaxLevel(character.getItemMaxLevel());
         dto.setCharacterImage(character.getCharacterImage());

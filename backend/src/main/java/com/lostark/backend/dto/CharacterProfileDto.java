@@ -17,6 +17,9 @@ public class CharacterProfileDto {
     @JsonAlias("CharacterClassName")
     private String characterClassName;
 
+    @JsonAlias("CharacterLevel")
+    private Integer characterLevel;
+
     @JsonAlias("ItemAvgLevel")
     private String itemAvgLevel;
 
