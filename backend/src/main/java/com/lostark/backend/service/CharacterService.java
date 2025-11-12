@@ -3,6 +3,7 @@ package com.lostark.backend.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lostark.backend.dto.ArmoryDto;
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.CharacterStatDto;
 import com.lostark.backend.entity.Character;
@@ -47,7 +48,7 @@ public class CharacterService {
             Character character = cachedCharacter.get();
             boolean cacheFresh = Duration.between(character.getUpdatedAt(), LocalDateTime.now())
                     .compareTo(CACHE_DURATION) < 0;
-            boolean needsUpgrade = character.getTitle() == null || character.getStatsJson() == null;
+            boolean needsUpgrade = character.getTitle() == null || character.getStatsJson() == null || character.getCombatPower() == null;
             
             if (cacheFresh && !needsUpgrade) {
                 log.info("캐시된 데이터 반환: {}", characterName);
@@ -63,6 +64,17 @@ public class CharacterService {
         log.info("로스트아크 API 호출: {}", characterName);
         try {
             CharacterProfileDto profile = lostArkApiService.getCharacterProfile(characterName).block();
+
+            if (profile != null && profile.getCombatPower() == null) {
+                try {
+                    ArmoryDto armoryDto = lostArkApiService.getCharacterArmory(characterName).block();
+                    if (armoryDto != null && armoryDto.getProfile() != null && armoryDto.getProfile().getCombatPower() != null) {
+                        profile.setCombatPower(armoryDto.getProfile().getCombatPower());
+                    }
+                } catch (Exception ex) {
+                    log.warn("전투력 정보를 가져오지 못했습니다: {}", ex.getMessage());
+                }
+            }
 
             if (profile == null || profile.getCharacterName() == null) {
                 log.error("캐릭터를 찾을 수 없음: {}", characterName);
@@ -99,6 +111,7 @@ public class CharacterService {
                 Integer.parseInt(character.getExpeditionLevel()) : null);
         dto.setPvpGradeName(character.getPvpGradeName());
         dto.setGuildName(character.getGuildName());
+        dto.setCombatPower(character.getCombatPower());
         List<CharacterStatDto> stats = parseStats(character.getStatsJson());
         if (stats != null) {
             dto.setStats(stats);
@@ -108,6 +121,9 @@ public class CharacterService {
                 dto.setStats(cachedDto.getStats());
                 if (dto.getTitle() == null) {
                     dto.setTitle(cachedDto.getTitle());
+                }
+                if (dto.getCombatPower() == null) {
+                    dto.setCombatPower(cachedDto.getCombatPower());
                 }
             } catch (JsonProcessingException e) {
                 dto.setStats(null);
@@ -140,6 +156,7 @@ public class CharacterService {
                 dto.getExpeditionLevel().toString() : null);
         character.setPvpGradeName(dto.getPvpGradeName());
         character.setGuildName(dto.getGuildName());
+        character.setCombatPower(dto.getCombatPower());
         try {
             character.setStatsJson(dto.getStats() != null ?
                     objectMapper.writeValueAsString(dto.getStats()) : null);

@@ -35,6 +35,7 @@ export interface CharacterProfile {
   characterLevel?: number      // 캐릭터(전투) 레벨
   title?: string               // 칭호
   stats?: CharacterStat[]      // 전투 특성
+  combatPower?: number         // 전투력
 }
 
 // 장비 목록 응답

@@ -89,16 +89,20 @@
             <div class="results-layout">
               <div class="character-overview-card" ref="characterOverviewRef">
                 <div class="hero-row hero-row--levels">
-                  <div class="hero-levels">
-                    <div class="level-item">
+                  <div class="profile-stats-grid hero-levels-grid">
+                    <div class="profile-stat">
+                      <span>전투력</span>
+                      <strong>{{ formatCombatPower(character.combatPower) }}</strong>
+                    </div>
+                    <div class="profile-stat">
                       <span>전투 레벨</span>
                       <strong>Lv. {{ character.characterLevel != null ? character.characterLevel : '—' }}</strong>
                     </div>
-                    <div class="level-item">
+                    <div class="profile-stat">
                       <span>아이템 레벨</span>
                       <strong>{{ formatItemLevel(character.itemAvgLevel) }}</strong>
                     </div>
-                    <div class="level-item">
+                    <div class="profile-stat">
                       <span>원정대 레벨</span>
                       <strong>{{ character.expeditionLevel || '-' }}</strong>
                     </div>
@@ -957,6 +961,15 @@ const formatProfileStat = (value?: string | string[]) => {
   const normalized = normalizeStatValue(value)
   return normalized.length ? normalized : '—'
 }
+
+const formatCombatPower = (value?: number | string) => {
+  if (value === undefined || value === null) return '—'
+  const raw = typeof value === 'number' ? value : Number(value.toString().replace(/,/g, ''))
+  if (Number.isNaN(raw)) {
+    return typeof value === 'string' && value.length ? value : '—'
+  }
+  return raw.toLocaleString()
+}
 </script>
 
 <style scoped>
@@ -1225,29 +1238,8 @@ const formatProfileStat = (value?: string | string[]) => {
   gap: 12px;
 }
 
-.hero-row--levels .hero-levels {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-  gap: 12px;
-}
-
-.level-item {
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 2px;
-  border-radius: 10px;
-  text-align: center;
-}
-
-.level-item span {
-  color: var(--text-tertiary);
-  font-size: 14px;
-}
-
-.level-item strong {
-  color: var(--text-primary);
+.hero-levels-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .hero-row--image {
