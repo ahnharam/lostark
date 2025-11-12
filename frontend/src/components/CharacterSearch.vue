@@ -73,7 +73,7 @@
 
           <section v-if="character && !loading" class="character-results">
             <div class="results-layout">
-              <div class="character-overview-card">
+              <div class="character-overview-card" ref="characterOverviewRef">
                 <div class="hero-row hero-row--levels">
                   <div class="hero-levels">
                     <div class="level-item">
@@ -126,11 +126,11 @@
                     </div>
                   </div>
                 </div>
-                <div class="hero-row hero-row--profile-stats" v-if="character.stats && character.stats.length">
+                <div class="hero-row hero-row--profile-stats" v-if="displayStats.length">
                   <h3>전투 특성</h3>
                   <div class="profile-stats-grid">
                     <div
-                      v-for="stat in character.stats"
+                      v-for="stat in displayStats"
                       :key="`${stat.type}-${stat.value}`"
                       class="profile-stat"
                     >
@@ -139,33 +139,77 @@
                     </div>
                   </div>
                 </div>
-                 <div class="hero-row hero-row--special" v-if="specialEquipmentsDetailed.length">
-                  <div class="special-header">
-                    <h3>항해 장비</h3>
-                    <span class="special-count">{{ specialEquipmentsDetailed.length }}개</span>
+                <div class="hero-row hero-row--paradise" v-if="paradiseInfo.power || paradiseInfo.season">
+                  <h3>낙원</h3>
+                  <div class="paradise-info">
+                    <div class="paradise-item" v-if="paradiseInfo.season">
+                      <span>시즌</span>
+                      <strong>{{ paradiseInfo.season }}</strong>
+                    </div>
+                    <div class="paradise-item" v-if="paradiseInfo.power">
+                      <span>낙원력</span>
+                      <strong>{{ paradiseInfo.power }}</strong>
+                    </div>
                   </div>
-                  <div class="special-grid">
-                    <article v-for="special in specialEquipmentsDetailed" :key="special.item.name" class="special-card">
-                      <LazyImage
-                        v-if="special.item.icon"
-                        :src="special.item.icon"
-                        :alt="special.item.name"
-                        width="48"
-                        height="48"
-                        imageClass="special-icon"
-                        errorIcon="🧭"
-                        :useProxy="true"
-                      />
-                      <div class="special-info">
-                        <strong>{{ special.item.name }}</strong>
-                        <span class="special-type">{{ special.item.type }}</span>
-                        <ul v-if="special.highlights.length" class="special-highlights">
-                          <li v-for="(line, idx) in special.highlights" :key="`${special.item.name}-${idx}`">
-                            {{ line }}
-                          </li>
-                        </ul>
+                </div>
+                <div class="hero-row hero-row--special" v-if="specialEquipmentsDetailed.length">
+                  <div class="special-header">
+                    <h3>기타</h3>
+                    <!-- <span class="special-count">{{ specialEquipmentsDetailed.length }}개</span> -->
+                  </div>
+                    <div class="special-grid special-grid--icons">
+                      <div
+                        v-for="special in specialEquipmentsDetailed"
+                        :key="special.item.name"
+                        class="special-icon-wrapper"
+                        :class="{ 'is-hovered': hoveredSpecialName === special.item.name }"
+                        tabindex="0"
+                        @mouseenter="handleSpecialHover(special.item.name)"
+                        @mouseleave="handleSpecialHover(null)"
+                        @focus="handleSpecialHover(special.item.name)"
+                        @blur="handleSpecialHover(null)"
+                      >
+                        <div class="special-icon-box">
+                          <LazyImage
+                            v-if="special.item.icon"
+                            :src="special.item.icon"
+                            :alt="special.item.name"
+                            width="56"
+                            height="56"
+                            imageClass="special-icon"
+                            errorIcon="🧭"
+                            :useProxy="true"
+                          />
+                          <div v-else class="special-icon special-icon--fallback" aria-hidden="true">
+                            {{ special.item.name ? special.item.name[0] : '?' }}
+                          </div>
+                        </div>
+                        <span class="special-label">
+                          {{ special.label }}
+                        </span>
+                        <span
+                          v-if="hoveredSpecialName === special.item.name"
+                          class="special-hover-indicator"
+                          aria-hidden="true"
+                        ></span>
                       </div>
-                    </article>
+                    </div>
+                  <div v-if="hoveredSpecial" class="special-tooltip-layer" aria-live="polite">
+                    <div
+                      v-if="hoveredSpecial"
+                      class="special-tooltip special-tooltip--global"
+                      :style="tooltipWidthStyle"
+                      role="tooltip"
+                    >
+                      <strong>{{ hoveredSpecial.item.name }}</strong>
+                      <!-- <span class="special-type">{{ hoveredSpecial.item.type }}</span> -->
+                      <div v-if="hoveredSpecial.highlights.length" class="special-highlights">
+                        <span v-for="(line, idx) in hoveredSpecial.highlights" :key="`${hoveredSpecial.item.name}-${idx}`">
+                          {{ line }}
+                        </span>
+                      </div>
+                      <p v-else class="special-tooltip-empty">추가 설명이 없습니다.</p>
+                    </div>
                   </div>
                 </div>
 
@@ -189,7 +233,10 @@
                   </button>
                 </div>
 
-                <section v-if="activeResultTab === 'detail'" class="detail-panel">
+                <section
+                  v-if="activeResultTab === 'detail'"
+                  class="detail-panel"
+                >
                   <CharacterDetailModal
                     :character="selectedCharacterProfile"
                     :equipment="detailEquipment"
@@ -299,8 +346,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { lostarkApi, type CharacterProfile, type SiblingCharacter, type SearchHistory, type Equipment, type Engraving } from '@/api/lostark'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { lostarkApi, type CharacterProfile, type SiblingCharacter, type SearchHistory, type Equipment, type Engraving, type CharacterStat } from '@/api/lostark'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
 import EmptyState from './common/EmptyState.vue'
@@ -329,6 +376,8 @@ const favorites = ref<CharacterProfile[]>([])
 const history = ref<SearchHistory[]>([])
 const characterAvailability = ref<Record<string, 'available' | 'unavailable' | 'loading'>>({})
 const activeResultTab = ref<'detail' | 'expedition'>('detail')
+const characterOverviewRef = ref<HTMLElement | null>(null)
+const overviewWidth = ref(0)
 
 const selectedCharacterProfile = ref<CharacterProfile | null>(null)
 const detailEquipment = ref<Equipment[]>([])
@@ -349,9 +398,102 @@ const specialEquipments = computed(() => {
 const specialEquipmentsDetailed = computed(() => {
   return specialEquipments.value.map(item => ({
     item,
-    highlights: getSpecialHighlights(item)
+    highlights: getSpecialHighlights(item),
+    label: getSpecialLabel(item)
   }))
 })
+
+const hoveredSpecialName = ref<string | null>(null)
+const hoveredSpecial = computed(() => {
+  if (!hoveredSpecialName.value) return null
+  return specialEquipmentsDetailed.value.find(special => special.item.name === hoveredSpecialName.value) ?? null
+})
+interface ParadiseInfo {
+  season?: string
+  power?: string
+}
+
+const paradiseInfo = computed<ParadiseInfo>(() => {
+  const info: ParadiseInfo = {}
+  const extractLastNumber = (text: string) => {
+    const matches = text.match(/\d[\d.,]*/g)
+    if (!matches || !matches.length) return ''
+    return matches[matches.length - 1].replace(/[^\d.,]/g, '')
+  }
+
+  for (const special of specialEquipmentsDetailed.value) {
+    const tooltipLines = extractTooltipLines(special.item.tooltip)
+    const combinedLines = [...special.highlights, ...tooltipLines]
+    const powerLine = combinedLines.find(text => /낙원력/i.test(text))
+    const seasonLine = combinedLines.find(text => /시즌/i.test(text) && /낙원/i.test(text))
+
+    if (powerLine && !info.power) {
+      const value = extractLastNumber(powerLine)
+      if (value) {
+        info.power = value
+      }
+    }
+
+    if (seasonLine && !info.season) {
+      const match = seasonLine.match(/시즌\s*(\d+)/i)
+      info.season = match?.[1] || extractLastNumber(seasonLine) || seasonLine.replace(/\s+/g, ' ').trim()
+    }
+
+    if (info.power && info.season) break
+  }
+  return info
+})
+
+const displayStats = computed<CharacterStat[]>(() => {
+  const stats = character.value?.stats
+    ? character.value.stats.filter(stat => stat.type !== '낙원력').map(stat => ({ ...stat }))
+    : []
+  return stats
+})
+
+const tooltipWidthValue = computed(() => {
+  if (!overviewWidth.value) return 320
+  return Math.max(Math.round(overviewWidth.value - 20), 240)
+})
+
+const handleSpecialHover = (name: string | null) => {
+  hoveredSpecialName.value = name
+}
+
+const tooltipWidthStyle = computed(() => {
+  const width = tooltipWidthValue.value
+  return width ? { '--tooltip-width': `${width}px` } : {}
+})
+
+const syncOverviewWidth = () => {
+  if (!characterOverviewRef.value) return
+  const width = characterOverviewRef.value.getBoundingClientRect().width
+  if (!width) return
+  if (overviewWidth.value !== width) {
+    overviewWidth.value = width
+  }
+}
+
+let overviewObserver: ResizeObserver | null = null
+
+const observeOverviewCard = () => {
+  if (typeof window === 'undefined') return
+  overviewObserver?.disconnect()
+  const el = characterOverviewRef.value
+  if (el && 'ResizeObserver' in window) {
+    overviewObserver = new ResizeObserver(entries => {
+      const entryWidth = entries[0]?.contentRect.width ?? el.getBoundingClientRect().width
+      if (entryWidth) {
+        overviewWidth.value = entryWidth
+      }
+    })
+    overviewObserver.observe(el)
+    syncOverviewWidth()
+  } else {
+    syncOverviewWidth()
+  }
+}
+
 
 const searchSuggestions = computed<Suggestion[]>(() => {
   const suggestions: Suggestion[] = []
@@ -412,9 +554,56 @@ const expeditionGroups = computed(() => {
   }))
 })
 
+const handleResize = () => {
+  syncOverviewWidth()
+}
+
 onMounted(() => {
   loadFavorites()
   loadHistory()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', handleResize)
+  }
+  nextTick(() => {
+    observeOverviewCard()
+  })
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', handleResize)
+  }
+  overviewObserver?.disconnect()
+})
+
+watch(
+  specialEquipmentsDetailed,
+  newList => {
+    if (!newList.some(special => special.item.name === hoveredSpecialName.value)) {
+      handleSpecialHover(null)
+    }
+  },
+  { deep: false }
+)
+
+watch(
+  () => characterOverviewRef.value,
+  () => {
+    nextTick(() => {
+      if (characterOverviewRef.value) {
+        observeOverviewCard()
+      } else {
+        overviewObserver?.disconnect()
+        overviewWidth.value = 0
+      }
+    })
+  }
+)
+
+watch(activeResultTab, async () => {
+  await nextTick()
+  syncOverviewWidth()
+  handleSpecialHover(null)
 })
 
 const searchCharacterByInput = () => {
@@ -500,6 +689,7 @@ const clearSearch = () => {
   detailError.value = null
   characterAvailability.value = {}
   activeResultTab.value = 'detail'
+  handleSpecialHover(null)
 }
 
 const loadFavorites = async () => {
@@ -623,21 +813,104 @@ const extractTooltipLines = (tooltip?: string): string[] => {
   }
 }
 
-const cleanTooltipLine = (text: string) =>
-  text
+const addFallbackLineBreaks = (value: string): string => {
+  if (!value) return value
+  if (value.includes('\n')) return value
+
+  const insertSentenceBreaks = (text: string) => {
+    return text.replace(/(?<!\d)([.!?])\s+/g, (_, mark) => `${mark}\n`)
+  }
+
+  const insertStatBreaks = (text: string) => {
+    return text.replace(/\s+(?=[+-]\d)/g, '\n')
+  }
+
+  const formatLines = (text: string) =>
+    text
+      .split('\n')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .join('\n')
+
+  const withSentenceBreaks = insertSentenceBreaks(value)
+  if (withSentenceBreaks.includes('\n')) {
+    return formatLines(withSentenceBreaks)
+  }
+
+  const withStatBreaks = insertStatBreaks(value)
+  if (withStatBreaks.includes('\n')) {
+    return formatLines(withStatBreaks)
+  }
+
+  if (value.length <= 80) return value
+
+  const segments: string[] = []
+  let start = 0
+  const length = value.length
+  while (start < length) {
+    let end = Math.min(start + 70, length)
+    if (end === length) {
+      segments.push(value.slice(start).trim())
+      break
+    }
+    let breakIndex = value.lastIndexOf(' ', end)
+    if (breakIndex <= start + 30) {
+      breakIndex = value.indexOf(' ', end)
+    }
+    if (breakIndex === -1) {
+      segments.push(value.slice(start).trim())
+      break
+    }
+    segments.push(value.slice(start, breakIndex).trim())
+    start = breakIndex + 1
+  }
+  return segments.join('\n')
+}
+
+const cleanTooltipLine = (text: string) => {
+  const normalized = text
+    .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/\\n/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\\r\\n|\\n|\\r/g, '\n')
     .replace(/&[^;]+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+    .split('\n')
+    .map(part => part.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+  return addFallbackLineBreaks(normalized)
+}
+
+const tooltipIgnorePatterns = [
+  /캐릭터 귀속/,
+  /거래 불가/,
+  /분해 불가/,
+  /판매 불가/,
+  /선택 불가/,
+  /획득 시 귀속/,
+  /추가 설명/,
+  /품질/i
+]
 
 const getSpecialHighlights = (item: Equipment): string[] => {
   const lines = extractTooltipLines(item.tooltip)
   if (!lines.length) return []
-  const highlightRegex = /(기본 효과|추가 효과|연마 효과|슬롯 효과|추가 피해|전투 중|아크 패시브|내구도|캐릭터 귀속|소지품)/i
-  const preferred = lines.filter(line => highlightRegex.test(line))
-  const list = preferred.length ? preferred : lines
-  return Array.from(new Set(list)).slice(0, 4)
+  const meaningfulLines = lines.filter(
+    line => !tooltipIgnorePatterns.some(pattern => pattern.test(line))
+  )
+  const highlightRegex = /(기본 효과|추가 효과|연마 효과|슬롯 효과|추가 피해|전투 중|아크 패시브|내구도|소지품|이동 속도|선박|항해|효과|낙원력)/i
+  const preferred = meaningfulLines.filter(line => highlightRegex.test(line))
+  const source =
+    preferred.length || meaningfulLines.length ? (preferred.length ? preferred : meaningfulLines) : lines
+  return Array.from(new Set(source)).slice(0, 4)
+}
+
+const getSpecialLabel = (item: Equipment): string => {
+  const target = `${item.type ?? ''} ${item.name ?? ''}`.toLowerCase()
+  const keyword = specialEquipmentKeywords.find(word => target.includes(word.toLowerCase()))
+  if (keyword) return keyword
+  if (item.type) return item.type
+  return '항해 장비'
 }
 
 const normalizeStatValue = (value?: string | string[]) => {
@@ -857,12 +1130,13 @@ const formatProfileStat = (value?: string | string[]) => {
   align-items: stretch;
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 24px 32px;
+  padding: 30px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
-  gap: 20px;
+  gap: 25px;
   flex: 0 0 380px;
   height: fit-content;
+  overflow: visible;
 }
 
 .hero-row {
@@ -917,11 +1191,11 @@ const formatProfileStat = (value?: string | string[]) => {
 
 .hero-meta-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .meta-item {
-  padding: 10px;
+  padding: 10px 30px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -942,6 +1216,9 @@ const formatProfileStat = (value?: string | string[]) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
+  overflow: visible;
+  align-items: center;
 }
 
 .special-header {
@@ -967,25 +1244,140 @@ const formatProfileStat = (value?: string | string[]) => {
   gap: 12px;
 }
 
-.special-card {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  flex: 1 1 220px;
-  background: var(--bg-secondary);
+.special-grid--icons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  gap: 12px 18px;
+  overflow: visible;
+  justify-items: center;
 }
 
-.special-card :deep(.special-icon) {
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-}
-
-.special-info {
+.special-icon-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 110px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.special-icon-wrapper.is-hovered .special-icon-box {
+  box-shadow: none;
+}
+
+.special-icon-wrapper.is-hovered {
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+}
+
+.special-icon-wrapper:focus-visible .special-icon-box {
+  outline: 2px solid var(--primary-color);
+  border-radius: 14px;
+  outline-offset: 2px;
+}
+
+.special-icon-wrapper:focus-visible {
+  border-color: var(--primary-color);
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.25);
+}
+
+.special-icon-box {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.special-icon-box :deep(.special-icon),
+.special-icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.special-icon--fallback {
+  font-size: 1.1rem;
+}
+
+.special-label {
+  width: 100%;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.special-tooltip {
+  position: relative;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.15s ease, transform 0.2s ease;
+  pointer-events: auto;
+  z-index: 15;
+}
+
+.special-tooltip::after {
+  display: none;
+}
+
+.special-tooltip-layer {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.special-tooltip--global {
+  text-align: left;
+  pointer-events: auto;
+}
+
+.special-hover-indicator {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.special-hover-indicator::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 10px solid rgba(99, 102, 241, 0.55);
+  filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.25));
 }
 
 .special-type {
@@ -995,7 +1387,7 @@ const formatProfileStat = (value?: string | string[]) => {
 
 .special-highlights {
   margin: 0;
-  padding-left: 18px;
+  /* padding-left: 18px; */
   color: var(--text-secondary);
   font-size: 0.85rem;
   display: flex;
@@ -1003,31 +1395,41 @@ const formatProfileStat = (value?: string | string[]) => {
   gap: 2px;
 }
 
-.special-highlights li {
+.special-highlights span {
   list-style: disc;
+  white-space: pre-line;
+}
+
+.special-tooltip-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
 }
 
 .profile-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .hero-row--profile-stats h3 {
   margin: 0;
   font-size: 1rem;
   color: var(--text-secondary);
+  text-align: center;
 }
 
 .profile-stat {
-  padding: 10px;
+  padding: 10px 30px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
 }
 
 .profile-stat span {
   font-size: 0.8rem;
   color: var(--text-tertiary);
+  /* min-width: 100px; */
 }
 
 .profile-stat strong {
@@ -1291,5 +1693,36 @@ const formatProfileStat = (value?: string | string[]) => {
   .profile-stats-grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
+}
+
+.hero-row--paradise h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.paradise-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.paradise-item {
+  padding: 10px 30px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.paradise-item span {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  min-width: 70px;
+}
+
+.paradise-item strong {
+  font-size: 1rem;
+  color: var(--text-primary);
 }
 </style>
