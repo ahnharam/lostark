@@ -26,7 +26,7 @@
               />
               <div class="tier-stack">
                 <span class="tier-chip">{{ formatGrade(item.grade) }}</span>
-                <span v-if="getParsedEquipment(item)?.quality !== undefined" class="quality-chip">
+                <span v-if="getParsedEquipment(item)?.quality !== undefined && (getParsedEquipment(item)?.quality ?? 0) >= 0" class="quality-chip">
                   {{ getParsedEquipment(item)?.quality }}
                 </span>
               </div>

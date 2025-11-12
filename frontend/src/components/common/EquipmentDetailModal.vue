@@ -66,7 +66,7 @@
           <!-- 우측: 세부 옵션/품질/세트/트포 -->
           <div class="right-section">
             <!-- 품질 바 -->
-            <div v-if="parsedData.quality !== undefined" class="quality-section">
+            <div v-if="parsedData.quality !== undefined && parsedData.quality >= 0" class="quality-section">
               <div class="quality-label">품질</div>
               <div class="quality-bar-container">
                 <div

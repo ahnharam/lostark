@@ -1166,6 +1166,10 @@ const formatProfileStat = (value?: string | string[]) => {
   font-size: 14px;
 }
 
+.level-item strong {
+  color: var(--text-primary);
+}
+
 .hero-row--image {
   display: flex;
   gap: 16px;
