@@ -286,8 +286,8 @@ defineExpose({
 .autocomplete-container {
   position: relative;
   width: 100%;
-  max-width: 680px;
   margin: 0 auto;
+  padding-left: 400px;
 }
 
 /* 입력 프레임: Horizontal / H=52 / Radius=999 / Padding 16~20 / Gap 12 */
@@ -296,12 +296,14 @@ defineExpose({
   align-items: center;
   gap: 12px;
   height: 52px;
+  width: 350px;
   padding: 0 20px;
   background: var(--card-bg);
   border: 2px solid var(--border-color);
   border-radius: 999px;
   transition: all 0.3s;
   box-shadow: var(--shadow-sm);
+  justify-content: space-between;
 }
 
 .input-frame:focus-within {
@@ -320,13 +322,13 @@ defineExpose({
 
 /* 중앙 입력 (W=Fill) */
 .search-input {
-  flex: 1;
   border: none;
   background: none;
   outline: none;
   font-size: 1rem;
   color: var(--text-primary);
   font-weight: 500;
+  width: 100%;
 }
 
 .search-input::placeholder {
@@ -402,9 +404,11 @@ defineExpose({
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
   max-height: 400px;
+  max-width: 350px;
   overflow-y: auto;
   z-index: 1000;
   animation: slideDown 0.2s ease-out;
+  margin-left:400px
 }
 
 @keyframes slideDown {

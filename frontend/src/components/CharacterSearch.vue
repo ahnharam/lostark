@@ -1,37 +1,51 @@
 ﻿<template>
   <div class="app-container">
     <header class="page-header">
+      <button class="menu-button" type="button" aria-label="메뉴 열기" @click="openMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <h1>LOA Character Search</h1>
-      <ThemeToggle />
+      <div class="header-search">
+        <AutocompleteInput
+          v-model="characterName"
+          :suggestions="searchSuggestions"
+          placeholder="캐릭터명을 입력하세요"
+          inputClass="search-input"
+          :min-chars="0"
+          :max-suggestions="8"
+          @select="handleSuggestionSelect"
+          @keyup.enter="searchCharacterByInput"
+        />
+      </div>
     </header>
+    <transition name="sidebar-fade">
+      <div v-if="menuOpen" class="sidebar-overlay" @click="closeMenu"></div>
+    </transition>
+    <transition name="sidebar-slide">
+      <aside
+        v-if="menuOpen"
+        class="sidebar-menu"
+        tabindex="-1"
+        ref="sidebarRef"
+        @keyup.esc="closeMenu"
+      >
+        <div class="sidebar-header">
+          <ThemeToggle />
+          <button class="sidebar-close" type="button" aria-label="메뉴 닫기" @click="closeMenu">×</button>
+        </div>
+        <div class="sidebar-content">
+          <h3>메뉴</h3>
+          <p class="sidebar-placeholder">추가 메뉴는 곧 제공될 예정입니다.</p>
+          <button class="sidebar-placeholder-btn" type="button" disabled>메뉴 준비 중</button>
+        </div>
+      </aside>
+    </transition>
 
     <div class="content-wrapper">
       <main class="main-content">
         <div class="search-container">
-          <div class="search-section">
-            <AutocompleteInput
-              v-model="characterName"
-              :suggestions="searchSuggestions"
-              placeholder="캐릭터명을 입력하고 Enter를 누르거나 추천 목록에서 선택하세요"
-              inputClass="search-input"
-              :min-chars="0"
-              :max-suggestions="8"
-              @select="handleSuggestionSelect"
-              @keyup.enter="searchCharacterByInput"
-            />
-            <button @click="searchCharacterByInput" class="search-button" :disabled="loading">
-              {{ loading ? '검색 중...' : '검색' }}
-            </button>
-            <button @click="clearSearch" class="clear-button">
-              Clear
-            </button>
-          </div>
-
-          <div class="hints">
-            <span class="hint-label">Hints:</span>
-            <span class="hint-text">⌨️ 자동완성 · Enter로 검색 · 화살표로 추천 선택</span>
-          </div>
-
           <section class="states-section" v-if="false">
             <h2>States</h2>
             <div class="states-grid">
@@ -402,6 +416,20 @@ const specialEquipmentsDetailed = computed(() => {
     label: getSpecialLabel(item)
   }))
 })
+
+const menuOpen = ref(false)
+const sidebarRef = ref<HTMLElement | null>(null)
+
+const openMenu = () => {
+  menuOpen.value = true
+  nextTick(() => {
+    sidebarRef.value?.focus()
+  })
+}
+
+const closeMenu = () => {
+  menuOpen.value = false
+}
 
 const hoveredSpecialName = ref<string | null>(null)
 const hoveredSpecial = computed(() => {
@@ -943,6 +971,8 @@ const formatProfileStat = (value?: string | string[]) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
   padding: 20px 40px;
   background: var(--card-bg);
   box-shadow: var(--shadow-sm);
@@ -954,6 +984,121 @@ const formatProfileStat = (value?: string | string[]) => {
   color: var(--text-primary);
   margin: 0;
   font-weight: 700;
+}
+
+.header-search {
+  flex: 1;
+}
+
+.header-search :deep(.autocomplete-container) {
+  width: 100%;
+}
+
+.menu-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.menu-button span {
+  width: 18px;
+  height: 2px;
+  background: var(--text-primary);
+  display: block;
+}
+
+.menu-button:hover {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 80;
+}
+
+.sidebar-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100%;
+  background: var(--card-bg);
+  border-right: 1px solid var(--border-color);
+  box-shadow: 8px 0 20px rgba(15, 23, 42, 0.2);
+  z-index: 90;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  outline: none;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-close {
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.sidebar-content h3 {
+  margin: 0 0 10px;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.sidebar-placeholder {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.sidebar-placeholder-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+}
+
+.sidebar-slide-enter-from,
+.sidebar-slide-leave-to {
+  transform: translateX(-100%);
+}
+
+.sidebar-slide-enter-active,
+.sidebar-slide-leave-active {
+  transition: transform 0.25s ease;
+}
+
+.sidebar-fade-enter-from,
+.sidebar-fade-leave-to {
+  opacity: 0;
+}
+
+.sidebar-fade-enter-active,
+.sidebar-fade-leave-active {
+  transition: opacity 0.25s ease;
 }
 
 .content-wrapper {
@@ -968,36 +1113,6 @@ const formatProfileStat = (value?: string | string[]) => {
   background: var(--bg-secondary);
 }
 
-.search-section {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-  background: var(--card-bg);
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-}
-
-.search-section :deep(.autocomplete-container) {
-  flex: 1;
-}
-
-.search-button {
-  padding: 0 18px;
-  border-radius: 10px;
-  border: none;
-  background: var(--primary-color);
-  color: var(--text-inverse);
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.search-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .search-input {
   flex: 1;
   padding: 12px 16px;
@@ -1006,40 +1121,6 @@ const formatProfileStat = (value?: string | string[]) => {
   border-radius: 8px;
   background: var(--input-bg);
   color: var(--text-primary);
-}
-
-.clear-button {
-  padding: 12px 24px;
-  font-size: 0.9rem;
-  background-color: var(--text-tertiary);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-weight: 600;
-}
-
-.clear-button:hover {
-  background-color: var(--text-secondary);
-}
-
-.hints {
-  padding: 10px 20px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  margin-bottom: 25px;
-  font-size: 0.85rem;
-}
-
-.hint-label {
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-right: 10px;
-}
-
-.hint-text {
-  color: var(--text-tertiary);
 }
 
 .states-section {
@@ -1078,7 +1159,6 @@ const formatProfileStat = (value?: string | string[]) => {
 }
 
 .character-results {
-  margin-top: 30px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -1353,6 +1433,7 @@ const formatProfileStat = (value?: string | string[]) => {
   display: flex;
   justify-content: center;
   pointer-events: none;
+  margin-top: 20px;
 }
 
 .special-tooltip--global {
@@ -1433,6 +1514,7 @@ const formatProfileStat = (value?: string | string[]) => {
 .profile-stat span {
   font-size: 0.8rem;
   color: var(--text-tertiary);
+  word-break: keep-all;
   /* min-width: 100px; */
 }
 
@@ -1671,23 +1753,21 @@ const formatProfileStat = (value?: string | string[]) => {
 @media (max-width: 640px) {
   .page-header {
     padding: 15px 20px;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .page-header h1 {
     font-size: 1.2rem;
+    text-align: center;
+  }
+
+  .header-search {
+    width: 100%;
   }
 
   .main-content {
     padding: 20px 15px;
-  }
-
-  .search-section {
-    flex-direction: column;
-  }
-
-  .hero-row--image {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .hero-row--levels .hero-levels {
