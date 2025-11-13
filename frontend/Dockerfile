@@ -1,18 +1,21 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# package.json만 먼저 복사 (캐시 활용)
-COPY package*.json ./
+ARG VITE_API_BASE_URL=http://localhost:8080/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-# 의존성 설치 (package.json이 변경되지 않으면 캐시 사용)
+COPY package*.json ./
 RUN npm ci
 
-# 소스 코드 복사
 COPY . .
+RUN npm run build
 
-# 포트 노출
-EXPOSE 5173
+FROM nginx:1.27-alpine
 
-# 개발 서버 실행
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

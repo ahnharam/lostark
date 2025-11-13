@@ -1,0 +1,10 @@
+FROM gradle:8.7-jdk17-alpine
+
+WORKDIR /workspace
+
+# 개발 서버는 소스 디렉터리를 볼륨으로 마운트하므로 추가 복사가 필요 없음
+# Gradle 캐시는 컨테이너 외부 볼륨을 사용
+
+EXPOSE 8080
+
+CMD ["./gradlew", "bootRun", "--no-daemon"]

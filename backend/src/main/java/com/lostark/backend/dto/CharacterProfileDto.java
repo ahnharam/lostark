@@ -47,5 +47,5 @@ public class CharacterProfileDto {
     private List<CharacterStatDto> stats;
 
     @JsonAlias("CombatPower")
-    private Long combatPower;
+    private String combatPower;
 }

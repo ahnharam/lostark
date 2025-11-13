@@ -49,7 +49,7 @@ public class Character {
     @Column(columnDefinition = "TEXT")
     private String apiResponse;
 
-    private Long combatPower;
+    private String combatPower;
     
     @OneToMany(mappedBy = "character", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Equipment> equipments = new ArrayList<>();

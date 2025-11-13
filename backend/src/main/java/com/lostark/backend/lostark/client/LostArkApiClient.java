@@ -1,45 +1,45 @@
-package com.lostark.backend.service;
+package com.lostark.backend.lostark.client;
 
 import com.lostark.backend.dto.ArmoryDto;
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
+@Component
+public class LostArkApiClient {
 
-@Service
-public class LostArkApiService {
-    
     private final WebClient webClient;
-    
-    public LostArkApiService(
+
+    public LostArkApiClient(
             @Value("${lostark.api.key}") String apiKey,
             @Value("${lostark.api.base-url}") String baseUrl,
-            WebClient.Builder webClientBuilder) {
+            WebClient.Builder webClientBuilder
+    ) {
         this.webClient = webClientBuilder
                 .baseUrl(baseUrl)
                 .defaultHeader("authorization", "bearer " + apiKey)
                 .defaultHeader("accept", "application/json")
                 .build();
     }
-    
+
     public Mono<CharacterProfileDto> getCharacterProfile(String characterName) {
         return webClient.get()
                 .uri("/armories/characters/{characterName}/profiles", characterName)
                 .retrieve()
                 .bodyToMono(CharacterProfileDto.class);
     }
-    
+
     public Mono<ArmoryDto> getCharacterArmory(String characterName) {
         return webClient.get()
                 .uri("/armories/characters/{characterName}", characterName)
                 .retrieve()
                 .bodyToMono(ArmoryDto.class);
     }
-    
+
     public Mono<List<SiblingCharacterDto>> getSiblingCharacters(String characterName) {
         return webClient.get()
                 .uri("/characters/{characterName}/siblings", characterName)

@@ -9,29 +9,34 @@
 ## 시작하기
 
 ### 1. 환경 변수 설정
-`.env` 파일을 열어서 로스트아크 API 키를 입력하세요.
+`.env` 파일을 열어서 로스트아크 API 키와 프론트엔드 API 경로를 입력하세요.
 ```
 LOSTARK_API_KEY=your_api_key_here
+VITE_API_BASE_URL=http://localhost:8080/api
 ```
-API 키는 https://developer-lostark.game.onstove.com/ 에서 발급받을 수 있습니다.
+API 키는 https://developer-lostark.game.onstove.com/ 에서 발급받을 수 있습니다.  
+`VITE_API_BASE_URL`은 프론트엔드가 백엔드 API를 호출할 기본 경로이며, 운영 배포 시 도메인에 맞게 수정하세요.
 
 ### 2. Docker 컨테이너 실행
+개발과 운영 모드를 분리했습니다. 필요에 따라 아래 명령을 사용하세요.
+
 ```bash
-# 모든 서비스 시작
-docker-compose up -d
+# 개발 모드 (Vite/Spring Boot 핫리로드)
+docker compose up -d --build
 
-# 로그 확인
-docker-compose logs -f
+# 운영 모드 (최적화된 빌드)
+docker compose -f docker-compose.prod.yml up -d --build
 
-# 특정 서비스 로그만 보기
-docker-compose logs -f backend
-docker-compose logs -f frontend
+# 공통 로그 확인
+docker compose logs -f backend
+docker compose logs -f frontend
 ```
 
 ### 3. 접속 주소
-- **Frontend**: http://localhost:5173
+- **개발 Frontend**: http://localhost:5173
+- **운영 Frontend(Nginx)**: http://localhost:8081
 - **Backend API**: http://localhost:8080
-- **Adminer (DB 관리)**: http://localhost:8082
+- **Adminer (개발용 DB 관리)**: http://localhost:8082
   - 시스템: MySQL
   - 서버: database
   - 사용자명: lostark_user
@@ -41,16 +46,16 @@ docker-compose logs -f frontend
 ### 4. 컨테이너 관리
 ```bash
 # 컨테이너 중지
-docker-compose down
+docker compose down
 
 # 컨테이너 재시작
-docker-compose restart
+docker compose restart
 
 # 특정 서비스만 재시작
-docker-compose restart backend
+docker compose restart backend
 
 # 컨테이너와 볼륨까지 모두 삭제 (데이터 초기화)
-docker-compose down -v
+docker compose down -v
 ```
 
 ## 프로젝트 구조
@@ -59,12 +64,15 @@ lostark-project/
 ├── frontend/              # Vue.js 프로젝트
 │   ├── src/
 │   ├── package.json
-│   └── Dockerfile
+│   ├── Dockerfile           # 운영용 Nginx 빌드
+│   └── Dockerfile.dev       # 개발용 Vite 서버
 ├── backend/               # Spring Boot 프로젝트
 │   ├── src/
 │   ├── build.gradle
-│   └── Dockerfile
-├── docker-compose.yml     # Docker 설정
+│   ├── Dockerfile         # 운영용 멀티스테이지 빌드
+│   └── Dockerfile.dev     # 개발용 bootRun 컨테이너
+├── docker-compose.yml         # 개발 모드 Compose
+├── docker-compose.prod.yml    # 운영 모드 Compose
 ├── .env                   # 환경 변수
 └── README.md
 ```
@@ -153,3 +161,13 @@ docker-compose up -d --build
 docker-compose down -v
 docker-compose up -d
 ```
+
+## 클라우드/호스팅 배포
+
+실제 배포는 다음 구성을 기준으로 합니다.
+
+- Frontend: **Vercel** (정적 Vite 빌드, `VITE_API_BASE_URL`을 Railway API로 지정)
+- Backend: **Railway** (Dockerfile 또는 JAR 실행, FreeDB와 연결)
+- Database: **FreeDB** (Hosted MariaDB)
+
+자세한 설정 방법과 환경 변수 매트릭스는 `docs/deployment` 디렉터리를 참고하세요.

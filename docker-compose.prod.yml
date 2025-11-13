@@ -1,10 +1,9 @@
 version: '3.8'
 
 services:
-  # MariaDB (개발용)
   database:
     image: mariadb:11.4
-    container_name: lostark-db-dev
+    container_name: lostark-db
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MARIADB_DATABASE: lostark
@@ -18,26 +17,11 @@ services:
       - lostark-network
     restart: unless-stopped
 
-  # Adminer (개발 편의용)
-  adminer:
-    image: adminer
-    container_name: lostark-adminer-dev
-    ports:
-      - "8082:8080"
-    depends_on:
-      - database
-    networks:
-      - lostark-network
-    restart: unless-stopped
-
-  # Spring Boot 백엔드 (소스 마운트)
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
-    container_name: lostark-backend-dev
-    working_dir: /workspace
-    command: ["./gradlew", "bootRun", "--no-daemon"]
+      dockerfile: Dockerfile
+    container_name: lostark-backend
     ports:
       - "8080:8080"
     environment:
@@ -45,38 +29,30 @@ services:
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       LOSTARK_API_KEY: ${LOSTARK_API_KEY}
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
     depends_on:
       - database
-    volumes:
-      - ./backend:/workspace
-      - gradle_cache:/home/gradle/.gradle
     networks:
       - lostark-network
     restart: unless-stopped
 
-  # Vue.js 프론트엔드 (Vite dev 서버)
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
-    container_name: lostark-frontend-dev
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: lostark-frontend
     ports:
-      - "5173:5173"
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api}
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    networks:
-      - lostark-network
+      - "8081:80"
     depends_on:
       - backend
+    networks:
+      - lostark-network
     restart: unless-stopped
 
 volumes:
   lostark_dbdata:
-  gradle_cache:
 
 networks:
   lostark-network:

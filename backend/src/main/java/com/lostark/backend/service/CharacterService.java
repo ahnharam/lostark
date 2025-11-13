@@ -3,12 +3,12 @@ package com.lostark.backend.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lostark.backend.dto.ArmoryDto;
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.CharacterStatDto;
 import com.lostark.backend.entity.Character;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.exception.CharacterNotFoundException;
+import com.lostark.backend.lostark.domain.LostArkProfileDomainService;
 import com.lostark.backend.repository.CharacterRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ import java.util.Optional;
 public class CharacterService {
 
     private final CharacterRepository characterRepository;
-    private final LostArkApiService lostArkApiService;
+    private final LostArkProfileDomainService lostArkProfileDomainService;
     private final ObjectMapper objectMapper;
     private final SearchHistoryService searchHistoryService;
 
@@ -48,7 +48,10 @@ public class CharacterService {
             Character character = cachedCharacter.get();
             boolean cacheFresh = Duration.between(character.getUpdatedAt(), LocalDateTime.now())
                     .compareTo(CACHE_DURATION) < 0;
-            boolean needsUpgrade = character.getTitle() == null || character.getStatsJson() == null || character.getCombatPower() == null;
+            boolean needsUpgrade =
+                    character.getTitle() == null ||
+                    character.getStatsJson() == null ||
+                    character.getCombatPower() == null;
             
             if (cacheFresh && !needsUpgrade) {
                 log.info("캐시된 데이터 반환: {}", characterName);
@@ -63,23 +66,7 @@ public class CharacterService {
         // 2. API 호출
         log.info("로스트아크 API 호출: {}", characterName);
         try {
-            CharacterProfileDto profile = lostArkApiService.getCharacterProfile(characterName).block();
-
-            if (profile != null && profile.getCombatPower() == null) {
-                try {
-                    ArmoryDto armoryDto = lostArkApiService.getCharacterArmory(characterName).block();
-                    if (armoryDto != null && armoryDto.getProfile() != null && armoryDto.getProfile().getCombatPower() != null) {
-                        profile.setCombatPower(armoryDto.getProfile().getCombatPower());
-                    }
-                } catch (Exception ex) {
-                    log.warn("전투력 정보를 가져오지 못했습니다: {}", ex.getMessage());
-                }
-            }
-
-            if (profile == null || profile.getCharacterName() == null) {
-                log.error("캐릭터를 찾을 수 없음: {}", characterName);
-                throw new CharacterNotFoundException("캐릭터를 찾을 수 없습니다: " + characterName);
-            }
+            CharacterProfileDto profile = lostArkProfileDomainService.fetchCharacterProfile(characterName);
 
             log.info("API 호출 성공: {}", profile.getCharacterName());
 

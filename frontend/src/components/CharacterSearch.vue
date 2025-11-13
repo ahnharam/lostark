@@ -365,7 +365,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { lostarkApi, type CharacterProfile, type SiblingCharacter, type SearchHistory, type Equipment, type Engraving, type CharacterStat } from '@/api/lostark'
+import { lostarkApi } from '@/api/lostark'
+import type { CharacterProfile, SiblingCharacter, SearchHistory, Equipment, Engraving, CharacterStat } from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
 import EmptyState from './common/EmptyState.vue'

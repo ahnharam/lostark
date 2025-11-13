@@ -152,14 +152,7 @@
 import { ref, computed } from 'vue'
 import { parseTooltip, getQualityColor, getGradeColor, type ParsedTooltip } from '@/utils/tooltipParser'
 import LazyImage from './LazyImage.vue'
-
-interface Equipment {
-  type: string
-  name: string
-  icon: string
-  grade: string
-  tooltip: string
-}
+import type { Equipment } from '@/api/types'
 
 interface Props {
   equipment: Equipment

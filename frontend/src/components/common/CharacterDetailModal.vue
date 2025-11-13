@@ -90,27 +90,13 @@ import { computed } from 'vue'
 import LazyImage from './LazyImage.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import { parseTooltip, type ParsedTooltip } from '@/utils/tooltipParser'
+import type { Equipment, Engraving } from '@/api/types'
 
 interface Character {
   characterName: string
   characterClassName: string
   characterImage?: string
   itemMaxLevel: string
-}
-
-interface Equipment {
-  name: string
-  type: string
-  icon?: string
-  grade?: string
-  quality?: number
-  tooltip?: string
-}
-
-interface Engraving {
-  name: string
-  icon?: string
-  description: string
 }
 
 interface Props {

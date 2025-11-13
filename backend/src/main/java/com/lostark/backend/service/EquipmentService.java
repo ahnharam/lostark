@@ -4,6 +4,7 @@ import com.lostark.backend.dto.ArmoryDto;
 import com.lostark.backend.dto.EquipmentDto;
 import com.lostark.backend.entity.Character;
 import com.lostark.backend.entity.Equipment;
+import com.lostark.backend.lostark.domain.LostArkProfileDomainService;
 import com.lostark.backend.repository.CharacterRepository;
 import com.lostark.backend.repository.EquipmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class EquipmentService {
     
     private final EquipmentRepository equipmentRepository;
     private final CharacterRepository characterRepository;
-    private final LostArkApiService lostArkApiService;
+    private final LostArkProfileDomainService lostArkProfileDomainService;
     
     @Transactional
     public List<EquipmentDto> getCharacterEquipment(String characterName) {
@@ -34,7 +35,7 @@ public class EquipmentService {
         }
         
         // API 호출
-        ArmoryDto armory = lostArkApiService.getCharacterArmory(characterName).block();
+        ArmoryDto armory = lostArkProfileDomainService.fetchArmory(characterName);
         if (armory == null || armory.getEquipment() == null) {
             return List.of();
         }
