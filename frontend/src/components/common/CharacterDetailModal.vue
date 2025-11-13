@@ -395,9 +395,42 @@ interface SlotEffectInfo {
 
 const slotEffectInfo = ref<SlotEffectInfo | null>(null)
 
+const NUMBER_PATTERN = /([+-]?\d[\d,]*(?:\.\d+)?)/g
+
+const formatNumbersInText = (text: string) => {
+  if (!text) return text
+  return text.replace(NUMBER_PATTERN, match => {
+    const hasPlus = match.startsWith('+')
+    const normalized = match.replace(/,/g, '')
+    const numeric = Number(normalized)
+    if (Number.isNaN(numeric)) {
+      return match
+    }
+    const decimalPart = normalized.split('.')[1]
+    const decimals = decimalPart ? decimalPart.length : 0
+    const formatted = numeric.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    })
+    if (hasPlus && !formatted.startsWith('+') && !formatted.startsWith('-')) {
+      return `+${formatted}`
+    }
+    return formatted
+  })
+}
+
+const formatPlainNumber = (value?: number | string) => {
+  if (value === undefined || value === null || value === '') return '-'
+  const text = typeof value === 'number' ? String(value) : value
+  const formatted = formatNumbersInText(text)
+  return formatted || '-'
+}
+
 const formatStatValue = (value?: string) => {
   if (!value) return '—'
-  return value.trim().startsWith('+') ? value.trim() : `+${value}`.trim()
+  const trimmed = value.trim()
+  const withSign = trimmed.startsWith('+') || trimmed.startsWith('-') ? trimmed : `+${trimmed}`
+  return formatNumbersInText(withSign)
 }
 
 const additionalEffectLines = computed(() => {
@@ -436,7 +469,8 @@ const additionalEffectLines = computed(() => {
     filtered.push(line)
   })
 
-  return filterNoise(filtered)
+  const cleaned = filterNoise(filtered)
+  return cleaned.map(line => formatNumbersInText(line))
 })
 
 const extractSangjaeSegments = (rawElement: unknown): string[] => {
@@ -571,11 +605,11 @@ const coreRows = computed<CoreRow[]>(() => {
   rows.push({
     left: {
       label: '상재 단계',
-      value: sangjae.stage !== undefined ? `${sangjae.stage}` : '-'
+      value: sangjae.stage !== undefined ? formatPlainNumber(sangjae.stage) : '-'
     },
     right: {
       label: '상재 수치',
-      value: sangjae.value ?? '-'
+      value: sangjae.value ? formatNumbersInText(sangjae.value) : '-'
     }
   })
 
@@ -586,13 +620,13 @@ const coreRows = computed<CoreRow[]>(() => {
   rows.push({
     left: {
       label: '초월 단계',
-      value: slot?.stage !== undefined ? `${slot.stage}` : '-',
+      value: slot?.stage !== undefined ? formatPlainNumber(slot.stage) : '-',
       tooltipLines: stageLines,
       tooltipTotals: totals
     },
     right: {
       label: '초월 수치',
-      value: slot?.value !== undefined ? `${slot.value}` : '-',
+      value: slot?.value !== undefined ? formatPlainNumber(slot.value) : '-',
       tooltipLines: stageLines,
       tooltipTotals: totals
     }
@@ -890,7 +924,7 @@ const cleanText = (text: string) =>
 
 .equipment-detail-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(260px, 320px) minmax(520px, 1fr) ;
+  grid-template-columns: 230px 230px minmax(520px, 1fr) ;
   gap: 20px;
   align-items: start;
 }
@@ -906,7 +940,7 @@ const cleanText = (text: string) =>
   display: flex;
   flex-direction: column;
   gap: 24px;
-  /* box-shadow: var(--shadow-xl); */
+  box-shadow: var(--shadow-lg);
   border: 1px solid var(--border-color);
 }
 
@@ -1071,8 +1105,8 @@ const cleanText = (text: string) =>
 .equipment-list-panel {
   background: var(--card-bg);
   border-radius: 16px;
-  padding: 20px;
-  border: 1px solid var(--border-color);
+  /* padding: 20px; */
+  /* border: 1px solid var(--border-color); */
   /* box-shadow: var(--shadow-lg); */
 }
 

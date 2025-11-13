@@ -16,7 +16,27 @@ const CACHE_TTL = {
   SIBLINGS: 15 * 60 * 1000
 } as const
 
-const USER_ID = 'user123'
+const USER_ID_STORAGE_KEY = 'loa:user-id'
+
+const generateUserId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `user-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+const resolveUserId = (): string => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return 'user-default'
+  }
+  const stored = window.localStorage.getItem(USER_ID_STORAGE_KEY)
+  if (stored) return stored
+  const newId = generateUserId()
+  window.localStorage.setItem(USER_ID_STORAGE_KEY, newId)
+  return newId
+}
+
+const USER_ID = resolveUserId()
 
 const cachedRequest = async <T>(
   namespace: string,

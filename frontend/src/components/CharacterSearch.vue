@@ -102,7 +102,7 @@
                     <div class="panel-favorite-details">
                       <span class="panel-favorite-name">{{ fav.characterName }}</span>
                       <span class="panel-favorite-meta">
-                        {{ fav.serverName }} · {{ fav.itemMaxLevel || fav.itemAvgLevel }}
+                        {{ fav.serverName }} · {{ formatItemLevel(fav.itemMaxLevel || fav.itemAvgLevel) }}
                       </span>
                     </div>
                   </button>
@@ -178,7 +178,7 @@
             <EmptyState
               icon="🔍"
               title="캐릭터를 검색해 주세요"
-              description="캐릭터명을 입력하고 Enter를 누르거나 추천 목록에서 선택해 주세요"
+              description="캐릭터명을 입력하고 Enter를 누르거나 최근검색 혹은 즐겨찾기에서 선택해주세요."
             />
           </div>
 
@@ -193,7 +193,7 @@
                     </div>
                     <div class="profile-stat">
                       <span>전투 레벨</span>
-                      <strong>Lv. {{ character.characterLevel != null ? character.characterLevel : '—' }}</strong>
+                      <strong>Lv. {{ formatInteger(character.characterLevel) }}</strong>
                     </div>
                     <div class="profile-stat">
                       <span>아이템 레벨</span>
@@ -201,22 +201,71 @@
                     </div>
                     <div class="profile-stat">
                       <span>원정대 레벨</span>
-                      <strong>{{ character.expeditionLevel || '-' }}</strong>
+                      <strong>{{ formatInteger(character.expeditionLevel) }}</strong>
                     </div>
                   </div>
                 </div>
 
                 <div class="hero-row hero-row--image">
-                  <LazyImage
-                    :src="character.characterImage || ''"
-                    :alt="character.characterName"
-                    width="140"
-                    height="140"
-                    imageClass="hero-avatar"
-                    errorIcon="👤"
-                  />
+                  <div class="hero-avatar-column">
+                    <div
+                      v-if="hasCharacterImage"
+                      class="hero-avatar-controls"
+                    >
+                      <button
+                        type="button"
+                        class="hero-avatar-btn"
+                        @click="expandHeroImage"
+                        :disabled="isHeroImageLarge"
+                      >
+                        확대
+                      </button>
+                      <button
+                        type="button"
+                        class="hero-avatar-btn"
+                        @click="shrinkHeroImage"
+                        :disabled="!isHeroImageLarge"
+                      >
+                        축소
+                      </button>
+                      <button
+                        type="button"
+                        class="hero-avatar-btn"
+                        @click="openHeroImagePopup"
+                      >
+                        팝업뷰
+                      </button>
+                    </div>
+                    <div
+                      class="hero-avatar-wrapper"
+                      :class="{ 'is-large': isHeroImageLarge }"
+                    >
+                      <LazyImage
+                        :src="character.characterImage || ''"
+                        :alt="character.characterName"
+                        :width="isHeroImageLarge ? 300 : 140"
+                        :height="isHeroImageLarge ? 350 : 140"
+                        imageClass="hero-avatar"
+                        errorIcon="👤"
+                      />
+                    </div>
+                  </div>
                   <div class="hero-text">
-                    <h2>{{ character.characterName }}</h2>
+                    <div class="hero-text__header">
+                      <h2>{{ character.characterName }}</h2>
+                      <button
+                        v-if="character"
+                        type="button"
+                        class="favorite-toggle-btn"
+                        :class="{ 'is-active': isCharacterFavorite }"
+                        :aria-pressed="isCharacterFavorite"
+                        :disabled="favoriteActionPending"
+                        @click="toggleFavorite"
+                        aria-label="즐겨찾기 토글"
+                      >
+                        <span class="favorite-star" aria-hidden="true">★</span>
+                      </button>
+                    </div>
                     <span class="hero-title" v-if="character.title">{{ character.title }}</span>
                   </div>
                 </div>
@@ -263,7 +312,7 @@
                     </div>
                     <div class="paradise-item" v-if="paradiseInfo.power">
                       <span>낙원력</span>
-                      <strong>{{ paradiseInfo.power }}</strong>
+                      <strong>{{ formatInteger(paradiseInfo.power) }}</strong>
                     </div>
                   </div>
                 </div>
@@ -280,9 +329,9 @@
                         :class="{ 'is-hovered': hoveredSpecialName === special.item.name }"
                         tabindex="0"
                         @mouseenter="handleSpecialHover(special.item.name)"
-                        @mouseleave="handleSpecialHover(null)"
+                        @mouseleave="scheduleSpecialHoverClear"
                         @focus="handleSpecialHover(special.item.name)"
-                        @blur="handleSpecialHover(null)"
+                        @blur="scheduleSpecialHoverClear"
                       >
                         <div class="special-icon-box">
                           <LazyImage
@@ -309,7 +358,13 @@
                         ></span>
                       </div>
                     </div>
-                  <div v-if="hoveredSpecial" class="special-tooltip-layer" aria-live="polite">
+                  <div
+                    v-if="hoveredSpecial"
+                    class="special-tooltip-layer"
+                    aria-live="polite"
+                    @mouseenter="cancelSpecialHoverTimeout"
+                    @mouseleave="scheduleSpecialHoverClear"
+                  >
                     <div
                       v-if="hoveredSpecial"
                       class="special-tooltip special-tooltip--global"
@@ -380,14 +435,14 @@
                         <article
                           v-for="member in group.members"
                           :key="member.characterName"
-                          class="expedition-card"
-                          :class="{ active: selectedCharacterProfile?.characterName === member.characterName }"
-                          @click="viewCharacterDetail(member)"
-                        >
-                          <div class="member-top">
-                            <span class="member-level">Lv. {{ member.characterLevel || '—' }}</span>
-                            <span class="member-class">{{ member.characterClassName }}</span>
-                          </div>
+                        class="expedition-card"
+                        :class="{ active: selectedCharacterProfile?.characterName === member.characterName }"
+                        @click="viewCharacterDetail(member)"
+                      >
+                        <div class="member-top">
+                          <span class="member-level">Lv. {{ formatInteger(member.characterLevel) }}</span>
+                          <span class="member-class">{{ member.characterClassName }}</span>
+                        </div>
                           <strong class="member-name">{{ member.characterName }}</strong>
                           <span class="member-ilvl">
                             iLv. {{ formatItemLevel(member.itemAvgLevel || member.itemMaxLevel) }}
@@ -407,6 +462,23 @@
       <aside class="ad-slot ad-slot--right" aria-label="오른쪽 광고 영역">
         <span>광고 영역</span>
       </aside>
+    </div>
+  </div>
+  <div
+    v-if="isHeroImagePopupOpen && hasCharacterImage"
+    class="character-portrait-overlay"
+    @click.self="closeHeroImagePopup"
+  >
+    <div class="character-portrait-overlay__content">
+      <button
+        type="button"
+        class="portrait-overlay__close"
+        aria-label="캐릭터 이미지 닫기"
+        @click="closeHeroImagePopup"
+      >
+        ✕
+      </button>
+      <img :src="characterImageSrc" :alt="character?.characterName ?? '캐릭터 확대 이미지'" />
     </div>
   </div>
 </template>
@@ -434,6 +506,9 @@ interface ErrorState {
   title?: string
 }
 
+const FAVORITES_STORAGE_KEY = 'loa:favorites'
+const HISTORY_STORAGE_KEY = 'loa:history'
+
 const characterName = ref('')
 const character = ref<CharacterProfile | null>(null)
 const loading = ref(false)
@@ -448,6 +523,19 @@ const overviewWidth = ref(0)
 const searchPanelWrapperRef = ref<HTMLElement | null>(null)
 const searchPanelOpen = ref(false)
 const activeSearchPanelTab = ref<'recent' | 'favorites'>('recent')
+const isHeroImageLarge = ref(false)
+const isHeroImagePopupOpen = ref(false)
+const characterImageSrc = computed(() => character.value?.characterImage || '')
+const hasCharacterImage = computed(() => Boolean(characterImageSrc.value))
+const favoriteActionPending = ref(false)
+const isCharacterFavorite = computed(() => {
+  if (!character.value) return false
+  return favorites.value.some(
+    fav =>
+      fav.characterName === character.value?.characterName &&
+      fav.serverName === character.value?.serverName
+  )
+})
 
 const shouldShowSearchPanel = computed(() => searchPanelOpen.value)
 
@@ -478,6 +566,49 @@ const specialEquipmentsDetailed = computed(() => {
 const menuOpen = ref(false)
 const sidebarRef = ref<HTMLElement | null>(null)
 
+const loadFromStorage = <T>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined' || !window.localStorage) return fallback
+  try {
+    const stored = window.localStorage.getItem(key)
+    if (!stored) return fallback
+    return JSON.parse(stored) as T
+  } catch (err) {
+    console.warn(`Failed to parse local storage key '${key}'`, err)
+    return fallback
+  }
+}
+
+const saveToStorage = (key: string, value: unknown) => {
+  if (typeof window === 'undefined' || !window.localStorage) return
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch (err) {
+    console.warn(`Failed to persist local storage key '${key}'`, err)
+  }
+}
+
+const loadFavoritesFromStorage = () => {
+  const stored = loadFromStorage<CharacterProfile[]>(FAVORITES_STORAGE_KEY, [])
+  if (stored.length) {
+    favorites.value = stored
+  }
+}
+
+const persistFavoritesToStorage = () => {
+  saveToStorage(FAVORITES_STORAGE_KEY, favorites.value)
+}
+
+const loadHistoryFromStorage = () => {
+  const stored = loadFromStorage<SearchHistory[]>(HISTORY_STORAGE_KEY, [])
+  if (stored.length) {
+    history.value = stored
+  }
+}
+
+const persistHistoryToStorage = () => {
+  saveToStorage(HISTORY_STORAGE_KEY, history.value)
+}
+
 const openMenu = () => {
   menuOpen.value = true
   nextTick(() => {
@@ -489,7 +620,58 @@ const closeMenu = () => {
   menuOpen.value = false
 }
 
+const expandHeroImage = () => {
+  if (hasCharacterImage.value) {
+    isHeroImageLarge.value = true
+  }
+}
+
+const shrinkHeroImage = () => {
+  isHeroImageLarge.value = false
+}
+
+const openHeroImagePopup = () => {
+  if (hasCharacterImage.value) {
+    isHeroImagePopupOpen.value = true
+  }
+}
+
+const closeHeroImagePopup = () => {
+  isHeroImagePopupOpen.value = false
+}
+
+watch(characterImageSrc, () => {
+  isHeroImageLarge.value = false
+  isHeroImagePopupOpen.value = false
+})
+
+watch(character, () => {
+  isHeroImageLarge.value = false
+  isHeroImagePopupOpen.value = false
+})
+
 const hoveredSpecialName = ref<string | null>(null)
+const specialHoverTimeout = ref<number | null>(null)
+
+const cancelSpecialHoverTimeout = () => {
+  if (specialHoverTimeout.value !== null && typeof window !== 'undefined') {
+    window.clearTimeout(specialHoverTimeout.value)
+  }
+  specialHoverTimeout.value = null
+}
+
+const scheduleSpecialHoverClear = () => {
+  if (typeof window === 'undefined') {
+    hoveredSpecialName.value = null
+    return
+  }
+  cancelSpecialHoverTimeout()
+  specialHoverTimeout.value = window.setTimeout(() => {
+    hoveredSpecialName.value = null
+    specialHoverTimeout.value = null
+  }, 120)
+}
+
 const hoveredSpecial = computed(() => {
   if (!hoveredSpecialName.value) return null
   return specialEquipmentsDetailed.value.find(special => special.item.name === hoveredSpecialName.value) ?? null
@@ -543,6 +725,7 @@ const tooltipWidthValue = computed(() => {
 })
 
 const handleSpecialHover = (name: string | null) => {
+  cancelSpecialHoverTimeout()
   hoveredSpecialName.value = name
 }
 
@@ -588,11 +771,7 @@ const panelHistoryItems = computed(() => {
   return history.value.filter(item => item.characterName.toLowerCase().includes(panelFilterQuery.value))
 })
 
-const panelFavoriteItems = computed(() => {
-  if (activeSearchPanelTab.value !== 'favorites') return favorites.value
-  if (!panelFilterQuery.value) return favorites.value
-  return favorites.value.filter(item => item.characterName.toLowerCase().includes(panelFilterQuery.value))
-})
+const panelFavoriteItems = computed(() => favorites.value)
 
 const closeSearchPanel = () => {
   searchPanelOpen.value = false
@@ -650,6 +829,8 @@ const handleResize = () => {
 }
 
 onMounted(() => {
+  loadFavoritesFromStorage()
+  loadHistoryFromStorage()
   loadFavorites()
   loadHistory()
   if (typeof window !== 'undefined') {
@@ -668,6 +849,7 @@ onBeforeUnmount(() => {
     window.removeEventListener('resize', handleResize)
   }
   overviewObserver?.disconnect()
+  cancelSpecialHoverTimeout()
   if (typeof document !== 'undefined') {
     document.removeEventListener('click', handleOutsideSearchClick)
   }
@@ -793,8 +975,26 @@ const loadFavorites = async () => {
   try {
     const response = await lostarkApi.getFavorites()
     favorites.value = response.data
+    persistFavoritesToStorage()
   } catch (err) {
     console.error('즐겨찾기 로딩 실패:', err)
+  }
+}
+
+const toggleFavorite = async () => {
+  if (!character.value || favoriteActionPending.value) return
+  favoriteActionPending.value = true
+  try {
+    if (isCharacterFavorite.value) {
+      await lostarkApi.removeFavorite(character.value.characterName)
+    } else {
+      await lostarkApi.addFavorite(character.value.characterName)
+    }
+    await loadFavorites()
+  } catch (err) {
+    console.error('즐겨찾기 토글 실패:', err)
+  } finally {
+    favoriteActionPending.value = false
   }
 }
 
@@ -813,6 +1013,7 @@ const loadHistory = async () => {
       }
     }
     history.value = unique
+    persistHistoryToStorage()
   } catch (err) {
     console.error('검색 기록 로딩 실패:', err)
   }
@@ -823,6 +1024,7 @@ const clearHistory = async () => {
   try {
     await lostarkApi.clearHistory()
     history.value = []
+    persistHistoryToStorage()
   } catch (err) {
     console.error('검색 기록 삭제 실패:', err)
   }
@@ -887,10 +1089,7 @@ const viewCharacterDetail = (summary: CharacterProfile | SiblingCharacter) => {
 }
 
 const formatItemLevel = (value?: string | number) => {
-  if (value === undefined || value === null) return '—'
-  const raw = typeof value === 'number' ? value : Number(value.replace(/,/g, ''))
-  if (Number.isNaN(raw)) return typeof value === 'string' ? value : '—'
-  return raw.toFixed(2)
+  return formatNumberLocalized(value, 2)
 }
 
 const extractTooltipLines = (tooltip?: string): string[] => {
@@ -1025,19 +1224,53 @@ const normalizeStatValue = (value?: string | string[]) => {
     .trim()
 }
 
-const formatProfileStat = (value?: string | string[]) => {
-  const normalized = normalizeStatValue(value)
-  return normalized.length ? normalized : '—'
-}
-
-const formatCombatPower = (value?: number | string) => {
-  if (value === undefined || value === null) return '—'
-  const raw = typeof value === 'number' ? value : Number(value.toString().replace(/,/g, ''))
-  if (Number.isNaN(raw)) {
+const formatNumberLocalized = (value?: number | string, fractionDigits?: number) => {
+  if (value === undefined || value === null || value === '') return '—'
+  const numeric =
+    typeof value === 'number'
+      ? value
+      : Number(
+          value
+            .toString()
+            .replace(/,/g, '')
+            .trim()
+        )
+  if (Number.isNaN(numeric)) {
     return typeof value === 'string' && value.length ? value : '—'
   }
-  return raw.toLocaleString()
+  const options: Intl.NumberFormatOptions = {}
+  if (typeof fractionDigits === 'number') {
+    options.minimumFractionDigits = fractionDigits
+    options.maximumFractionDigits = fractionDigits
+  }
+  return numeric.toLocaleString(undefined, options)
 }
+
+const formatProfileStat = (value?: string | string[]) => {
+  const normalized = normalizeStatValue(value)
+  if (!normalized.length) return '—'
+  const percentMatch = normalized.match(/^([+-]?\d+(?:\.\d+)?)\s*%$/)
+  if (percentMatch) {
+    const formatted = formatNumberLocalized(
+      percentMatch[1],
+      percentMatch[1].includes('.') ? 2 : undefined
+    )
+    return formatted === '—' ? normalized : `${formatted}%`
+  }
+  const numericMatch = normalized.match(/^([+-]?\d+(?:\.\d+)?)(?:\s*점)?$/)
+  if (numericMatch) {
+    const formatted = formatNumberLocalized(
+      numericMatch[1],
+      numericMatch[1].includes('.') ? 2 : undefined
+    )
+    return formatted
+  }
+  return normalized
+}
+
+const formatCombatPower = (value?: number | string) => formatNumberLocalized(value)
+
+const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 </script>
 
 <style scoped>
@@ -1358,9 +1591,107 @@ const formatCombatPower = (value?: number | string) => {
   align-items: center;
 }
 
+.hero-avatar-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-avatar-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  transition: width 0.2s ease, height 0.2s ease;
+}
+
+.hero-avatar-wrapper.is-large {
+  width: 300px;
+  height: 350px;
+}
+
+.hero-avatar-wrapper :deep(.hero-avatar) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.hero-avatar-controls {
+  display: flex;
+  /* gap: 8px; */
+  background: var(--bg-secondary);
+  padding: 4px 14px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+
+.hero-avatar-btn {
+  border: none;
+  background: transparent;
+  color: black;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.hero-avatar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hero-avatar-btn:not(:disabled):hover {
+  color: var(--primary-color);
+}
+
 .hero-row--image :deep(.hero-avatar) {
   border-radius: 16px;
   object-fit: cover;
+}
+
+.character-portrait-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2200;
+  padding: 24px;
+}
+
+.character-portrait-overlay__content {
+  position: relative;
+  max-width: min(90vw, 720px);
+  max-height: 90vh;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+}
+
+.character-portrait-overlay__content img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.portrait-overlay__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
 }
 
 .hero-title {
@@ -1368,11 +1699,61 @@ const formatCombatPower = (value?: number | string) => {
   color: var(--text-secondary);
 }
 
+.hero-text{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .hero-text h2 {
   margin: 4px 0;
   font-size: 1.6rem;
   color: var(--text-primary);
   text-align: center;
+}
+
+.hero-text__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.favorite-toggle-btn {
+  height: fit-content;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.favorite-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.favorite-toggle-btn:not(:disabled):hover {
+  /* transform: scale(1.05); */
+}
+
+.favorite-star {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #d1d5db;
+  font-size: 1.2rem;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  padding-bottom: 3px;
+}
+
+.favorite-toggle-btn.is-active .favorite-star {
+  background: #ffe792;
+  color: #ff7b00;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
 .hero-meta-grid {
@@ -1434,7 +1815,7 @@ const formatCombatPower = (value?: number | string) => {
 .special-grid--icons {
   display: grid;
   grid-template-columns: repeat(4, minmax(70px, 1fr));
-  gap: 15px;
+  gap: 10px;
   overflow: visible;
   justify-items: center;
 }

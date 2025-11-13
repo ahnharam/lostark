@@ -52,6 +52,7 @@ defineEmits<{
   font-size: 1rem;
   line-height: 1.6;
   max-width: 400px;
+  word-break: keep-all;
 }
 
 .action-btn {
