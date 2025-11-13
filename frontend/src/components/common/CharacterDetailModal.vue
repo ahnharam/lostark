@@ -891,7 +891,7 @@ const cleanText = (text: string) =>
 .equipment-detail-layout {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(260px, 320px) minmax(520px, 1fr) ;
-  gap: 32px;
+  gap: 20px;
   align-items: start;
 }
 
@@ -906,7 +906,7 @@ const cleanText = (text: string) =>
   display: flex;
   flex-direction: column;
   gap: 24px;
-  box-shadow: var(--shadow-xl);
+  /* box-shadow: var(--shadow-xl); */
   border: 1px solid var(--border-color);
 }
 
@@ -1073,7 +1073,7 @@ const cleanText = (text: string) =>
   border-radius: 16px;
   padding: 20px;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-lg);
+  /* box-shadow: var(--shadow-lg); */
 }
 
 .equipment-list-header {
