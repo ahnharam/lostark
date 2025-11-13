@@ -38,29 +38,29 @@ function getProxyImageUrl(imageUrl: string): string {
   if (!imageUrl) {
     return ''
   }
-  
+
   // 이미 프록시 URL이면 그대로 반환
   if (imageUrl.includes('/api/proxy/image')) {
     return imageUrl
   }
-  
+
   // 로컬 이미지면 그대로 반환
   if (imageUrl.startsWith('/') || imageUrl.startsWith('data:')) {
     return imageUrl
   }
-  
+
   // API 기본 URL 가져오기
   let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
-  
+
   // /api로 끝나면 제거 (중복 방지)
   if (apiBaseUrl.endsWith('/api')) {
     apiBaseUrl = apiBaseUrl.slice(0, -4)
   }
-  
+
   // URL 인코딩
   const encodedUrl = encodeURIComponent(imageUrl)
   const proxyUrl = `${apiBaseUrl}/api/proxy/image?url=${encodedUrl}`
-  
+
   return proxyUrl
 }
 
@@ -129,36 +129,36 @@ const normalizeSrc = (value: string) => {
 }
 
 const loadImage = () => {
-  
+
   if (!props.src) {
     console.warn('[loadImage] No src provided, setting error')
     hasError.value = true
     isLoading.value = false
     return
   }
-  
+
   let processedSrc = props.src.trim()
-  
+
   if (!processedSrc) {
     console.warn('[loadImage] Empty processed src, setting error')
     hasError.value = true
     isLoading.value = false
     return
   }
-  
+
   // 로컬 이미지나 data URL은 프록시 없이 사용
   if (processedSrc.startsWith('/') || processedSrc.startsWith('data:')) {
     currentSrc.value = processedSrc
     return
   }
-  
+
   // 프록시 사용 여부 확인
   if (props.useProxy) {
     processedSrc = getProxyImageUrl(processedSrc)
   } else {
     processedSrc = normalizeSrc(processedSrc)
   }
-  
+
   currentSrc.value = processedSrc
 }
 
@@ -242,7 +242,7 @@ watch(
   position: relative;
   display: inline-block;
   overflow: hidden;
-  background: var(--bg-secondary);
+  /* background: var(--bg-secondary); */
 }
 
 .lazy-image-wrapper img {

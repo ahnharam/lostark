@@ -5,9 +5,23 @@
 
 export interface ParsedTooltip {
   title?: string
+  titleColor?: string
   grade?: string
   quality?: number
   itemLevel?: string
+  gradeColor?: string
+  weaponAttackStat?: StatItem
+  additionalEffectStat?: StatItem
+  sangjaeStat?: StatItem
+  sangjaeStage?: number
+  sangjaeValue?: string
+  transcendenceSummary?: string
+  transcendenceBaseEffect?: string
+  transcendenceMaxStage?: string
+  transcendenceStages?: string[]
+  transcendenceAggregates?: TranscendenceAggregates
+  elixirSummary?: string
+  elixirStageSummary?: string
   basicStats?: StatItem[]
   additionalStats?: StatItem[]
   elixirEffects?: string[]
@@ -19,12 +33,19 @@ export interface ParsedTooltip {
 export interface StatItem {
   type: string
   value: string
+  color?: string
 }
 
 export interface SetEffect {
   setName: string
   effects: string[]
   activePieces?: number
+}
+
+export interface TranscendenceAggregates {
+  weaponAttack?: number
+  brandPercent?: number
+  allyBuffPercent?: number
 }
 
 /**
@@ -39,6 +60,13 @@ function stripHtml(html: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
+    .trim()
+}
+
+function cleanText(input?: string | null): string {
+  if (!input) return ''
+  return stripHtml(input)
+    .replace(/\s+/g, ' ')
     .trim()
 }
 
@@ -110,20 +138,86 @@ function parseItemLevel(html: string): string | null {
 /**
  * 스탯 파싱
  */
+function normalizeNewlines(input: string): string {
+  return input.replace(/\\n/g, '\n').replace(/<br\s*\/?>/gi, '\n')
+}
+
+function extractFontColor(html: string): string | undefined {
+  const match = html.match(/color=['"]?#?([0-9a-fA-F]{6})['"]?/i)
+  return match ? `#${match[1].toUpperCase()}` : undefined
+}
+
+function flattenValue(value: any): string[] {
+  if (value == null) return []
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) {
+    return value.flatMap(flat => flattenValue(flat))
+  }
+  if (typeof value === 'object') {
+    return Object.values(value).flatMap(flattenValue)
+  }
+  return []
+}
+
+function extractStatFragments(input: string): string[] {
+  if (!input) return []
+  const trimmed = input.trim()
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      const flattened = flattenValue(parsed)
+      if (flattened.length) {
+        return flattened
+          .map(fragment => fragment?.toString?.() ?? '')
+          .map(fragment => normalizeNewlines(fragment))
+          .flatMap(fragment =>
+            fragment.split('\n').map(line => line.trim()).filter(Boolean)
+          )
+      }
+    } catch {
+      // fall back to plain text parsing
+    }
+  }
+
+  return normalizeNewlines(input)
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+}
+
+function extractIndentGroupLines(group: any): string[] {
+  if (!group?.Element_000?.contentStr) return []
+  const content = group.Element_000.contentStr
+  return Object.values(content)
+    .map((entry: any) => entry?.contentStr)
+    .filter(Boolean)
+    .map((line: string) => stripHtml(String(line)).replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+}
+
 function parseStats(html: string): StatItem[] {
   if (!html) return []
 
-  const text = stripHtml(html)
-  const lines = text.split('\n').filter(line => line.trim())
+  const rawLines = extractStatFragments(html)
   const stats: StatItem[] = []
 
-  for (const line of lines) {
-    // "힘 +1234" 또는 "치명 +567" 형태 파싱
-    const match = line.match(/^(.+?)\s*\+?\s*(\d+(?:,\d+)*)/)
-    if (match) {
+  for (const rawLine of rawLines) {
+    const color = extractFontColor(rawLine)
+    const plain = stripHtml(rawLine)
+    const plusIndex = plain.indexOf('+')
+    if (plusIndex === -1) {
+      continue
+    }
+    const type = plain.slice(0, plusIndex).trim()
+    const value = plain.slice(plusIndex + 1).trim()
+    if (type && value && !type.startsWith('{')) {
       stats.push({
-        type: match[1].trim(),
-        value: match[2]
+        type,
+        value,
+        color
       })
     }
   }
@@ -192,6 +286,41 @@ function parseEngravingEffects(html: string): string[] {
     .filter(line => line.length > 0)
 }
 
+const ELIXIR_TOPSTR_HEADER = /연성\s*추가\s*효과/i
+
+function extractElixirTopStrDetail(raw: string): { headline?: string; detail?: string } {
+  const lines = stripHtml(raw)
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+
+  if (!lines.length) {
+    return {}
+  }
+
+  const headline = lines[0]
+  const detail = lines.find(line => !ELIXIR_TOPSTR_HEADER.test(line)) ?? lines[lines.length - 1]
+
+  return { headline, detail }
+}
+
+function findNestedTopStr(value: any): string | undefined {
+  if (!value) return undefined
+  if (typeof value === 'string') return undefined
+  if (typeof value === 'object') {
+    if (typeof value.topStr === 'string') {
+      return value.topStr
+    }
+    for (const nested of Object.values(value)) {
+      if (nested && typeof nested === 'object') {
+        const found = findNestedTopStr(nested)
+        if (found) return found
+      }
+    }
+  }
+  return undefined
+}
+
 /**
  * 메인 툴팁 파서
  */
@@ -212,13 +341,32 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
         ? tooltip.Element_000
         : JSON.stringify(tooltip.Element_000)
       parsed.title = stripHtml(titleHtml)
+      parsed.titleColor = extractFontColor(titleHtml)
     }
 
-    // Element_001: 품질 정보
+    // Element_001: 품질 및 아이템 레벨 정보
     if (tooltip.Element_001) {
       const quality = parseQuality(tooltip.Element_001)
       if (quality !== null) {
         parsed.quality = quality
+      }
+      if (typeof tooltip.Element_001 === 'object') {
+        const valueBlock = (tooltip.Element_001 as any).value
+        const leftStr0 = valueBlock?.leftStr0
+        if (leftStr0) {
+          parsed.gradeColor = extractFontColor(
+            typeof leftStr0 === 'string' ? leftStr0 : JSON.stringify(leftStr0)
+          )
+        }
+        const leftStr2 = valueBlock?.leftStr2 ?? valueBlock?.leftStr1 ?? valueBlock?.leftStr0
+        if (leftStr2 && !parsed.itemLevel) {
+          const level = parseItemLevel(
+            typeof leftStr2 === 'string' ? leftStr2 : JSON.stringify(leftStr2)
+          )
+          if (level) {
+            parsed.itemLevel = level
+          }
+        }
       }
     }
 
@@ -269,6 +417,31 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
         if (!parsed.additionalStats) parsed.additionalStats = []
         parsed.additionalStats.push(...parseStats(html))
       }
+
+      const stageMatches = [...text.matchAll(/(\d+)\s*단계\s*-\s*([^\n]+)/gi)]
+      if (stageMatches.length) {
+        const best = stageMatches.reduce(
+          (acc, match) => {
+            const stage = Number(match[1])
+            if (stage > acc.stage) {
+              return { stage, value: match[2] }
+            }
+            return acc
+          },
+          { stage: -Infinity, value: '' }
+        )
+        if (best.stage > -Infinity) {
+          parsed.sangjaeStage = best.stage
+          const formatted = best.value.replace(/\s+/g, ' ').trim()
+          parsed.sangjaeValue = formatted
+        }
+      }
+      if (!parsed.sangjaeStage) {
+        const stageMatch = text.match(/상급\s*재련[^0-9]*(\d+)/i)
+        if (stageMatch) {
+          parsed.sangjaeStage = Number(stageMatch[1])
+        }
+      }
     }
 
     // Element_006: 세트 효과 또는 각인
@@ -277,6 +450,19 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
         ? tooltip.Element_006
         : JSON.stringify(tooltip.Element_006)
       const text = stripHtml(html)
+      const stats = parseStats(html)
+      if (stats.length) {
+        const weaponAttack = stats.find(stat => stat.type.replace(/\s/g, '').includes('무기공격력'))
+        if (weaponAttack && !parsed.weaponAttackStat) {
+          parsed.weaponAttackStat = weaponAttack
+        }
+        const sangjae = stats.find(stat =>
+          /상(재|급재련|제)/.test(stat.type.replace(/\s/g, ''))
+        )
+        if (sangjae && !parsed.sangjaeStat) {
+          parsed.sangjaeStat = sangjae
+        }
+      }
 
       if (text.includes('세트')) {
         parsed.setEffects = parseSetEffects(html)
@@ -291,6 +477,15 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
         ? tooltip.Element_007
         : JSON.stringify(tooltip.Element_007)
       const text = stripHtml(html)
+      const stats = parseStats(html)
+      if (stats.length && !parsed.sangjaeStat) {
+        const sangjae = stats.find(stat =>
+          /상(재|급재련|제)/.test(stat.type.replace(/\s/g, ''))
+        )
+        if (sangjae) {
+          parsed.sangjaeStat = sangjae
+        }
+      }
 
       if (text.includes('각인')) {
         if (!parsed.engravingEffects) parsed.engravingEffects = []
@@ -298,6 +493,84 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
       } else if (text.includes('엘릭서')) {
         if (!parsed.elixirEffects) parsed.elixirEffects = []
         parsed.elixirEffects.push(...parseElixirEffects(html))
+      }
+    }
+
+    // Element_008: 추가 효과
+    if (tooltip.Element_008) {
+      const html = typeof tooltip.Element_008 === 'string'
+        ? tooltip.Element_008
+        : JSON.stringify(tooltip.Element_008)
+      const stats = parseStats(html)
+      if (stats.length) {
+        const additionalEffect = stats.find(stat =>
+          stat.type.includes('추가 피해') || stat.type.includes('추가피해') || stat.type.includes('추가 효과')
+        )
+        if (additionalEffect) {
+          parsed.additionalEffectStat = additionalEffect
+        }
+      }
+    }
+
+    // Element_010: 초월 요약
+    if (tooltip.Element_010?.value) {
+      const lines = extractIndentGroupLines(tooltip.Element_010.value)
+      if (lines.length) {
+        const summaryLine = lines.find(line => line.includes('모든 장비'))
+        if (summaryLine) {
+          parsed.transcendenceSummary = summaryLine
+        }
+        const baseLine = lines.find(
+          line => !line.includes('모든 장비') && !line.includes('-')
+        )
+        if (baseLine) {
+          parsed.transcendenceBaseEffect = baseLine
+        }
+        const stageLines = lines.filter(line => line.includes(' - '))
+        if (stageLines.length) {
+          parsed.transcendenceStages = stageLines
+          parsed.transcendenceMaxStage = stageLines[stageLines.length - 1]
+          const aggregates = extractTranscendenceAggregates(stageLines)
+          if (aggregates) {
+            parsed.transcendenceAggregates = aggregates
+          }
+        }
+      }
+    }
+
+    // Element_011~012: 엘릭서 정보
+    if (tooltip.Element_011?.value?.topStr) {
+      parsed.elixirSummary = cleanText(tooltip.Element_011.value.topStr)
+    }
+
+    if (tooltip.Element_012?.value) {
+      const topStr = findNestedTopStr(tooltip.Element_012.value)
+      if (topStr) {
+        const { headline, detail } = extractElixirTopStrDetail(topStr)
+        if (detail) {
+          parsed.elixirStageSummary = detail
+        } else {
+          parsed.elixirStageSummary = cleanText(topStr)
+        }
+        if (!parsed.elixirSummary && headline) {
+          parsed.elixirSummary = headline
+        }
+      }
+      if (!parsed.elixirStageSummary) {
+        const lines = extractIndentGroupLines(tooltip.Element_012.value)
+        if (lines.length) {
+          parsed.elixirStageSummary = lines[lines.length - 1]
+        }
+      }
+      if (!parsed.elixirSummary) {
+        if (!topStr) {
+          const lines = extractIndentGroupLines(tooltip.Element_012.value)
+          if (lines.length) {
+            parsed.elixirSummary = lines[0]
+          }
+        } else {
+          parsed.elixirSummary = cleanText(topStr)
+        }
       }
     }
 
@@ -334,4 +607,34 @@ export function getGradeColor(grade: string): string {
   }
 
   return gradeMap[grade] || '#999999'
+}
+function parseNumber(value: string): number {
+  const numeric = Number(value.replace(/,/g, ''))
+  return Number.isNaN(numeric) ? 0 : numeric
+}
+
+function extractTranscendenceAggregates(lines: string[]): TranscendenceAggregates | null {
+  let weaponAttack = 0
+  let brandPercent = 0
+  let allyBuffPercent = 0
+
+  lines.forEach(line => {
+    const clean = stripHtml(line)
+    for (const match of clean.matchAll(/공격력[^\d%]*([0-9,]+)/g)) {
+      weaponAttack += parseNumber(match[1])
+    }
+    for (const match of clean.matchAll(/낙인력[^\d%]*([0-9.]+)\s*%/gi)) {
+      brandPercent += Number(match[1])
+    }
+    for (const match of clean.matchAll(/아군\s*공격력\s*강화\s*효과[^\d%]*([0-9.]+)\s*%/gi)) {
+      allyBuffPercent += Number(match[1])
+    }
+  })
+
+  const aggregates: TranscendenceAggregates = {}
+  if (weaponAttack > 0) aggregates.weaponAttack = weaponAttack
+  if (brandPercent > 0) aggregates.brandPercent = Number(brandPercent.toFixed(2))
+  if (allyBuffPercent > 0) aggregates.allyBuffPercent = Number(allyBuffPercent.toFixed(2))
+
+  return Object.keys(aggregates).length ? aggregates : null
 }

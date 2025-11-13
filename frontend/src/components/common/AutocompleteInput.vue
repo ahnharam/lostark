@@ -121,6 +121,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   'select': [suggestion: Suggestion | { id: string; name: string }]
   'clear': []
+  'focus': []
+  'blur': []
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
@@ -147,20 +149,14 @@ watch(() => props.modelValue, (newValue) => {
 const filteredSuggestions = computed(() => {
   const query = localValue.value.trim().toLowerCase()
 
-  // 최소 글자 수 체크
   if (query.length < props.minChars) {
-    // 최소 글자 미만이면 즐겨찾기만 표시
-    return props.suggestions
-      .filter(s => s.isFavorite)
-      .slice(0, props.maxSuggestions)
+    return []
   }
 
-  // 검색어가 있으면 필터링
   const filtered = props.suggestions.filter(suggestion => {
     return suggestion.name.toLowerCase().includes(query)
   })
 
-  // 즐겨찾기 우선, 그 다음 최근 검색
   const sorted = filtered.sort((a, b) => {
     if (a.isFavorite && !b.isFavorite) return -1
     if (!a.isFavorite && b.isFavorite) return 1
@@ -186,6 +182,7 @@ const handleInput = () => {
 
 // 포커스 이벤트
 const handleFocus = () => {
+  emit('focus')
   if (filteredSuggestions.value.length > 0) {
     showSuggestions.value = true
   }
@@ -193,6 +190,7 @@ const handleFocus = () => {
 
 // 블러 이벤트 (약간의 지연으로 클릭 이벤트 처리)
 const handleBlur = () => {
+  emit('blur')
   setTimeout(() => {
     showSuggestions.value = false
     selectedIndex.value = -1
@@ -287,7 +285,6 @@ defineExpose({
   position: relative;
   width: 100%;
   margin: 0 auto;
-  padding-left: 400px;
 }
 
 /* 입력 프레임: Horizontal / H=52 / Radius=999 / Padding 16~20 / Gap 12 */
@@ -408,7 +405,6 @@ defineExpose({
   overflow-y: auto;
   z-index: 1000;
   animation: slideDown 0.2s ease-out;
-  margin-left:400px
 }
 
 @keyframes slideDown {

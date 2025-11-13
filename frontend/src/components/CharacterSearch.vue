@@ -1,24 +1,118 @@
 ﻿<template>
   <div class="app-container">
     <header class="page-header">
-      <button class="menu-button" type="button" aria-label="메뉴 열기" @click="openMenu">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-      <h1>LOA Character Search</h1>
-      <div class="header-search">
-        <AutocompleteInput
-          v-model="characterName"
-          :suggestions="searchSuggestions"
-          placeholder="캐릭터명을 입력하세요"
-          inputClass="search-input"
-          :min-chars="0"
-          :max-suggestions="8"
-          @select="handleSuggestionSelect"
-          @keyup.enter="searchCharacterByInput"
-        />
+      <div class="header-left">
+        <button class="menu-button" type="button" aria-label="메뉴 열기" @click="openMenu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <h1>LOA Character Search</h1>
       </div>
+      <div class="header-search">
+        <div class="search-panel-wrapper" ref="searchPanelWrapperRef">
+          <AutocompleteInput
+            v-model="characterName"
+            :suggestions="[]"
+            placeholder="캐릭터명을 입력하세요"
+            inputClass="search-input"
+            :min-chars="1"
+            :max-suggestions="8"
+            @select="handleSuggestionSelect"
+            @keyup.enter="searchCharacterByInput"
+            @focus="handleSearchFocus"
+          />
+
+          <div v-if="shouldShowSearchPanel" class="search-panel-dropdown">
+            <div class="search-panel-tabs">
+              <button
+                type="button"
+                class="search-panel-tab"
+                :class="{ active: activeSearchPanelTab === 'recent' }"
+                @click="activeSearchPanelTab = 'recent'"
+              >
+                최근 검색
+              </button>
+              <button
+                type="button"
+                class="search-panel-tab"
+                :class="{ active: activeSearchPanelTab === 'favorites' }"
+                @click="activeSearchPanelTab = 'favorites'"
+              >
+                내 즐겨찾기
+              </button>
+            </div>
+
+            <div class="search-panel-content">
+              <template v-if="activeSearchPanelTab === 'recent'">
+                <div class="panel-section-header">
+                  <span>최근 검색</span>
+                  <button
+                    v-if="history.length > 0"
+                    type="button"
+                    class="panel-clear-btn"
+                    @click="clearHistory"
+                  >
+                    전체 삭제
+                  </button>
+                </div>
+                <div v-if="panelHistoryItems.length === 0" class="panel-empty">
+                  {{ history.length === 0 ? '검색 기록이 없습니다' : '일치하는 검색 기록이 없습니다' }}
+                </div>
+                <ul v-else class="panel-list">
+                  <li
+                    v-for="item in panelHistoryItems"
+                    :key="item.id"
+                  >
+                    <button
+                      type="button"
+                      class="panel-list-item"
+                      @click="handleSearchPanelSelect(item.characterName)"
+                    >
+                      <span class="panel-list-name">{{ item.characterName }}</span>
+                      <span class="panel-list-meta">🕒</span>
+                    </button>
+                  </li>
+                </ul>
+              </template>
+
+              <template v-else>
+                <div class="panel-section-header">
+                  <span>내 즐겨찾기</span>
+                </div>
+                <div v-if="panelFavoriteItems.length === 0" class="panel-empty">
+                  {{ favorites.length === 0 ? '즐겨찾기가 비어있어요' : '일치하는 즐겨찾기가 없습니다' }}
+                </div>
+                <div v-else class="panel-favorite-list">
+                  <button
+                    v-for="fav in panelFavoriteItems"
+                    :key="fav.characterName"
+                    type="button"
+                    class="panel-favorite-item"
+                    @click="handleSearchPanelSelect(fav.characterName)"
+                  >
+                    <LazyImage
+                      :src="fav.characterImage || ''"
+                      :alt="fav.characterName"
+                      width="38"
+                      height="38"
+                      imageClass="panel-favorite-image"
+                      errorIcon="❔"
+                    />
+                    <div class="panel-favorite-details">
+                      <span class="panel-favorite-name">{{ fav.characterName }}</span>
+                      <span class="panel-favorite-meta">
+                        {{ fav.serverName }} · {{ fav.itemMaxLevel || fav.itemAvgLevel }}
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="header-right" aria-hidden="true"></div>
     </header>
     <transition name="sidebar-fade">
       <div v-if="menuOpen" class="sidebar-overlay" @click="closeMenu"></div>
@@ -44,6 +138,9 @@
     </transition>
 
     <div class="content-wrapper">
+      <aside class="ad-slot ad-slot--left" aria-label="왼쪽 광고 영역">
+        <span>광고 영역</span>
+      </aside>
       <main class="main-content">
         <div class="search-container">
           <section class="states-section" v-if="false">
@@ -307,57 +404,8 @@
           </section>
         </div>
       </main>
-
-      <aside class="sidebar">
-        <div class="sidebar-section">
-          <h2>내 즐겨찾기</h2>
-          <div v-if="favorites.length === 0" class="empty-message">
-            즐겨찾기가 비어있어요
-          </div>
-          <div v-else class="favorite-list">
-            <div
-              v-for="fav in favorites"
-              :key="fav.characterName"
-              class="favorite-item"
-              @click="searchCharacter(fav.characterName)"
-            >
-              <LazyImage
-                :src="fav.characterImage || ''"
-                :alt="fav.characterName"
-                width="40"
-                height="40"
-                imageClass="fav-image"
-                errorIcon="❔"
-              />
-              <div class="fav-details">
-                <div class="fav-name">{{ fav.characterName }}</div>
-                <div class="fav-level">{{ fav.itemMaxLevel }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="section-header">
-            <h2>최근 검색</h2>
-            <button v-if="history.length > 0" @click="clearHistory" class="clear-btn-sm">
-              전체 삭제
-            </button>
-          </div>
-          <div v-if="history.length === 0" class="empty-message">
-            검색 기록이 없습니다
-          </div>
-          <div v-else class="history-list">
-            <div
-              v-for="item in history"
-              :key="item.id"
-              class="history-item"
-              @click="searchCharacter(item.characterName)"
-            >
-              {{ item.characterName }}
-            </div>
-          </div>
-        </div>
+      <aside class="ad-slot ad-slot--right" aria-label="오른쪽 광고 영역">
+        <span>광고 영역</span>
       </aside>
     </div>
   </div>
@@ -397,6 +445,11 @@ const characterAvailability = ref<Record<string, 'available' | 'unavailable' | '
 const activeResultTab = ref<'detail' | 'expedition'>('detail')
 const characterOverviewRef = ref<HTMLElement | null>(null)
 const overviewWidth = ref(0)
+const searchPanelWrapperRef = ref<HTMLElement | null>(null)
+const searchPanelOpen = ref(false)
+const activeSearchPanelTab = ref<'recent' | 'favorites'>('recent')
+
+const shouldShowSearchPanel = computed(() => searchPanelOpen.value)
 
 const selectedCharacterProfile = ref<CharacterProfile | null>(null)
 const detailEquipment = ref<Equipment[]>([])
@@ -527,34 +580,39 @@ const observeOverviewCard = () => {
   }
 }
 
+const panelFilterQuery = computed(() => characterName.value.trim().toLowerCase())
 
-const searchSuggestions = computed<Suggestion[]>(() => {
-  const suggestions: Suggestion[] = []
-
-  favorites.value.forEach(fav => {
-    suggestions.push({
-      id: `fav-${fav.characterName}`,
-      name: fav.characterName,
-      info: `${fav.serverName} · ${fav.characterClassName}`,
-      level: fav.itemMaxLevel,
-      isFavorite: true
-    })
-  })
-
-  const favoriteNames = new Set(favorites.value.map(f => f.characterName))
-  history.value.forEach(h => {
-    if (!favoriteNames.has(h.characterName)) {
-      suggestions.push({
-        id: `history-${h.id}`,
-        name: h.characterName,
-        info: '최근 검색',
-        isFavorite: false
-      })
-    }
-  })
-
-  return suggestions
+const panelHistoryItems = computed(() => {
+  if (activeSearchPanelTab.value !== 'recent') return history.value
+  if (!panelFilterQuery.value) return history.value
+  return history.value.filter(item => item.characterName.toLowerCase().includes(panelFilterQuery.value))
 })
+
+const panelFavoriteItems = computed(() => {
+  if (activeSearchPanelTab.value !== 'favorites') return favorites.value
+  if (!panelFilterQuery.value) return favorites.value
+  return favorites.value.filter(item => item.characterName.toLowerCase().includes(panelFilterQuery.value))
+})
+
+const closeSearchPanel = () => {
+  searchPanelOpen.value = false
+}
+
+const handleSearchFocus = () => {
+  searchPanelOpen.value = true
+  activeSearchPanelTab.value = 'recent'
+}
+
+const handleSearchPanelSelect = (name: string) => {
+  closeSearchPanel()
+  executeSearch(name)
+}
+
+const handleOutsideSearchClick = (event: MouseEvent) => {
+  if (!searchPanelWrapperRef.value) return
+  if (searchPanelWrapperRef.value.contains(event.target as Node)) return
+  closeSearchPanel()
+}
 
 const expeditionGroups = computed(() => {
   const groups = new Map<string, SiblingCharacter[]>()
@@ -597,6 +655,9 @@ onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', handleResize)
   }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', handleOutsideSearchClick)
+  }
   nextTick(() => {
     observeOverviewCard()
   })
@@ -607,6 +668,9 @@ onBeforeUnmount(() => {
     window.removeEventListener('resize', handleResize)
   }
   overviewObserver?.disconnect()
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('click', handleOutsideSearchClick)
+  }
 })
 
 watch(
@@ -803,11 +867,14 @@ const loadCharacterDetails = async (name: string, options: { profile?: Character
 const executeSearch = (name: string) => {
   const trimmed = name.trim()
   if (!trimmed) return
+  closeSearchPanel()
   characterName.value = trimmed
   searchCharacter(trimmed)
 }
 
-const handleSuggestionSelect = (suggestion: Suggestion) => {
+type AutocompleteSelectPayload = Suggestion | { id: string; name: string }
+
+const handleSuggestionSelect = (suggestion: AutocompleteSelectPayload) => {
   executeSearch(suggestion.name)
 }
 
@@ -982,15 +1049,21 @@ const formatCombatPower = (value?: number | string) => {
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(320px, 1fr) auto;
   align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
+  column-gap: 20px;
   padding: 20px 40px;
   background: var(--card-bg);
   box-shadow: var(--shadow-sm);
   border-bottom: 1px solid var(--border-color);
+  justify-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .page-header h1 {
@@ -1001,11 +1074,17 @@ const formatCombatPower = (value?: number | string) => {
 }
 
 .header-search {
-  flex: 1;
+  justify-self: center;
+  width: min(720px, 100%);
 }
 
 .header-search :deep(.autocomplete-container) {
   width: 100%;
+}
+
+.header-right {
+  width: 48px;
+  height: 1px;
 }
 
 .menu-button {
@@ -1118,13 +1197,42 @@ const formatCombatPower = (value?: number | string) => {
 .content-wrapper {
   display: flex;
   flex: 1;
+  gap: 24px;
+  padding: 30px clamp(20px, 5vw, 0px);
+  background: var(--bg-secondary);
+  box-sizing: border-box;
 }
 
 .main-content {
-  flex: 1;
-  padding: 30px;
-  overflow-y: auto;
+  flex: 1 1 960px;
+  /* max-width: 1200px; */
+  padding: 0px 24px;
+  /* overflow-y: auto; */
   background: var(--bg-secondary);
+  /* border-radius: 24px; */
+  /* box-shadow: var(--shadow-sm); */
+  border-left: 1px dashed var(--border-color);
+  border-right: 1px dashed var(--border-color);
+}
+
+.ad-slot {
+  flex: 0 0 clamp(140px, 12vw, 220px);
+  border-radius: 24px;
+  border: 1px dashed var(--border-color);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 20px;
+  min-height: 60vh;
+}
+
+.ad-slot span {
+  pointer-events: none;
 }
 
 .search-input {
@@ -1224,13 +1332,14 @@ const formatCombatPower = (value?: number | string) => {
   align-items: stretch;
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 30px;
+  padding: 15px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
   gap: 25px;
   flex: 0 0 380px;
   height: fit-content;
   overflow: visible;
+  max-width: 350px;
 }
 
 .hero-row {
@@ -1268,14 +1377,15 @@ const formatCombatPower = (value?: number | string) => {
 
 .hero-meta-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .meta-item {
-  padding: 10px 30px;
+  padding: 10px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
 }
 
 .meta-item span {
@@ -1323,8 +1433,8 @@ const formatCombatPower = (value?: number | string) => {
 
 .special-grid--icons {
   display: grid;
-  grid-template-columns: repeat(4, minmax(90px, 1fr));
-  gap: 12px 18px;
+  grid-template-columns: repeat(4, minmax(70px, 1fr));
+  gap: 15px;
   overflow: visible;
   justify-items: center;
 }
@@ -1486,7 +1596,7 @@ const formatCombatPower = (value?: number | string) => {
 
 .profile-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .hero-row--profile-stats h3 {
@@ -1497,7 +1607,7 @@ const formatCombatPower = (value?: number | string) => {
 }
 
 .profile-stat {
-  padding: 10px 30px;
+  padding: 10px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -1522,7 +1632,7 @@ const formatCombatPower = (value?: number | string) => {
   border-radius: 20px;
   padding: 24px;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
 }
 
 @media (max-width: 1024px) {
@@ -1623,114 +1733,188 @@ const formatCombatPower = (value?: number | string) => {
   font-weight: 600;
 }
 
-.sidebar {
-  width: 280px;
-  background: var(--sidebar-bg);
+.search-panel-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.search-panel-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  width: min(350px, 100%);
+  max-width: 350px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 1200;
+}
+
+.search-panel-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.search-panel-tab {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-panel-tab.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-inverse);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.25);
+}
+
+.search-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 320px;
   overflow-y: auto;
-  box-shadow: -2px 0 10px var(--sidebar-shadow);
 }
 
-.sidebar-section {
-  margin-bottom: 30px;
-}
-
-.sidebar-section h2 {
-  font-size: 1.1rem;
-  color: var(--text-primary);
-  margin: 0 0 15px 0;
-  font-weight: 700;
-}
-
-.section-header {
+.panel-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
-.clear-btn-sm {
-  padding: 4px 10px;
-  font-size: 0.75rem;
+.panel-clear-btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: none;
   background: var(--error-color);
   color: var(--text-inverse);
-  border: none;
-  border-radius: 5px;
   cursor: pointer;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
-.empty-message {
-  color: var(--text-tertiary);
-  font-size: 0.85rem;
-  padding: 10px;
+.panel-empty {
+  padding: 20px;
   text-align: center;
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
 }
 
-.favorite-list,
-.history-list {
+.panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.favorite-item {
+.panel-list-item {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  padding: 10px 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
+  justify-content: space-between;
+  gap: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border 0.2s, background 0.2s;
 }
 
-.favorite-item:hover {
+.panel-list-item:hover {
+  border-color: var(--primary-color);
   background: var(--bg-hover);
 }
 
-.favorite-item :deep(.fav-image) {
+.panel-list-name {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.panel-list-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.panel-favorite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-favorite-item {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border 0.2s, transform 0.2s;
+}
+
+.panel-favorite-item:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.panel-favorite-item :deep(.panel-favorite-image) {
   border-radius: 50%;
   object-fit: cover;
 }
 
-.fav-details {
-  flex: 1;
+.panel-favorite-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.fav-name {
+.panel-favorite-name {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
-.fav-level {
-  font-size: 0.8rem;
-  color: var(--primary-color);
-}
-
-.history-item {
-  padding: 10px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+.panel-favorite-meta {
   font-size: 0.85rem;
-  color: var(--text-primary);
-}
-
-.history-item:hover {
-  background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 @media (max-width: 1024px) {
   .content-wrapper {
-    flex-direction: column-reverse;
+    flex-direction: column;
+    padding: 0px 20px;
+    gap: 20px;
   }
 
-  .sidebar {
-    width: 100%;
-    max-height: 250px;
+  .ad-slot {
+    display: none;
+  }
+
+  .main-content {
+    max-width: 100%;
+    padding: 20px;
+    /* border-radius: 16px; */
+    box-shadow: none;
   }
 
   .states-grid {
@@ -1746,17 +1930,26 @@ const formatCombatPower = (value?: number | string) => {
 @media (max-width: 640px) {
   .page-header {
     padding: 15px 20px;
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .header-left {
+    text-align: center;
+    width: 350px;
+    justify-content: space-between;
   }
 
   .page-header h1 {
     font-size: 1.2rem;
-    text-align: center;
   }
 
   .header-search {
     width: 100%;
+  }
+
+  .header-right {
+    display: none;
   }
 
   .main-content {
@@ -1770,6 +1963,10 @@ const formatCombatPower = (value?: number | string) => {
   .profile-stats-grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
+
+  .search-panel-dropdown {
+    padding: 16px;
+  }
 }
 
 .hero-row--paradise h3 {
@@ -1781,11 +1978,11 @@ const formatCombatPower = (value?: number | string) => {
 
 .paradise-info {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .paradise-item {
-  padding: 10px 30px;
+  padding: 10px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
