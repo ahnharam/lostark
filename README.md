@@ -1,173 +1,101 @@
 # 로스트아크 웹사이트 프로젝트
 
-## 기술 스택
-- **Frontend**: Vue.js 3
-- **Backend**: Spring Boot 3
+## 개요
+- **Frontend**: Vue 3 + Vite
+- **Backend**: Spring Boot 3 (Gradle)
 - **Database**: MariaDB 11.4
-- **Container**: Docker & Docker Compose
+- **컨테이너**: Docker / Docker Compose
 
-## 시작하기
-
-### 1. 환경 변수 설정
-`.env` 파일을 열어서 로스트아크 API 키와 프론트엔드 API 경로를 입력하세요.
-```
-LOSTARK_API_KEY=your_api_key_here
-VITE_API_BASE_URL=http://localhost:8080/api
-```
-API 키는 https://developer-lostark.game.onstove.com/ 에서 발급받을 수 있습니다.  
-`VITE_API_BASE_URL`은 프론트엔드가 백엔드 API를 호출할 기본 경로이며, 운영 배포 시 도메인에 맞게 수정하세요.
-
-### 2. Docker 컨테이너 실행
-개발과 운영 모드를 분리했습니다. 필요에 따라 아래 명령을 사용하세요.
-
-```bash
-# 개발 모드 (Vite/Spring Boot 핫리로드)
-docker compose up -d --build
-
-# 운영 모드 (최적화된 빌드)
-docker compose -f docker-compose.prod.yml up -d --build
-
-# 공통 로그 확인
-docker compose logs -f backend
-docker compose logs -f frontend
-```
-
-### 3. 접속 주소
-- **개발 Frontend**: http://localhost:5173
-- **운영 Frontend(Nginx)**: http://localhost:8081
-- **Backend API**: http://localhost:8080
-- **Adminer (개발용 DB 관리)**: http://localhost:8082
-  - 시스템: MySQL
-  - 서버: database
-  - 사용자명: lostark_user
-  - 비밀번호: (.env 파일 참조)
-  - 데이터베이스: lostark
-
-### 4. 컨테이너 관리
-```bash
-# 컨테이너 중지
-docker compose down
-
-# 컨테이너 재시작
-docker compose restart
-
-# 특정 서비스만 재시작
-docker compose restart backend
-
-# 컨테이너와 볼륨까지 모두 삭제 (데이터 초기화)
-docker compose down -v
-```
-
-## 프로젝트 구조
+## 폴더 구조
 ```
 lostark-project/
-├── frontend/              # Vue.js 프로젝트
-│   ├── src/
-│   ├── package.json
-│   ├── Dockerfile           # 운영용 Nginx 빌드
-│   └── Dockerfile.dev       # 개발용 Vite 서버
-├── backend/               # Spring Boot 프로젝트
-│   ├── src/
-│   ├── build.gradle
-│   ├── Dockerfile         # 운영용 멀티스테이지 빌드
-│   └── Dockerfile.dev     # 개발용 bootRun 컨테이너
-├── docker-compose.yml         # 개발 모드 Compose
-├── docker-compose.prod.yml    # 운영 모드 Compose
-├── .env                   # 환경 변수
+├── frontend/              # Vue 앱 (Dockerfile, Dockerfile.dev 포함)
+├── backend/               # Spring Boot (Dockerfile, Dockerfile.dev 포함)
+├── docker-compose.yml     # 개발용 Compose
+├── docker-compose.prod.yml# 운영용 Compose
+├── docs/deployment/       # Vercel/Railway/FreeDB 가이드
+├── .env                   # 로컬 환경 변수
 └── README.md
 ```
 
+## 로컬 개발 순서
+1. **환경 변수 준비**
+   - `.env`를 생성하고 다음 값을 채웁니다.
+     ```
+     LOSTARK_API_KEY=your_api_key_here   # https://developer-lostark.game.onstove.com
+     VITE_API_BASE_URL=http://localhost:8080/api
+     ```
+   - DB 접속 정보는 로컬 Compose 기본값을 사용하거나 필요 시 수정하세요.
+
+2. **컨테이너 실행**
+   ```bash
+   # 개발 모드 (Vite dev + bootRun)
+   docker compose up -d --build
+
+   # 운영 모드 시뮬레이션 (정적 빌드 + JAR)
+   docker compose -f docker-compose.prod.yml up -d --build
+
+   # 로그
+   docker compose logs -f backend
+   docker compose logs -f frontend
+   ```
+
+3. **주요 접속 주소**
+   - Frontend(Dev): http://localhost:5173
+   - Frontend(Nginx 빌드): http://localhost:8081
+   - Backend API: http://localhost:8080
+   - Adminer: http://localhost:8082 (system: MySQL / server: database / user 비밀번호는 `.env` 참고)
+
+4. **컨테이너 관리**
+   ```bash
+   docker compose restart              # 전체 재시작
+   docker compose restart backend      # 서비스별 재시작
+   docker compose down                 # 중지
+   docker compose down -v              # 볼륨 포함 초기화
+   ```
+
 ## 개발 가이드
+- **Frontend**
+  - `frontend/`에서 Vite dev 서버를 실행하면 실시간 HMR이 적용됩니다.
+  - `vite.config.ts`의 `server.host` / `watch.usePolling` 설정은 Docker 개발환경에서도 안정적으로 동작하도록 구성했습니다.
+  - `npm run build`로 배포 산출물(`dist`)을 생성합니다.
 
-### Frontend 개발
-1. `frontend/` 폴더에서 Vue 프로젝트 생성
+- **Backend**
+  - `backend/`는 Gradle 기반이며 `./gradlew bootRun`으로 실행합니다.
+  - `src/main/resources/application.yml`은 `SPRING_DATASOURCE_*`, `LOSTARK_API_KEY` 등 환경 변수를 주입받도록 설계되어 다른 인프라로 옮겨도 설정만 교체하면 됩니다.
+
+## Git 사용 순서
 ```bash
-cd frontend
-npm create vue@latest .
-```
-
-2. Vite 설정 (`vite.config.js`)에 Hot Reload 활성화
-```javascript
-export default defineConfig({
-  server: {
-    host: '0.0.0.0',
-    port: 5173,
-    watch: {
-      usePolling: true
-    }
-  }
-})
-```
-
-### Backend 개발
-1. `backend/` 폴더에서 Spring Boot 프로젝트 생성
-   - https://start.spring.io/ 에서 생성 후 압축 해제
-   - 또는 IDE에서 직접 생성
-
-2. `application.yml` 설정
-```yaml
-spring:
-  datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-    driver-class-name: org.mariadb.jdbc.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-
-lostark:
-  api:
-    key: ${LOSTARK_API_KEY}
-    base-url: https://developer-lostark.game.onstove.com
-```
-
-## Git 사용법
-```bash
-# 저장소 초기화
 git init
 git add .
 git commit -m "Initial commit"
-
-# GitHub에 푸시
 git remote add origin https://github.com/your-username/lostark-project.git
 git push -u origin main
 
 # 다른 PC에서
 git clone https://github.com/your-username/lostark-project.git
 cd lostark-project
-# .env 파일 설정 후
-docker-compose up -d
+cp .env.example .env && # 값 입력
+docker compose up -d
 ```
 
 ## 문제 해결
-
-### 포트 충돌
-다른 서비스와 포트가 충돌하면 `docker-compose.yml`에서 포트 번호를 변경하세요.
-
-### 컨테이너가 시작되지 않을 때
-```bash
-# 로그 확인
-docker-compose logs backend
-docker-compose logs frontend
-
-# 컨테이너 재빌드
-docker-compose up -d --build
-```
-
-### 데이터베이스 초기화
-```bash
-docker-compose down -v
-docker-compose up -d
-```
+- **포트 충돌**: `docker-compose*.yml`에서 포트를 조정합니다.
+- **컨테이너 시작 실패**  
+  ```bash
+  docker compose logs backend
+  docker compose logs frontend
+  docker compose up -d --build
+  ```
+- **DB 초기화**  
+  ```bash
+  docker compose down -v
+  docker compose up -d
+  ```
 
 ## 클라우드/호스팅 배포
-
-실제 배포는 다음 구성을 기준으로 합니다.
-
-- Frontend: **Vercel** (정적 Vite 빌드, `VITE_API_BASE_URL`을 Railway API로 지정)
-- Backend: **Railway** (Dockerfile 또는 JAR 실행, FreeDB와 연결)
+- Frontend: **Vercel** (정적 빌드, `VITE_API_BASE_URL`을 Railway 도메인으로 설정)
+- Backend: **Railway** (Dockerfile 또는 JAR 실행, FreeDB 연결)
 - Database: **FreeDB** (Hosted MariaDB)
 
-자세한 설정 방법과 환경 변수 매트릭스는 `docs/deployment` 디렉터리를 참고하세요.
+플랫폼별 세부 절차와 환경 변수 매트릭스는 `docs/deployment` 폴더를 참고하세요.
