@@ -179,7 +179,7 @@
                       @mouseleave="clearHighlightTooltip"
                     >
                       <span class="cell-label">{{ row.left.label }}</span>
-                      <span class="cell-value">{{ row.left.value }}</span>
+                      <span class="cell-value" :style="{ color: row.left.color || undefined }">{{ row.left.value }}</span>
                     </div>
                     <div
                       v-if="!row.leftFullWidth && row.right"
@@ -188,7 +188,7 @@
                       @mouseleave="clearHighlightTooltip"
                     >
                       <span class="cell-label">{{ row.right.label }}</span>
-                      <span class="cell-value">{{ row.right.value }}</span>
+                      <span class="cell-value" :style="{ color: row.right.color || undefined }">{{ row.right.value }}</span>
                     </div>
                   </div>
                   <div v-if="hoveredTooltipLines?.length" class="trans-tooltip">
@@ -433,6 +433,14 @@ const fallbackBasicStats = computed<StatItem[]>(() => {
 interface ExtractedLine {
   text: string
   rich: string
+  color?: string
+}
+
+const extractColorFromHtml = (html?: string): string | undefined => {
+  if (!html) return undefined
+  const match = html.match(/color\s*[:=]\s*['"]?#?([0-9a-f]{6})/i)
+  if (!match) return undefined
+  return `#${match[1].toUpperCase()}`
 }
 
 const extractItemPartLines = (
@@ -460,18 +468,22 @@ const extractItemPartLines = (
   const normalize = (value: string) =>
     value.replace(/<br\s*\/?>/gi, '<br>').replace(/\r?\n/g, '<br>').replace(/\\n/gi, '<br>')
 
+  const buildLine = (segment: string, alreadyNormalized = false): ExtractedLine | null => {
+    const normalizedSegment = alreadyNormalized ? segment : normalize(segment)
+    const rich = stripHtml(normalizedSegment, { preserveColor: true }).replace(/\s+/g, ' ').trim()
+    const text = formatNumbersInText(stripSummaryHtml(normalizedSegment)).replace(/\s+/g, ' ').trim()
+    const color = extractColorFromHtml(segment)
+    if (!text && !rich) return null
+    return { rich, text, color }
+  }
+
   if (options.groupByImage && /<img/i.test(raw)) {
     return raw
       .split(/<img[^>]*>/i)
       .map(chunk => chunk.trim())
       .filter(Boolean)
-      .map(chunk => {
-        const normalizedChunk = normalize(chunk)
-        const rich = stripHtml(normalizedChunk, { preserveColor: true }).replace(/\s+/g, ' ').trim()
-        const text = formatNumbersInText(stripSummaryHtml(normalizedChunk)).replace(/\s+/g, ' ').trim()
-        return { rich, text }
-      })
-      .filter(entry => entry.text || entry.rich)
+      .map(chunk => buildLine(chunk))
+      .filter((entry): entry is ExtractedLine => Boolean(entry && (entry.text || entry.rich)))
   }
 
   const normalized = normalize(raw)
@@ -479,12 +491,8 @@ const extractItemPartLines = (
     .split(/<br>/g)
     .map(segment => segment.trim())
     .filter(Boolean)
-    .map(segment => {
-      const rich = stripHtml(segment, { preserveColor: true }).replace(/\s+/g, ' ').trim()
-      const text = formatNumbersInText(stripSummaryHtml(segment)).replace(/\s+/g, ' ').trim()
-      return { rich, text }
-    })
-    .filter(entry => entry.text || entry.rich)
+    .map(segment => buildLine(segment, true))
+    .filter((entry): entry is ExtractedLine => Boolean(entry && (entry.text || entry.rich)))
 }
 
 const includesKeyword = (text: string, keyword: string) =>
@@ -570,21 +578,26 @@ const braceletFallbackStats = computed(() => {
 
 const normalizeKeyword = (value: string) => value.replace(/\s+/g, '').toLowerCase()
 
-const parsedBraceletLines = computed(() => {
+type ParsedBraceletLine =
+  | { isEffect: true; effect: ExtractedLine }
+  | { isEffect: false; stat: StatItem }
+
+const parsedBraceletLines = computed<ParsedBraceletLine[]>(() => {
   const lines = extractItemPartLines(selectedParsed.value?.rawElements?.Element_005, /팔찌\s*효과/i, {
     groupByImage: true
   })
-  return lines.map(({ text, rich }) => {
+  return lines.map(line => {
+    const { text, rich, color } = line
     const plusIndex = text.indexOf('+')
     if (plusIndex === -1) {
-      return { isEffect: true, effect: rich || text }
+      return { isEffect: true, effect: line }
     }
     const label = text.slice(0, plusIndex).trim()
     const value = text.slice(plusIndex + 1).trim()
     const normalized = normalizeKeyword(label)
     const isPrimary = combatStatKeywords.some(keyword => normalized.includes(normalizeKeyword(keyword)))
     if (!isPrimary) {
-      return { isEffect: true, effect: rich || text }
+      return { isEffect: true, effect: line }
     }
     const richValue = (() => {
       if (!rich) return value
@@ -598,7 +611,8 @@ const parsedBraceletLines = computed(() => {
       stat: {
         type: label,
         value,
-        richValue
+        richValue,
+        color
       }
     }
   })
@@ -610,14 +624,20 @@ const formatBraceletEffectLine = (line: string) => {
   return trimmed.replace(/(?<!\d)\.(\s*)(?=[^\s<])/g, '.\r\n').replace(/\s*\r\n\s*/g, '\r\n').trim()
 }
 
-const braceletEffectLines = computed(() => {
+const braceletEffectLines = computed<ExtractedLine[]>(() => {
   const seen = new Set<string>()
   return parsedBraceletLines.value
-    .filter(item => item.isEffect)
-    .map(item => ('effect' in item ? item.effect : ''))
-    .map(formatBraceletEffectLine)
+    .filter((item): item is { isEffect: true; effect: ExtractedLine } => item.isEffect)
+    .map(item => {
+      const formatted = formatBraceletEffectLine(item.effect.text || item.effect.rich)
+      return {
+        text: formatted,
+        rich: item.effect.rich || item.effect.text,
+        color: item.effect.color
+      }
+    })
     .filter(line => {
-      const normalized = stripHtml(line).replace(/\s+/g, ' ').trim()
+      const normalized = stripHtml(line.text).replace(/\s+/g, ' ').trim()
       if (!normalized) return false
       if (seen.has(normalized)) return false
       seen.add(normalized)
@@ -877,12 +897,10 @@ const additionalEffectLines = computed(() => {
   return cleaned.map(line => formatNumbersInText(line))
 })
 
-const refinementLines = computed(() => {
+const refinementLines = computed<ExtractedLine[]>(() => {
   const parsed = selectedParsed.value
   if (!parsed) return []
-  const elementLines = extractItemPartLines(parsed.rawElements?.Element_006, /연마\s*효과/i).map(
-    line => line.rich || line.text
-  )
+  const elementLines = extractItemPartLines(parsed.rawElements?.Element_006, /연마\s*효과/i)
   if (elementLines.length) return elementLines
   const lines = [
     parsed.elixirStageSummary,
@@ -890,7 +908,14 @@ const refinementLines = computed(() => {
     ...(parsed.elixirEffects ?? [])
   ].filter((line): line is string => Boolean(line))
   const target = lines.find(line => /(연성|연마)/.test(line))
-  return target ? [formatNumbersInText(target)] : []
+  return target
+    ? [
+        {
+          text: formatNumbersInText(target),
+          rich: formatNumbersInText(target)
+        }
+      ]
+    : []
 })
 
 const extractSangjaeSegments = (rawElement: unknown): string[] => {
@@ -987,6 +1012,7 @@ const sangjaeInfo = computed(() => computeSangjaeInfoFromParsed(selectedParsed.v
 interface CoreCell {
   label: string
   value: string
+  color?: string
   tooltipLines?: string[]
   tooltipTotals?: TranscendenceAggregates
 }
@@ -1018,15 +1044,17 @@ const getStatDisplayValue = (stat?: StatItem | null) => (stat ? formatStatValue(
 
 const createStatCell = (label: string, stat?: StatItem | null, useStatLabel = false): CoreCell => ({
   label: useStatLabel && stat?.type ? stat.type : label,
-  value: getStatDisplayValue(stat)
+  value: getStatDisplayValue(stat),
+  color: stat?.color
 })
 
 const createMainStatCell = (stat?: StatItem | null): CoreCell =>
   createStatCell('힘/민/지', stat ?? null, false)
 
-const createTextCell = (label: string, text?: string | null): CoreCell => ({
+const createTextCell = (label: string, text?: string | null, color?: string): CoreCell => ({
   label,
-  value: text && text.trim() ? text : '-'
+  value: text && text.trim() ? text : '-',
+  color
 })
 
 const coreRows = computed<CoreRow[]>(() => {
@@ -1124,7 +1152,7 @@ const coreRows = computed<CoreRow[]>(() => {
       buildRowsFromStats(stats.slice(0, 4), '장신구 옵션')
       if (refinementLines.value.length) {
         refinementLines.value.forEach(line => {
-          pushRow(createTextCell('연마 효과', line), undefined, { fullWidth: true })
+          pushRow(createTextCell('연마 효과', line.text, line.color), undefined, { fullWidth: true })
         })
       }
       break
@@ -1149,7 +1177,7 @@ const coreRows = computed<CoreRow[]>(() => {
 
 
       braceletEffectLines.value.forEach(line => {
-        pushRow(createTextCell('팔찌 특성', line), undefined, { fullWidth: true })
+        pushRow(createTextCell('팔찌 특성', line.text, line.color), undefined, { fullWidth: true })
       })
 
       break
@@ -1706,7 +1734,7 @@ const cleanText = (text: string) =>
   background: var(--bg-secondary);
   border-radius: 14px;
   padding: 18px;
-  border: 1px solid var(--border-color);
+  /* border: 1px solid var(--border-color); */
   width: 500px;
 }
 
@@ -1861,7 +1889,7 @@ const cleanText = (text: string) =>
   gap: 12px;
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid var(--border-color);
+  /* border: 1px solid var(--border-color); */
   cursor: pointer;
   transition: transform 0.2s, border-color 0.2s, background 0.2s;
   background: var(--bg-secondary);

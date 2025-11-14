@@ -391,7 +391,7 @@
                     :class="{ active: activeResultTab === 'detail' }"
                     @click="activeResultTab = 'detail'"
                   >
-                    상세 보기
+                    장비 상세 보기
                   </button>
                   <button
                     class="view-tab-button"
