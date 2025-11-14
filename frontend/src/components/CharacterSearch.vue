@@ -387,23 +387,111 @@
               <div class="results-panel">
                 <div class="view-tabs">
                   <button
+                    v-for="tab in resultTabs"
+                    :key="tab.key"
                     class="view-tab-button"
-                    :class="{ active: activeResultTab === 'detail' }"
-                    @click="activeResultTab = 'detail'"
+                    type="button"
+                    :class="{ active: activeResultTab === tab.key }"
+                    @click="activeResultTab = tab.key"
                   >
-                    장비 상세 보기
-                  </button>
-                  <button
-                    class="view-tab-button"
-                    :class="{ active: activeResultTab === 'expedition' }"
-                    @click="activeResultTab = 'expedition'"
-                  >
-                    보유 캐릭터
+                    {{ tab.label }}
                   </button>
                 </div>
 
                 <section
-                  v-if="activeResultTab === 'detail'"
+                  v-if="activeResultTab === 'summary'"
+                  class="detail-panel summary-panel"
+                >
+                  <div v-if="activeCharacter" class="summary-grid">
+                    <div class="summary-card summary-card--hero">
+                      <h4>기본 정보</h4>
+                      <p class="summary-name">{{ activeCharacter.characterName }}</p>
+                      <ul class="summary-meta-list">
+                        <li>
+                          <span>직업</span>
+                          <strong>{{ activeCharacter.characterClassName }}</strong>
+                        </li>
+                        <li>
+                          <span>서버</span>
+                          <strong>{{ activeCharacter.serverName }}</strong>
+                        </li>
+                        <li v-if="activeCharacter.guildName">
+                          <span>길드</span>
+                          <strong>{{ activeCharacter.guildName }}</strong>
+                        </li>
+                        <li v-if="activeCharacter.pvpGradeName">
+                          <span>PVP</span>
+                          <strong>{{ activeCharacter.pvpGradeName }}</strong>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div class="summary-card">
+                      <h4>레벨 요약</h4>
+                      <div class="summary-stats">
+                        <div class="summary-stat">
+                          <span>전투 레벨</span>
+                          <strong>Lv. {{ formatInteger(activeCharacter.characterLevel) }}</strong>
+                        </div>
+                        <div class="summary-stat">
+                          <span>아이템 레벨</span>
+                          <strong>{{ formatItemLevel(activeCharacter.itemAvgLevel || activeCharacter.itemMaxLevel) }}</strong>
+                        </div>
+                        <div class="summary-stat">
+                          <span>전투력</span>
+                          <strong>{{ formatCombatPower(activeCharacter.combatPower) }}</strong>
+                        </div>
+                        <div class="summary-stat">
+                          <span>원정대 레벨</span>
+                          <strong>Lv. {{ formatInteger(activeCharacter.expeditionLevel) }}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="summary-card" v-if="condensedStats.length">
+                      <h4>전투 특성 상위</h4>
+                      <ul class="summary-meta-list summary-meta-list--stats">
+                        <li v-for="stat in condensedStats" :key="`${stat.type}-${stat.value}`">
+                          <span>{{ stat.type }}</span>
+                          <strong>{{ formatProfileStat(stat.value) }}</strong>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div
+                      class="summary-card summary-card--notes"
+                      v-if="paradiseInfo.power || paradiseInfo.season || specialEquipmentsDetailed.length"
+                    >
+                      <h4>모험 메모</h4>
+                      <ul class="summary-meta-list">
+                        <li v-if="paradiseInfo.season">
+                          <span>낙원 시즌</span>
+                          <strong>{{ paradiseInfo.season }}</strong>
+                        </li>
+                        <li v-if="paradiseInfo.power">
+                          <span>낙원력</span>
+                          <strong>{{ formatInteger(paradiseInfo.power) }}</strong>
+                        </li>
+                        <li v-if="specialEquipmentsDetailed.length">
+                          <span>항해 장비</span>
+                          <strong>{{ specialEquipmentsDetailed.length }}개</strong>
+                        </li>
+                      </ul>
+                      <p class="summary-note" v-if="specialEquipmentsDetailed.length">
+                        항해/수집 보조 장비가 {{ specialEquipmentsDetailed.length }}개 감지되었습니다.
+                      </p>
+                    </div>
+                  </div>
+                  <EmptyState
+                    v-else
+                    icon="ℹ️"
+                    title="캐릭터를 먼저 선택하세요"
+                    description="검색 후 내 정보 간소화 탭에서 핵심 정보를 요약해 드립니다."
+                  />
+                </section>
+
+                <section
+                  v-else-if="activeResultTab === 'detail'"
                   class="detail-panel"
                 >
                   <CharacterDetailModal
@@ -415,7 +503,10 @@
                   />
                 </section>
 
-                <section v-else class="expedition-section">
+                <section
+                  v-else-if="activeResultTab === 'expedition'"
+                  class="expedition-section"
+                >
                   <div class="section-header-bar">
                     <div>
                       <h3>원정대 보유 캐릭터</h3>
@@ -434,14 +525,14 @@
                         <article
                           v-for="member in group.members"
                           :key="member.characterName"
-                        class="expedition-card"
-                        :class="{ active: selectedCharacterProfile?.characterName === member.characterName }"
-                        @click="viewCharacterDetail(member)"
-                      >
-                        <div class="member-top">
-                          <span class="member-level">Lv. {{ formatInteger(member.characterLevel) }}</span>
-                          <span class="member-class">{{ member.characterClassName }}</span>
-                        </div>
+                          class="expedition-card"
+                          :class="{ active: selectedCharacterProfile?.characterName === member.characterName }"
+                          @click="viewCharacterDetail(member)"
+                        >
+                          <div class="member-top">
+                            <span class="member-level">Lv. {{ formatInteger(member.characterLevel) }}</span>
+                            <span class="member-class">{{ member.characterClassName }}</span>
+                          </div>
                           <strong class="member-name">{{ member.characterName }}</strong>
                           <span class="member-ilvl">
                             iLv. {{ formatItemLevel(member.itemAvgLevel || member.itemMaxLevel) }}
@@ -452,6 +543,17 @@
                     </div>
                   </template>
                   <p v-else class="empty-message">원정대 캐릭터가 없습니다.</p>
+                </section>
+
+                <section
+                  v-else
+                  class="detail-panel placeholder-panel"
+                >
+                  <EmptyState
+                    :icon="activePlaceholder?.icon || '🛠️'"
+                    :title="activePlaceholder?.title || '준비 중인 메뉴입니다'"
+                    :description="activePlaceholder?.description || '곧 해당 메뉴의 세부 기능을 제공할 예정입니다.'"
+                  />
                 </section>
               </div>
             </div>
@@ -505,8 +607,58 @@ interface ErrorState {
   title?: string
 }
 
+type ResultTabKey =
+  | 'summary'
+  | 'skills'
+  | 'detail'
+  | 'collection'
+  | 'ranking'
+  | 'arkGrid'
+  | 'expedition'
+
+interface TabPlaceholderCopy {
+  icon: string
+  title: string
+  description: string
+}
+
 const FAVORITES_STORAGE_KEY = 'loa:favorites'
 const HISTORY_STORAGE_KEY = 'loa:history'
+const DEFAULT_RESULT_TAB: ResultTabKey = 'summary'
+const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
+  { key: 'summary', label: '내 정보 간소화' },
+  { key: 'skills', label: '스킬' },
+  { key: 'detail', label: '장비 상세 보기' },
+  { key: 'collection', label: '수집' },
+  { key: 'ranking', label: '랭킹' },
+  { key: 'arkGrid', label: '아크 그리드' },
+  { key: 'expedition', label: '보유 캐릭터' }
+]
+const tabPlaceholderCopy: Record<ResultTabKey, TabPlaceholderCopy | null> = {
+  summary: null,
+  detail: null,
+  expedition: null,
+  skills: {
+    icon: '🎯',
+    title: '스킬 정보 준비 중',
+    description: '빠르게 스킬 트리와 보석 정보를 보여줄 수 있도록 준비하고 있어요.'
+  },
+  collection: {
+    icon: '📦',
+    title: '수집 정보 준비 중',
+    description: '아브렐슈드, 모코코 씨앗 등 수집 컨텐츠 현황을 곧 확인할 수 있습니다.'
+  },
+  ranking: {
+    icon: '🏆',
+    title: '랭킹 대시보드 준비 중',
+    description: '클래스별 랭킹과 친구 비교 기능을 순차적으로 제공할 예정입니다.'
+  },
+  arkGrid: {
+    icon: '🌀',
+    title: '아크 그리드 준비 중',
+    description: '어빌리티 스톤, 카드, 아크 패시브 등의 빌드를 그리드 형태로 보여줄 계획이에요.'
+  }
+}
 
 const characterName = ref('')
 const character = ref<CharacterProfile | null>(null)
@@ -517,7 +669,8 @@ const favorites = ref<CharacterProfile[]>([])
 const history = ref<SearchHistory[]>([])
 const characterAvailability = ref<Record<string, 'available' | 'unavailable' | 'loading'>>({})
 const selectedCharacterProfile = ref<CharacterProfile | null>(null)
-const activeResultTab = ref<'detail' | 'expedition'>('detail')
+const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
+const activePlaceholder = computed(() => tabPlaceholderCopy[activeResultTab.value])
 const characterOverviewRef = ref<HTMLElement | null>(null)
 const overviewWidth = ref(0)
 const searchPanelWrapperRef = ref<HTMLElement | null>(null)
@@ -738,6 +891,7 @@ const displayStats = computed<CharacterStat[]>(() => {
     : []
   return stats
 })
+const condensedStats = computed(() => displayStats.value.slice(0, 4))
 
 const tooltipWidthValue = computed(() => {
   if (!overviewWidth.value) return 320
@@ -946,7 +1100,7 @@ const searchCharacter = async (name: string) => {
     siblings.value = Array.from(unique.values())
 
     await loadCharacterDetails(name, { profile: charResponse.data })
-    activeResultTab.value = 'detail'
+    activeResultTab.value = DEFAULT_RESULT_TAB
     await loadHistory()
   } catch (err: any) {
     const errorData = err.response?.data
@@ -987,7 +1141,7 @@ const clearSearch = () => {
   detailEngravings.value = []
   detailError.value = null
   characterAvailability.value = {}
-  activeResultTab.value = 'detail'
+  activeResultTab.value = DEFAULT_RESULT_TAB
   handleSpecialHover(null)
 }
 
@@ -1597,6 +1751,108 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .view-tab-button:not(.active):hover {
   background: var(--bg-hover);
+}
+
+.summary-panel {
+  min-height: 340px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.summary-card--hero {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1));
+}
+
+.summary-card--notes {
+  background: linear-gradient(135deg, rgba(56, 239, 125, 0.15), rgba(17, 153, 142, 0.1));
+}
+
+.summary-name {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summary-meta-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-meta-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.summary-meta-list li strong {
+  color: var(--text-primary);
+}
+
+.summary-meta-list--stats li {
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.summary-stat {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-primary);
+}
+
+.summary-stat span {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.summary-stat strong {
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.summary-note {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.placeholder-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
 }
 
 .character-overview-card {

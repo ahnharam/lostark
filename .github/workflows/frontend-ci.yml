@@ -4,9 +4,12 @@ on:
   push:
     paths:
       - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
   pull_request:
     paths:
       - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,6 +17,10 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      CI: "true"
+      NPM_CONFIG_AUDIT: "false"
+      NPM_CONFIG_FUND: "false"
 
     steps:
       - name: Checkout
@@ -29,21 +36,19 @@ jobs:
 
       - name: Install deps (npm ci)
         run: npm ci
-        env:
-          CI: "true"
-          NPM_CONFIG_AUDIT: "false"   # 불필요한 보안 감사로 시간 늘어나는 것 방지
-          NPM_CONFIG_FUND: "false"
 
-      - name: Lint (있을 때만)
-        run: |
-          if npm run | grep -q "lint"; then npm run lint; else echo "no lint script"; fi
+      - name: Lint
+        run: npm run lint -- --no-fix --max-warnings=0
 
-      - name: Test (있을 때만)
+      - name: Type check
+        run: npm run type-check
+
+      - name: Test (있는 경우)
         run: |
           if npm run | grep -q "test"; then npm test -- --ci; else echo "no test script"; fi
 
-      - name: Build
-        run: npm run build
+      - name: Build (production)
+        run: npm run build-only
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
