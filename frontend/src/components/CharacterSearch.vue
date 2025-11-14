@@ -185,23 +185,23 @@
           <section v-if="character && !loading" class="character-results">
             <div class="results-layout">
               <div class="character-overview-card" ref="characterOverviewRef">
-                <div class="hero-row hero-row--levels">
+                <div class="hero-row hero-row--levels" v-if="activeCharacter">
                   <div class="profile-stats-grid hero-levels-grid">
                     <div class="profile-stat">
                       <span>전투력</span>
-                      <strong>{{ formatCombatPower(character.combatPower) }}</strong>
+                      <strong>{{ formatCombatPower(activeCharacter?.combatPower) }}</strong>
                     </div>
                     <div class="profile-stat">
                       <span>전투 레벨</span>
-                      <strong>Lv. {{ formatInteger(character.characterLevel) }}</strong>
+                      <strong>Lv. {{ formatInteger(activeCharacter?.characterLevel) }}</strong>
                     </div>
                     <div class="profile-stat">
                       <span>아이템 레벨</span>
-                      <strong>{{ formatItemLevel(character.itemAvgLevel) }}</strong>
+                      <strong>{{ formatItemLevel(activeCharacter?.itemAvgLevel) }}</strong>
                     </div>
                     <div class="profile-stat">
                       <span>원정대 레벨</span>
-                      <strong>{{ formatInteger(character.expeditionLevel) }}</strong>
+                      <strong>{{ formatInteger(activeCharacter?.expeditionLevel) }}</strong>
                     </div>
                   </div>
                 </div>
@@ -241,8 +241,8 @@
                       :class="{ 'is-large': isHeroImageLarge }"
                     >
                       <LazyImage
-                        :src="character.characterImage || ''"
-                        :alt="character.characterName"
+                        :src="activeCharacter?.characterImage || ''"
+                        :alt="activeCharacter?.characterName || ''"
                         :width="isHeroImageLarge ? 300 : 140"
                         :height="isHeroImageLarge ? 350 : 140"
                         imageClass="hero-avatar"
@@ -252,9 +252,9 @@
                   </div>
                   <div class="hero-text">
                     <div class="hero-text__header">
-                      <h2>{{ character.characterName }}</h2>
+                      <h2>{{ activeCharacter?.characterName }}</h2>
                       <button
-                        v-if="character"
+                        v-if="activeCharacter"
                         type="button"
                         class="favorite-toggle-btn"
                         :class="{ 'is-active': isCharacterFavorite }"
@@ -266,7 +266,7 @@
                         <span class="favorite-star" aria-hidden="true">★</span>
                       </button>
                     </div>
-                    <span class="hero-title" v-if="character.title">{{ character.title }}</span>
+                    <span class="hero-title" v-if="activeCharacter?.title">{{ activeCharacter?.title }}</span>
                   </div>
                 </div>
 
@@ -274,19 +274,19 @@
                   <div class="hero-meta-grid">
                     <div class="meta-item">
                       <span>직업</span>
-                      <strong>{{ character.characterClassName }}</strong>
+                      <strong>{{ activeCharacter?.characterClassName }}</strong>
                     </div>
                     <div class="meta-item">
                       <span>서버</span>
-                      <strong>{{ character.serverName }}</strong>
+                      <strong>{{ activeCharacter?.serverName }}</strong>
                     </div>
-                    <div class="meta-item" v-if="character.guildName">
+                    <div class="meta-item" v-if="activeCharacter?.guildName">
                       <span>길드</span>
-                      <strong>{{ character.guildName }}</strong>
+                      <strong>{{ activeCharacter?.guildName }}</strong>
                     </div>
-                    <div class="meta-item" v-if="character.pvpGradeName">
+                    <div class="meta-item" v-if="activeCharacter?.pvpGradeName">
                       <span>PVP</span>
-                      <strong>{{ character.pvpGradeName }}</strong>
+                      <strong>{{ activeCharacter?.pvpGradeName }}</strong>
                     </div>
                   </div>
                 </div>
@@ -478,7 +478,7 @@
       >
         ✕
       </button>
-      <img :src="characterImageSrc" :alt="character?.characterName ?? '캐릭터 확대 이미지'" />
+      <img :src="characterImageSrc" :alt="activeCharacter?.characterName ?? '캐릭터 확대 이미지'" />
     </div>
   </div>
 </template>
@@ -517,6 +517,7 @@ const siblings = ref<SiblingCharacter[]>([])
 const favorites = ref<CharacterProfile[]>([])
 const history = ref<SearchHistory[]>([])
 const characterAvailability = ref<Record<string, 'available' | 'unavailable' | 'loading'>>({})
+const selectedCharacterProfile = ref<CharacterProfile | null>(null)
 const activeResultTab = ref<'detail' | 'expedition'>('detail')
 const characterOverviewRef = ref<HTMLElement | null>(null)
 const overviewWidth = ref(0)
@@ -525,21 +526,21 @@ const searchPanelOpen = ref(false)
 const activeSearchPanelTab = ref<'recent' | 'favorites'>('recent')
 const isHeroImageLarge = ref(false)
 const isHeroImagePopupOpen = ref(false)
-const characterImageSrc = computed(() => character.value?.characterImage || '')
+const activeCharacter = computed<CharacterProfile | null>(() => selectedCharacterProfile.value ?? character.value)
+const characterImageSrc = computed(() => activeCharacter.value?.characterImage || '')
 const hasCharacterImage = computed(() => Boolean(characterImageSrc.value))
 const favoriteActionPending = ref(false)
 const isCharacterFavorite = computed(() => {
-  if (!character.value) return false
+  if (!activeCharacter.value) return false
   return favorites.value.some(
     fav =>
-      fav.characterName === character.value?.characterName &&
-      fav.serverName === character.value?.serverName
+      fav.characterName === activeCharacter.value?.characterName &&
+      fav.serverName === activeCharacter.value?.serverName
   )
 })
 
 const shouldShowSearchPanel = computed(() => searchPanelOpen.value)
 
-const selectedCharacterProfile = ref<CharacterProfile | null>(null)
 const detailEquipment = ref<Equipment[]>([])
 const detailEngravings = ref<Engraving[]>([])
 const detailLoading = ref(false)
@@ -598,6 +599,27 @@ const persistFavoritesToStorage = () => {
   saveToStorage(FAVORITES_STORAGE_KEY, favorites.value)
 }
 
+type FavoriteIdentity = Pick<CharacterProfile, 'characterName' | 'serverName'>
+
+const isSameFavorite = (target: FavoriteIdentity, other: FavoriteIdentity) => {
+  return target.characterName === other.characterName && target.serverName === other.serverName
+}
+
+const upsertFavoriteLocal = (profile: CharacterProfile) => {
+  if (!profile?.characterName || !profile?.serverName) return
+  const filtered = favorites.value.filter(fav => !isSameFavorite(fav, profile))
+  favorites.value = [...filtered, profile]
+  persistFavoritesToStorage()
+}
+
+const removeFavoriteLocal = (identity: FavoriteIdentity) => {
+  const next = favorites.value.filter(fav => !isSameFavorite(fav, identity))
+  if (next.length !== favorites.value.length) {
+    favorites.value = next
+    persistFavoritesToStorage()
+  }
+}
+
 const loadHistoryFromStorage = () => {
   const stored = loadFromStorage<SearchHistory[]>(HISTORY_STORAGE_KEY, [])
   if (stored.length) {
@@ -645,7 +667,7 @@ watch(characterImageSrc, () => {
   isHeroImagePopupOpen.value = false
 })
 
-watch(character, () => {
+watch(activeCharacter, () => {
   isHeroImageLarge.value = false
   isHeroImagePopupOpen.value = false
 })
@@ -713,8 +735,8 @@ const paradiseInfo = computed<ParadiseInfo>(() => {
 })
 
 const displayStats = computed<CharacterStat[]>(() => {
-  const stats = character.value?.stats
-    ? character.value.stats.filter(stat => stat.type !== '낙원력').map(stat => ({ ...stat }))
+  const stats = activeCharacter.value?.stats
+    ? activeCharacter.value.stats.filter(stat => stat.type !== '낙원력').map(stat => ({ ...stat }))
     : []
   return stats
 })
@@ -982,19 +1004,34 @@ const loadFavorites = async () => {
 }
 
 const toggleFavorite = async () => {
-  if (!character.value || favoriteActionPending.value) return
+  const targetCharacter = activeCharacter.value
+  if (!targetCharacter || favoriteActionPending.value) return
+
   favoriteActionPending.value = true
+  const snapshot = favorites.value.slice()
+  const shouldFavorite = !isCharacterFavorite.value
+
+  if (shouldFavorite) {
+    upsertFavoriteLocal(targetCharacter)
+  } else {
+    removeFavoriteLocal(targetCharacter)
+  }
+
   try {
-    if (isCharacterFavorite.value) {
-      await lostarkApi.removeFavorite(character.value.characterName)
+    if (shouldFavorite) {
+      await lostarkApi.addFavorite(targetCharacter.characterName)
     } else {
-      await lostarkApi.addFavorite(character.value.characterName)
+      await lostarkApi.removeFavorite(targetCharacter.characterName)
     }
-    await loadFavorites()
   } catch (err) {
+    favorites.value = snapshot
+    persistFavoritesToStorage()
     console.error('즐겨찾기 토글 실패:', err)
   } finally {
     favoriteActionPending.value = false
+    loadFavorites().catch(loadErr => {
+      console.error('즐겨찾기 동기화 실패:', loadErr)
+    })
   }
 }
 
@@ -1604,8 +1641,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   height: 140px;
   border-radius: 16px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-  transition: width 0.2s ease, height 0.2s ease;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: width 0.2s ease, height 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .hero-avatar-wrapper.is-large {
@@ -1622,8 +1661,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .hero-avatar-controls {
   display: flex;
-  /* gap: 8px; */
   background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
   padding: 4px 14px;
   border-radius: 999px;
   backdrop-filter: blur(8px);
@@ -1632,18 +1672,26 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .hero-avatar-btn {
   border: none;
   background: transparent;
-  color: black;
+  color: var(--text-primary);
   font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 2px 8px;
+  transition: color 0.2s ease;
+}
+
+.hero-avatar-btn + .hero-avatar-btn {
+  border-left: 1px solid var(--border-color);
 }
 
 .hero-avatar-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  color: var(--text-secondary);
 }
 
-.hero-avatar-btn:not(:disabled):hover {
+.hero-avatar-btn:not(:disabled):hover,
+.hero-avatar-btn:not(:disabled):focus-visible {
   color: var(--primary-color);
 }
 
@@ -1655,7 +1703,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .character-portrait-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1669,8 +1717,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   max-height: 90vh;
   border-radius: 18px;
   overflow: hidden;
-  background: #000;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+  background: var(--modal-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xl);
 }
 
 .character-portrait-overlay__content img {
@@ -1692,6 +1741,18 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   border-radius: 50%;
   cursor: pointer;
   font-size: 18px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark .portrait-overlay__close {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.portrait-overlay__close:hover {
+  background: var(--primary-color);
+  color: var(--text-inverse);
 }
 
 .hero-title {
