@@ -259,7 +259,6 @@
                         class="favorite-toggle-btn"
                         :class="{ 'is-active': isCharacterFavorite }"
                         :aria-pressed="isCharacterFavorite"
-                        :disabled="favoriteActionPending"
                         @click="toggleFavorite"
                         aria-label="즐겨찾기 토글"
                       >
@@ -529,7 +528,6 @@ const isHeroImagePopupOpen = ref(false)
 const activeCharacter = computed<CharacterProfile | null>(() => selectedCharacterProfile.value ?? character.value)
 const characterImageSrc = computed(() => activeCharacter.value?.characterImage || '')
 const hasCharacterImage = computed(() => Boolean(characterImageSrc.value))
-const favoriteActionPending = ref(false)
 const isCharacterFavorite = computed(() => {
   if (!activeCharacter.value) return false
   return favorites.value.some(
@@ -1003,13 +1001,15 @@ const loadFavorites = async () => {
   }
 }
 
-const toggleFavorite = async () => {
-  const targetCharacter = activeCharacter.value
-  if (!targetCharacter || favoriteActionPending.value) return
+let favoriteMutationId = 0
 
-  favoriteActionPending.value = true
+const toggleFavorite = () => {
+  const targetCharacter = activeCharacter.value
+  if (!targetCharacter) return
+
   const snapshot = favorites.value.slice()
   const shouldFavorite = !isCharacterFavorite.value
+  const currentMutationId = ++favoriteMutationId
 
   if (shouldFavorite) {
     upsertFavoriteLocal(targetCharacter)
@@ -1017,22 +1017,25 @@ const toggleFavorite = async () => {
     removeFavoriteLocal(targetCharacter)
   }
 
-  try {
-    if (shouldFavorite) {
-      await lostarkApi.addFavorite(targetCharacter.characterName)
-    } else {
-      await lostarkApi.removeFavorite(targetCharacter.characterName)
-    }
-  } catch (err) {
-    favorites.value = snapshot
-    persistFavoritesToStorage()
-    console.error('즐겨찾기 토글 실패:', err)
-  } finally {
-    favoriteActionPending.value = false
-    loadFavorites().catch(loadErr => {
-      console.error('즐겨찾기 동기화 실패:', loadErr)
+  const request = shouldFavorite
+    ? lostarkApi.addFavorite(targetCharacter.characterName)
+    : lostarkApi.removeFavorite(targetCharacter.characterName)
+
+  request
+    .catch(err => {
+      if (currentMutationId === favoriteMutationId) {
+        favorites.value = snapshot
+        persistFavoritesToStorage()
+      }
+      console.error('즐겨찾기 토글 실패:', err)
     })
-  }
+    .finally(() => {
+      if (currentMutationId === favoriteMutationId) {
+        loadFavorites().catch(loadErr => {
+          console.error('즐겨찾기 동기화 실패:', loadErr)
+        })
+      }
+    })
 }
 
 const loadHistory = async () => {
