@@ -51,9 +51,9 @@
           <div v-else class="equipment-stack">
             <article
               v-for="item in panel.items"
-              :key="item.name"
+              :key="item.__uid"
               class="equipment-summary-card"
-              :class="{ active: item.name === selectedEquipment?.name }"
+              :class="{ active: item.__uid === selectedEquipment?.__uid }"
               @click="selectEquipment(item)"
             >
               <div class="summary-icon-box">
@@ -158,12 +158,27 @@
                 <small>기본 효과 기준</small>
               </div>
                 <div v-if="coreRows.length" class="core-stats-table">
-                  <div v-for="(row, idx) in coreRows" :key="`core-row-${idx}`" class="core-row">
-                    <div class="core-cell" @mouseenter="showHighlightTooltip(row.left)" @mouseleave="clearHighlightTooltip">
+                  <div
+                    v-for="(row, idx) in coreRows"
+                    :key="`core-row-${idx}`"
+                    class="core-row"
+                    :class="{ 'core-row--full': row.leftFullWidth }"
+                  >
+                    <div
+                      class="core-cell"
+                      :class="{ 'core-cell--full': row.leftFullWidth }"
+                      @mouseenter="showHighlightTooltip(row.left)"
+                      @mouseleave="clearHighlightTooltip"
+                    >
                       <span class="cell-label">{{ row.left.label }}</span>
                       <span class="cell-value">{{ row.left.value }}</span>
                     </div>
-                    <div class="core-cell" @mouseenter="showHighlightTooltip(row.right)" @mouseleave="clearHighlightTooltip">
+                    <div
+                      v-if="!row.leftFullWidth && row.right"
+                      class="core-cell"
+                      @mouseenter="showHighlightTooltip(row.right)"
+                      @mouseleave="clearHighlightTooltip"
+                    >
                       <span class="cell-label">{{ row.right.label }}</span>
                       <span class="cell-value">{{ row.right.value }}</span>
                     </div>
@@ -215,11 +230,13 @@ interface Props {
   errorMessage?: string | null
 }
 
+type EquipmentWithId = Equipment & { __uid: string }
+
 interface EquipmentPanel {
   key: 'armor' | 'accessory'
   label: string
   description?: string
-  items: Equipment[]
+  items: EquipmentWithId[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -232,6 +249,61 @@ const props = withDefaults(defineProps<Props>(), {
 
 const specialEquipmentKeywords = ['나침반', '부적', '보주', '문장']
 const accessoryTypeKeywords = ['목걸이', '귀걸이', '반지', '팔찌', '돌', '어빌리티', '능력', '보석']
+const mainStatKeywords = ['힘', '민첩', '지능']
+const defenseStatKeywords = ['물리 방어력', '물리방어력', '마법 방어력', '마법방어력', '피해 감소', '피해감소']
+type EquipmentCategory = 'weapon' | 'armor' | 'accessory' | 'bracelet' | 'abilityStone' | 'unknown'
+
+const weaponTypeKeywords = [
+  '무기',
+  '건틀릿',
+  '로드',
+  '대검',
+  '권총',
+  '장궁',
+  '랜스',
+  '건블레이드',
+  '창',
+  '활',
+  '대거',
+  '타도',
+  '스태프'
+]
+const armorTypeKeywords = [
+  '투구',
+  '머리',
+  '머리장식',
+  '머리 방어구',
+  '어깨',
+  '상의',
+  '하의',
+  '장갑',
+  '헬멧',
+  '모자',
+  '바지',
+  '장화',
+  '신발',
+  '갑옷',
+  '허리',
+  '벨트',
+  '가슴'
+]
+const accessoryCoreKeywords = ['목걸이', '귀걸이', '반지']
+const braceletTypeKeywords = ['팔찌', 'bracelet']
+const abilityStoneTypeKeywords = ['어빌리티', 'ability stone', 'abilitystone', '어빌리티스톤', '능력돌', '능력 돌', '스톤']
+
+const matchesKeyword = (text: string, keywords: string[]) =>
+  keywords.some(keyword => text.includes(keyword.toLowerCase()))
+
+const detectEquipmentCategory = (item?: Equipment | null): EquipmentCategory => {
+  if (!item) return 'unknown'
+  const target = `${item.type ?? ''} ${item.name ?? ''}`.toLowerCase()
+  if (matchesKeyword(target, braceletTypeKeywords)) return 'bracelet'
+  if (matchesKeyword(target, abilityStoneTypeKeywords)) return 'abilityStone'
+  if (matchesKeyword(target, accessoryCoreKeywords)) return 'accessory'
+  if (matchesKeyword(target, weaponTypeKeywords)) return 'weapon'
+  if (matchesKeyword(target, armorTypeKeywords)) return 'armor'
+  return 'unknown'
+}
 
 const isSpecialEquipment = (item: Equipment) => {
   const target = `${item.type ?? ''} ${item.name ?? ''}`.toLowerCase()
@@ -243,7 +315,16 @@ const isAccessoryEquipment = (item: Equipment) => {
   return accessoryTypeKeywords.some(keyword => typeText.includes(keyword.toLowerCase()))
 }
 
-const equipmentList = computed(() => props.equipment.filter(item => !isSpecialEquipment(item)))
+const equipmentWithIds = computed<EquipmentWithId[]>(() =>
+  props.equipment.map((item, index) => ({
+    ...item,
+    __uid: `${item.type ?? 'slot'}-${item.name}-${index}`
+  }))
+)
+
+const equipmentList = computed(() =>
+  equipmentWithIds.value.filter(item => !isSpecialEquipment(item))
+)
 const armorItems = computed(() => equipmentList.value.filter(item => !isAccessoryEquipment(item)))
 const accessoryItems = computed(() => equipmentList.value.filter(item => isAccessoryEquipment(item)))
 
@@ -260,44 +341,49 @@ const equipmentPanels = computed<EquipmentPanel[]>(() => [
   }
 ])
 
-const selectedEquipmentName = ref<string | null>(null)
+const selectedEquipmentKey = ref<string | null>(null)
 
 watch(
-  () => props.equipment,
-  newList => {
+  () => equipmentWithIds.value,
+  () => {
     const filtered = equipmentList.value
     if (!filtered.length) {
-      selectedEquipmentName.value = null
+      selectedEquipmentKey.value = null
       return
     }
-    if (!selectedEquipmentName.value || !filtered.some(item => item.name === selectedEquipmentName.value)) {
-      selectedEquipmentName.value = filtered[0].name
+    if (
+      !selectedEquipmentKey.value ||
+      !filtered.some(item => item.__uid === selectedEquipmentKey.value)
+    ) {
+      selectedEquipmentKey.value = filtered[0].__uid
     }
   },
   { immediate: true }
 )
 
-const selectEquipment = (item: Equipment) => {
-  selectedEquipmentName.value = item.name
+const selectEquipment = (item: EquipmentWithId) => {
+  selectedEquipmentKey.value = item.__uid
 }
 
 const parsedEquipment = computed<Record<string, ParsedTooltip>>(() => {
   const map: Record<string, ParsedTooltip> = {}
-  props.equipment.forEach(item => {
+  equipmentWithIds.value.forEach(item => {
     if (item.tooltip) {
-      map[item.name] = parseTooltip(item.tooltip)
+      map[item.__uid] = parseTooltip(item.tooltip)
     }
   })
   return map
 })
 
-const getParsedEquipment = (item: Equipment) => parsedEquipment.value[item.name]
+const getParsedEquipment = (item: EquipmentWithId) => parsedEquipment.value[item.__uid]
 
 const selectedEquipment = computed(() => {
   const list = equipmentList.value
   if (!list.length) return null
-  return list.find(item => item.name === selectedEquipmentName.value) ?? list[0]
+  return list.find(item => item.__uid === selectedEquipmentKey.value) ?? list[0]
 })
+
+const equipmentCategory = computed<EquipmentCategory>(() => detectEquipmentCategory(selectedEquipment.value))
 
 const selectedParsed = computed<ParsedTooltip | undefined>(() => {
   if (!selectedEquipment.value) return undefined
@@ -316,8 +402,190 @@ const allStats = computed<StatItem[]>(() => [
   ...(selectedParsed.value?.additionalStats ?? [])
 ])
 
+const fallbackBasicStats = computed<StatItem[]>(() => {
+  const sources = [
+    selectedParsed.value?.rawElements?.Element_006,
+    selectedParsed.value?.rawElements?.Element_004
+  ]
+  const stats: StatItem[] = []
+  sources.forEach(source => {
+    extractItemPartLines(source, /기본\s*효과/i).forEach(line => {
+      const plusIndex = line.indexOf('+')
+      if (plusIndex === -1) return
+      const type = line.slice(0, plusIndex).trim()
+      const value = line.slice(plusIndex + 1).trim()
+      if (!type || !value) return
+      stats.push({ type, value })
+    })
+  })
+  return stats
+})
+
+const extractItemPartLines = (rawElement: unknown, labelPattern: RegExp = /.*/): string[] => {
+  if (!rawElement || typeof rawElement !== 'object') return []
+  const elementValue =
+    (rawElement as any).value && typeof (rawElement as any).value === 'object'
+      ? (rawElement as any).value
+      : rawElement
+  const label = elementValue?.Element_000
+  const content = elementValue?.Element_001
+  if (typeof label !== 'string' || !labelPattern.test(stripSummaryHtml(label))) return []
+  if (!content) return []
+  const raw =
+    typeof content === 'string'
+      ? content
+      : typeof content === 'object'
+        ? JSON.stringify(content)
+        : ''
+  if (!raw) return []
+  const normalized = raw.replace(/<br\s*\/?>/gi, '<br>').replace(/\r?\n/g, '<br>').replace(/\\n/gi, '<br>')
+  return normalized
+    .split(/<br>/g)
+    .map(part => formatNumbersInText(stripSummaryHtml(part)))
+    .map(part => part.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+}
+
+const includesKeyword = (text: string, keyword: string) =>
+  text.replace(/\s+/g, '').toLowerCase().includes(keyword.replace(/\s+/g, '').toLowerCase())
+
 const findStatByKeywords = (keywords: string[]) =>
-  allStats.value.find(stat => keywords.some(keyword => stat.type.includes(keyword)))
+  allStats.value.find(stat => keywords.some(keyword => includesKeyword(stat.type, keyword)))
+
+const findFallbackStatByKeywords = (keywords: string[]) =>
+  fallbackBasicStats.value.find(stat => keywords.some(keyword => includesKeyword(stat.type, keyword)))
+
+const resolveStatWithFallback = (keywords: string[]) =>
+  findFallbackStatByKeywords(keywords) ?? findStatByKeywords(keywords)
+
+const distinctStats = computed(() => {
+  const seen = new Set<string>()
+  return allStats.value.filter(stat => {
+    const key = stat.type ? stat.type.replace(/\s+/g, '').toLowerCase() : ''
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+})
+
+const physicalDefenseStat = computed(() =>
+  resolveStatWithFallback(['물리 방어력', '물리방어력', '물방'])
+)
+
+const magicDefenseStat = computed(() =>
+  resolveStatWithFallback(['마법 방어력', '마법방어력', '마방'])
+)
+
+const vitalityStat = computed(() =>
+  resolveStatWithFallback(['생명력', '최대 생명력', '체력'])
+)
+
+const damageReductionStat = computed(() =>
+  resolveStatWithFallback(['피해 감소', '피해감소', '받는 피해', '방어력'])
+)
+
+const mainStat = computed(() => resolveStatWithFallback(mainStatKeywords))
+
+const normalizedMainKeywords = mainStatKeywords.map(keyword =>
+  keyword.replace(/\s+/g, '').toLowerCase()
+)
+
+const isMainStatType = (type?: string) => {
+  if (!type) return false
+  const normalized = type.replace(/\s+/g, '').toLowerCase()
+  return normalizedMainKeywords.some(keyword => normalized.includes(keyword))
+}
+
+const isDefenseStatType = (type?: string) => {
+  if (!type) return false
+  const normalized = type.replace(/\s+/g, '').toLowerCase()
+  return defenseStatKeywords.some(keyword => normalized.includes(keyword.replace(/\s+/g, '').toLowerCase()))
+}
+
+const statsWithoutMain = computed(() => {
+  return distinctStats.value.filter(stat => !isMainStatType(stat.type))
+})
+
+const braceletFallbackStats = computed(() => {
+  const keywords = ['특화', '신속', '힘', '민첩', '지능', '체력']
+  const existingKeys = new Set(
+    statsWithoutMain.value.map(stat => stat.type?.replace(/\s+/g, '').toLowerCase())
+  )
+  const normalizedKeywords = keywords.map(keyword => keyword.replace(/\s+/g, '').toLowerCase())
+
+  return fallbackBasicStats.value.filter(stat => {
+    const normalized = stat.type?.replace(/\s+/g, '').toLowerCase() ?? ''
+    if (!normalizedKeywords.some(keyword => normalized.includes(keyword))) {
+      return false
+    }
+    if (existingKeys.has(normalized)) {
+      return false
+    }
+    existingKeys.add(normalized)
+    return true
+  })
+})
+
+const braceletStatList = computed(() => {
+  if (selectedParsed.value?.additionalStats?.length) {
+    return [...selectedParsed.value.additionalStats, ...braceletFallbackStats.value]
+  }
+  const itemPartLines = extractItemPartLines(selectedParsed.value?.rawElements?.Element_005, /팔찌\s*효과/i)
+  const partStats = itemPartLines.map(line => {
+    const plusIndex = line.indexOf('+')
+    if (plusIndex === -1) return { type: line, value: '' }
+    return {
+      type: line.slice(0, plusIndex).trim(),
+      value: line.slice(plusIndex + 1).trim()
+    }
+  })
+  return [...statsWithoutMain.value, ...braceletFallbackStats.value, ...partStats]
+})
+
+const abilityStoneStatBuckets = computed(() => {
+  const penaltyPattern = /(감소|패널티|감소된|감소 효과)/i
+  const abilityKeywords = /(활성도|감소|패널티)/i
+  const relevantStats = [
+    ...distinctStats.value,
+    ...fallbackBasicStats.value
+  ].filter(stat => abilityKeywords.test(stat.type))
+  const unique = (stats: StatItem[]) => {
+    const seen = new Set<string>()
+    return stats.filter(stat => {
+      const key = `${stat.type}|${stat.value}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+  return {
+    positives: unique(relevantStats.filter(stat => !penaltyPattern.test(stat.type))),
+    penalties: unique(relevantStats.filter(stat => penaltyPattern.test(stat.type)))
+  }
+})
+
+const abilityStoneStageBonusLines = computed(() =>
+  extractItemPartLines(selectedParsed.value?.rawElements?.Element_006, /세공\s*단계\s*보너스/i)
+)
+
+const abilityStoneEngravingLines = computed(() => selectedParsed.value?.abilityStoneEngravings ?? [])
+
+const abilityStoneBaseStats = computed<StatItem[]>(() => {
+  const lines = extractItemPartLines(selectedParsed.value?.rawElements?.Element_004, /기본\s*효과/i)
+  const unique = new Map<string, StatItem>()
+  lines.forEach(line => {
+    const plusIndex = line.indexOf('+')
+    if (plusIndex === -1) return
+    const type = line.slice(0, plusIndex).trim()
+    const value = line.slice(plusIndex + 1).trim()
+    if (!type || !value) return
+    const key = type.replace(/\s+/g, '').toLowerCase()
+    if (!unique.has(key)) {
+      unique.set(key, { type, value })
+    }
+  })
+  return Array.from(unique.values())
+})
 
 const weaponAttackStat = computed(() =>
   selectedParsed.value?.weaponAttackStat ??
@@ -446,7 +714,7 @@ const additionalEffectLines = computed(() => {
   })
   parsed?.elixirEffects?.forEach(effect => lines.push(effect))
   parsed?.engravingEffects?.forEach(effect => lines.push(effect))
-  const buckets = tooltipValueMap.value[selectedEquipment.value.name]
+  const buckets = tooltipValueMap.value[selectedEquipment.value.__uid]
   if (buckets) {
     lines.push(...buckets.enhancements)
   }
@@ -471,6 +739,20 @@ const additionalEffectLines = computed(() => {
 
   const cleaned = filterNoise(filtered)
   return cleaned.map(line => formatNumbersInText(line))
+})
+
+const refinementLines = computed(() => {
+  const parsed = selectedParsed.value
+  if (!parsed) return []
+  const elementLines = extractItemPartLines(parsed.rawElements?.Element_006, /연마\s*효과/i)
+  if (elementLines.length) return elementLines
+  const lines = [
+    parsed.elixirStageSummary,
+    parsed.elixirSummary,
+    ...(parsed.elixirEffects ?? [])
+  ].filter((line): line is string => Boolean(line))
+  const target = lines.find(line => /(연성|연마)/.test(line))
+  return target ? [formatNumbersInText(target)] : []
 })
 
 const extractSangjaeSegments = (rawElement: unknown): string[] => {
@@ -567,7 +849,8 @@ interface CoreCell {
 
 interface CoreRow {
   left: CoreCell
-  right: CoreCell
+  right?: CoreCell
+  leftFullWidth?: boolean
 }
 
 const hoveredTooltipLines = ref<string[] | null>(null)
@@ -587,58 +870,206 @@ const clearHighlightTooltip = () => {
   hoveredTooltipLines.value = null
 }
 
+const getStatDisplayValue = (stat?: StatItem | null) => (stat ? formatStatValue(stat.value) : '-')
+
+const createStatCell = (label: string, stat?: StatItem | null, useStatLabel = false): CoreCell => ({
+  label: useStatLabel && stat?.type ? stat.type : label,
+  value: getStatDisplayValue(stat)
+})
+
+const createMainStatCell = (stat?: StatItem | null): CoreCell =>
+  createStatCell('힘/민/지', stat ?? null, false)
+
+const createTextCell = (label: string, text?: string | null): CoreCell => ({
+  label,
+  value: text && text.trim() ? text : '-'
+})
+
 const coreRows = computed<CoreRow[]>(() => {
   additionalEffectLines.value
   const rows: CoreRow[] = []
-  rows.push({
-    left: {
-      label: '무기 공격력',
-      value: weaponAttackStat.value ? formatStatValue(weaponAttackStat.value.value) : '-'
-    },
-    right: {
-      label: '추가 피해',
-      value: additionalEffectStat.value ? formatStatValue(additionalEffectStat.value.value) : '-'
+  let category = equipmentCategory.value
+  const selectedType = selectedEquipment.value?.type?.toLowerCase() ?? ''
+
+  if (category === 'unknown') {
+    if (weaponAttackStat.value) {
+      category = 'weapon'
+    } else if (physicalDefenseStat.value || magicDefenseStat.value) {
+      category = 'armor'
+    } else if (matchesKeyword(selectedType, braceletTypeKeywords)) {
+      category = 'bracelet'
+    } else if (matchesKeyword(selectedType, abilityStoneTypeKeywords)) {
+      category = 'abilityStone'
+    } else if (matchesKeyword(selectedType, accessoryTypeKeywords)) {
+      category = 'accessory'
+    } else if (abilityStoneStatBuckets.value.positives.length || abilityStoneStatBuckets.value.penalties.length) {
+      category = 'abilityStone'
+    } else if (statsWithoutMain.value.length) {
+      category = 'accessory'
     }
+  }
+
+  const hasValue = (cell?: CoreCell) => {
+    if (!cell) return false
+    const value = cell.value?.toString().trim()
+    if (!value) return false
+    return value !== '-' && value !== '—'
+  }
+
+  const createSpacerCell = (): CoreCell => ({
+    label: '',
+    value: ''
   })
 
-  const sangjae = sangjaeInfo.value
-  rows.push({
-    left: {
-      label: '상재 단계',
-      value: sangjae.stage !== undefined ? formatPlainNumber(sangjae.stage) : '-'
-    },
-    right: {
-      label: '상재 수치',
-      value: sangjae.value ? formatNumbersInText(sangjae.value) : '-'
+  const pushRow = (left?: CoreCell, right?: CoreCell, options?: { fullWidth?: boolean }) => {
+    if (!left && !right) return
+    const leftHasValue = hasValue(left)
+    const rightHasValue = hasValue(right)
+    const fullWidth = Boolean(options?.fullWidth)
+    if (!leftHasValue && (!rightHasValue || fullWidth)) return
+    rows.push({
+      left: left ?? { label: '', value: '-' },
+      right: fullWidth ? undefined : right ?? { label: '', value: '-' },
+      leftFullWidth: fullWidth
+    })
+  }
+
+  const createDynamicStatCell = (stat?: StatItem, fallbackLabel = '능력치'): CoreCell =>
+    createStatCell(fallbackLabel, stat ?? null, true)
+
+  const buildRowsFromStats = (stats: StatItem[], fallbackLabel: string) => {
+    if (!stats.length) return
+    for (let i = 0; i < stats.length; i += 2) {
+      const leftStat = stats[i]
+      const rightStat = stats[i + 1]
+      pushRow(
+        createDynamicStatCell(leftStat, `${fallbackLabel} ${i + 1}`),
+        rightStat ? createDynamicStatCell(rightStat, `${fallbackLabel} ${i + 2}`) : undefined
+      )
     }
-  })
+  }
+
+  switch (category) {
+    case 'weapon':
+      pushRow(
+        createStatCell('무기 공격력', weaponAttackStat.value ?? null),
+        createStatCell('추가 피해', additionalEffectStat.value ?? null)
+      )
+      break
+    case 'armor': {
+      pushRow(
+        createStatCell('물리 방어력', physicalDefenseStat.value ?? null),
+        createStatCell('마법 방어력', magicDefenseStat.value ?? null)
+      )
+      pushRow(
+        createMainStatCell(mainStat.value ?? null),
+        createStatCell('체력', vitalityStat.value ?? null)
+      )
+      const armorBonusStat = additionalEffectStat.value ?? damageReductionStat.value ?? null
+      if (armorBonusStat && !isDefenseStatType(armorBonusStat.type)) {
+        pushRow(createStatCell('방어 옵션', armorBonusStat), undefined)
+      }
+      break
+    }
+    case 'accessory': {
+      const stats = [...statsWithoutMain.value]
+      if (mainStat.value) {
+        const paired = stats.shift()
+        pushRow(createMainStatCell(mainStat.value), paired ? createDynamicStatCell(paired) : undefined)
+      }
+      buildRowsFromStats(stats.slice(0, 4), '장신구 옵션')
+      if (refinementLines.value.length) {
+        refinementLines.value.forEach(line => {
+          pushRow(createTextCell('연마 효과', line), undefined, { fullWidth: true })
+        })
+      }
+      break
+    }
+    case 'bracelet': {
+      const stats = braceletStatList.value.slice(0, 4)
+      buildRowsFromStats(stats, '팔찌 옵션')
+      break
+    }
+    case 'abilityStone': {
+      const baseStats = [...abilityStoneBaseStats.value]
+      const stageLines = [...abilityStoneStageBonusLines.value]
+      if (baseStats.length) {
+        const primary = baseStats.shift()!
+        const pairedStage = stageLines.shift()
+        pushRow(
+          createStatCell(primary.type, primary, true),
+          pairedStage ? createTextCell('세공 단계 보너스', pairedStage) : undefined
+        )
+        baseStats.forEach(stat => {
+          pushRow(createStatCell(stat.type, stat, true), undefined)
+        })
+      }
+      const { positives, penalties } = abilityStoneStatBuckets.value
+      buildRowsFromStats(positives.slice(0, 4), '각인 효과')
+      buildRowsFromStats(penalties.slice(0, 2), '감소 효과')
+      stageLines.forEach(line => {
+        pushRow(createTextCell('세공 단계 보너스', line), undefined, { fullWidth: true })
+      })
+      abilityStoneEngravingLines.value.forEach((line, idx) => {
+        pushRow(createTextCell(idx === 0 ? '무작위 각인' : '', formatNumbersInText(line)), undefined, {
+          fullWidth: true
+        })
+      })
+      break
+    }
+    default: {
+      const stats = [...statsWithoutMain.value]
+      if (mainStat.value) {
+        const paired = stats.shift()
+        pushRow(createMainStatCell(mainStat.value), paired ? createDynamicStatCell(paired) : undefined)
+      }
+      buildRowsFromStats(stats.slice(0, 4), '능력치')
+      break
+    }
+  }
+
+  const sangjae = sangjaeInfo.value
+  if (sangjae.stage !== undefined || sangjae.value) {
+    pushRow(
+      {
+        label: '상재 단계',
+        value: sangjae.stage !== undefined ? formatPlainNumber(sangjae.stage) : '-'
+      },
+      {
+        label: '상재 수치',
+        value: sangjae.value ? formatNumbersInText(sangjae.value) : '-'
+      }
+    )
+  }
 
   const slot = slotEffectInfo.value
   const stageLines = selectedParsed.value?.transcendenceStages
   const totals = selectedParsed.value?.transcendenceAggregates
+  if (slot?.stage !== undefined || slot?.value !== undefined) {
+    pushRow(
+      {
+        label: '초월 단계',
+        value: slot?.stage !== undefined ? formatPlainNumber(slot.stage) : '-',
+        tooltipLines: stageLines,
+        tooltipTotals: totals
+      },
+      {
+        label: '초월 수치',
+        value: slot?.value !== undefined ? formatPlainNumber(slot.value) : '-',
+        tooltipLines: stageLines,
+        tooltipTotals: totals
+      }
+    )
+  }
 
-  rows.push({
-    left: {
-      label: '초월 단계',
-      value: slot?.stage !== undefined ? formatPlainNumber(slot.stage) : '-',
-      tooltipLines: stageLines,
-      tooltipTotals: totals
-    },
-    right: {
-      label: '초월 수치',
-      value: slot?.value !== undefined ? formatPlainNumber(slot.value) : '-',
-      tooltipLines: stageLines,
-      tooltipTotals: totals
-    }
-  })
   return rows
 })
 
 const tooltipValueMap = computed<Record<string, TooltipValueBuckets>>(() => {
   const map: Record<string, TooltipValueBuckets> = {}
-  props.equipment.forEach(item => {
+  equipmentWithIds.value.forEach(item => {
     const values = extractTooltipValues(item)
-    map[item.name] = categorizeTooltipValues(values)
+    map[item.__uid] = categorizeTooltipValues(values)
   })
   return map
 })
@@ -674,9 +1105,38 @@ const condenseBasicEffectStages = (lines: string[]) => {
   return others
 }
 
+const parseTradeStatus = (rawElements?: Record<string, any>) => {
+  if (!rawElements) return ''
+  const candidates = [rawElements.Element_003, rawElements.Element_004]
+
+  const extractText = (element: any): string => {
+    if (!element) return ''
+    if (typeof element === 'string') return element
+    if (typeof element === 'object') {
+      if (typeof element.value === 'string') return element.value
+      return JSON.stringify(element.value ?? element)
+    }
+    return ''
+  }
+
+  for (const candidate of candidates) {
+    const text = extractText(candidate)
+    if (!text) continue
+    const normalized = stripSummaryHtml(text).replace(/\|\s*/g, '| ').replace(/\s+/g, ' ').trim()
+    if (!/거래/.test(normalized)) continue
+    const remainingMatch = normalized.match(/(\d+)\s*(?:회|번)/)
+    const remaining = remainingMatch ? Number(remainingMatch[1]) : null
+    const remainingText = remaining !== null ? ` (남은 횟수 ${remaining}번)` : ''
+    const isAvailable = /거래\s*가능/.test(normalized)
+    return isAvailable ? `| 거래 가능${remainingText}` : '| 거래 불가'
+  }
+
+  return ''
+}
+
 const tradeInfoLines = computed(() => {
   if (!selectedEquipment.value) return []
-  const buckets = tooltipValueMap.value[selectedEquipment.value.name]
+  const buckets = tooltipValueMap.value[selectedEquipment.value.__uid]
   if (!buckets) return []
   const lines = [
     ...buckets.system,
@@ -687,7 +1147,14 @@ const tradeInfoLines = computed(() => {
     ...buckets.misc
   ]
     .filter(Boolean)
-    .filter(line => line.includes('거래'))
+    .filter(line => /거래/.test(line))
+    .map(line => line.replace(/\|\s*/g, '| ').replace(/\s+/g, ' ').trim())
+
+  const tradeEntry = parseTradeStatus(selectedParsed.value?.rawElements)
+  if (tradeEntry) {
+    lines.unshift(tradeEntry)
+  }
+
   return filterNoise(lines)
 })
 
@@ -1045,6 +1512,10 @@ const cleanText = (text: string) =>
   gap: 18px;
 }
 
+.core-row--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .core-cell {
   display: flex;
   justify-content: space-between;
@@ -1052,6 +1523,10 @@ const cleanText = (text: string) =>
   gap: 12px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border-color-light);
+}
+
+.core-cell--full {
+  grid-column: 1 / -1;
 }
 
 .core-cell .cell-label {

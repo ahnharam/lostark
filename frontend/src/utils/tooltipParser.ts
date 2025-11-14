@@ -27,6 +27,7 @@ export interface ParsedTooltip {
   elixirEffects?: string[]
   setEffects?: SetEffect[]
   engravingEffects?: string[]
+  abilityStoneEngravings?: string[]
   rawElements?: Record<string, any>
 }
 
@@ -493,6 +494,19 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
       } else if (text.includes('엘릭서')) {
         if (!parsed.elixirEffects) parsed.elixirEffects = []
         parsed.elixirEffects.push(...parseElixirEffects(html))
+      }
+
+      const value =
+        tooltip.Element_007 && typeof tooltip.Element_007 === 'object'
+          ? (tooltip.Element_007 as any).value
+          : undefined
+      const topStr = typeof value?.topStr === 'string' ? cleanText(value.topStr) : ''
+      const indentLines = extractIndentGroupLines(value)
+      const abilityStoneLines = [topStr, ...indentLines]
+        .map(line => cleanText(line))
+        .filter(Boolean)
+      if (abilityStoneLines.length) {
+        parsed.abilityStoneEngravings = abilityStoneLines
       }
     }
 
