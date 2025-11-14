@@ -1667,7 +1667,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
-  padding: 4px 14px;
+  padding: 4px;
   border-radius: 999px;
   backdrop-filter: blur(8px);
 }

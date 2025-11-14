@@ -72,26 +72,34 @@
                     {{ item.name ? item.name[0] : '?' }}
                   </div>
                 </div>
-                <span
-                  v-if="hasValidQuality(getParsedEquipment(item)?.quality)"
-                  class="summary-quality"
-                  :style="{ borderColor: getQualityBadgeColor(item), color: getQualityBadgeColor(item) }"
-                >
-                  {{ getQualityDisplayValue(getParsedEquipment(item)?.quality) }}
-                </span>
               </div>
               <div class="summary-body">
                 <div class="summary-headline">
-                  <h5>{{ item.name }}</h5>
+                  <h5 :style="{ color: getParsedEquipment(item)?.gradeColor || undefined }">
+                    {{ item.name }}
+                  </h5>
                   <span v-if="getParsedEquipment(item)?.itemLevel" class="summary-level">
                     iLv. {{ getParsedEquipment(item)?.itemLevel }}
                   </span>
                 </div>
                 <div class="summary-meta">
-                  <span>{{ item.type }}</span>
-                  <span :style="{ color: getParsedEquipment(item)?.gradeColor || undefined }">
-                    {{ item.grade }}
+                  <span
+                    v-if="hasValidQuality(getParsedEquipment(item)?.quality)"
+                    class="pill pill--quality"
+                    :style="{ borderColor: getQualityBadgeColor(item), color: getQualityBadgeColor(item) }"
+                  >
+                    품질 {{ getQualityDisplayValue(getParsedEquipment(item)?.quality) }}
                   </span>
+                  <template v-if="getSangjaeStageForItem(item)">
+                    <span class="pill pill--stage">
+                      상재 {{ getSangjaeStageForItem(item) }}
+                    </span>
+                  </template>
+                  <template v-if="getSlotInfoForItem(item)?.value">
+                    <span class="pill pill--transcend" title="초월 수치">
+                      초월 {{ getSlotInfoForItem(item)?.value }}
+                    </span>
+                  </template>
                 </div>
               </div>
             </article>
@@ -106,8 +114,8 @@
                   v-if="selectedEquipment.icon"
                   :src="selectedEquipment.icon"
                   :alt="selectedEquipment.name"
-                  width="80"
-                  height="80"
+                  width="60"
+                  height="60"
                   imageClass="equipment-card__icon"
                   errorIcon="⚔️"
                   :useProxy="true"
@@ -207,6 +215,7 @@ import LazyImage from './LazyImage.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import {
   parseTooltip,
+  stripHtml,
   type ParsedTooltip,
   type StatItem,
   type TranscendenceAggregates,
@@ -409,19 +418,28 @@ const fallbackBasicStats = computed<StatItem[]>(() => {
   ]
   const stats: StatItem[] = []
   sources.forEach(source => {
-    extractItemPartLines(source, /기본\s*효과/i).forEach(line => {
-      const plusIndex = line.indexOf('+')
+    extractItemPartLines(source, /기본\s*효과/i).forEach(({ text, rich }) => {
+      const plusIndex = text.indexOf('+')
       if (plusIndex === -1) return
-      const type = line.slice(0, plusIndex).trim()
-      const value = line.slice(plusIndex + 1).trim()
+      const type = text.slice(0, plusIndex).trim()
+      const value = text.slice(plusIndex + 1).trim()
       if (!type || !value) return
-      stats.push({ type, value })
+      stats.push({ type, value, richValue: rich })
     })
   })
   return stats
 })
 
-const extractItemPartLines = (rawElement: unknown, labelPattern: RegExp = /.*/): string[] => {
+interface ExtractedLine {
+  text: string
+  rich: string
+}
+
+const extractItemPartLines = (
+  rawElement: unknown,
+  labelPattern: RegExp = /.*/,
+  options: { groupByImage?: boolean } = {}
+): ExtractedLine[] => {
   if (!rawElement || typeof rawElement !== 'object') return []
   const elementValue =
     (rawElement as any).value && typeof (rawElement as any).value === 'object'
@@ -438,12 +456,35 @@ const extractItemPartLines = (rawElement: unknown, labelPattern: RegExp = /.*/):
         ? JSON.stringify(content)
         : ''
   if (!raw) return []
-  const normalized = raw.replace(/<br\s*\/?>/gi, '<br>').replace(/\r?\n/g, '<br>').replace(/\\n/gi, '<br>')
+
+  const normalize = (value: string) =>
+    value.replace(/<br\s*\/?>/gi, '<br>').replace(/\r?\n/g, '<br>').replace(/\\n/gi, '<br>')
+
+  if (options.groupByImage && /<img/i.test(raw)) {
+    return raw
+      .split(/<img[^>]*>/i)
+      .map(chunk => chunk.trim())
+      .filter(Boolean)
+      .map(chunk => {
+        const normalizedChunk = normalize(chunk)
+        const rich = stripHtml(normalizedChunk, { preserveColor: true }).replace(/\s+/g, ' ').trim()
+        const text = formatNumbersInText(stripSummaryHtml(normalizedChunk)).replace(/\s+/g, ' ').trim()
+        return { rich, text }
+      })
+      .filter(entry => entry.text || entry.rich)
+  }
+
+  const normalized = normalize(raw)
   return normalized
     .split(/<br>/g)
-    .map(part => formatNumbersInText(stripSummaryHtml(part)))
-    .map(part => part.replace(/\s+/g, ' ').trim())
+    .map(segment => segment.trim())
     .filter(Boolean)
+    .map(segment => {
+      const rich = stripHtml(segment, { preserveColor: true }).replace(/\s+/g, ' ').trim()
+      const text = formatNumbersInText(stripSummaryHtml(segment)).replace(/\s+/g, ' ').trim()
+      return { rich, text }
+    })
+    .filter(entry => entry.text || entry.rich)
 }
 
 const includesKeyword = (text: string, keyword: string) =>
@@ -506,12 +547,13 @@ const statsWithoutMain = computed(() => {
   return distinctStats.value.filter(stat => !isMainStatType(stat.type))
 })
 
+const combatStatKeywords = ['치명', '특화', '제압', '신속', '인내', '숙련']
+
 const braceletFallbackStats = computed(() => {
-  const keywords = ['특화', '신속', '힘', '민첩', '지능', '체력']
   const existingKeys = new Set(
     statsWithoutMain.value.map(stat => stat.type?.replace(/\s+/g, '').toLowerCase())
   )
-  const normalizedKeywords = keywords.map(keyword => keyword.replace(/\s+/g, '').toLowerCase())
+  const normalizedKeywords = combatStatKeywords.map(keyword => keyword.replace(/\s+/g, '').toLowerCase())
 
   return fallbackBasicStats.value.filter(stat => {
     const normalized = stat.type?.replace(/\s+/g, '').toLowerCase() ?? ''
@@ -526,20 +568,112 @@ const braceletFallbackStats = computed(() => {
   })
 })
 
-const braceletStatList = computed(() => {
-  if (selectedParsed.value?.additionalStats?.length) {
-    return [...selectedParsed.value.additionalStats, ...braceletFallbackStats.value]
-  }
-  const itemPartLines = extractItemPartLines(selectedParsed.value?.rawElements?.Element_005, /팔찌\s*효과/i)
-  const partStats = itemPartLines.map(line => {
-    const plusIndex = line.indexOf('+')
-    if (plusIndex === -1) return { type: line, value: '' }
+const normalizeKeyword = (value: string) => value.replace(/\s+/g, '').toLowerCase()
+
+const parsedBraceletLines = computed(() => {
+  const lines = extractItemPartLines(selectedParsed.value?.rawElements?.Element_005, /팔찌\s*효과/i, {
+    groupByImage: true
+  })
+  return lines.map(({ text, rich }) => {
+    const plusIndex = text.indexOf('+')
+    if (plusIndex === -1) {
+      return { isEffect: true, effect: rich || text }
+    }
+    const label = text.slice(0, plusIndex).trim()
+    const value = text.slice(plusIndex + 1).trim()
+    const normalized = normalizeKeyword(label)
+    const isPrimary = combatStatKeywords.some(keyword => normalized.includes(normalizeKeyword(keyword)))
+    if (!isPrimary) {
+      return { isEffect: true, effect: rich || text }
+    }
+    const richValue = (() => {
+      if (!rich) return value
+      const marker = rich.indexOf(value)
+      if (marker !== -1) return rich.slice(marker).trim()
+      const lastPlus = rich.lastIndexOf('+')
+      return lastPlus !== -1 ? rich.slice(lastPlus).trim() : rich
+    })()
     return {
-      type: line.slice(0, plusIndex).trim(),
-      value: line.slice(plusIndex + 1).trim()
+      isEffect: false,
+      stat: {
+        type: label,
+        value,
+        richValue
+      }
     }
   })
-  return [...statsWithoutMain.value, ...braceletFallbackStats.value, ...partStats]
+})
+
+const formatBraceletEffectLine = (line: string) => {
+  if (!line) return ''
+  const trimmed = line.replace(/\s+/g, ' ').trim()
+  return trimmed.replace(/(?<!\d)\.(\s*)(?=[^\s<])/g, '.\r\n').replace(/\s*\r\n\s*/g, '\r\n').trim()
+}
+
+const braceletEffectLines = computed(() => {
+  const seen = new Set<string>()
+  return parsedBraceletLines.value
+    .filter(item => item.isEffect)
+    .map(item => ('effect' in item ? item.effect : ''))
+    .map(formatBraceletEffectLine)
+    .filter(line => {
+      const normalized = stripHtml(line).replace(/\s+/g, ' ').trim()
+      if (!normalized) return false
+      if (seen.has(normalized)) return false
+      seen.add(normalized)
+      return true
+    })
+})
+
+interface BraceletStatGrouping {
+  combatStats: StatItem[]
+  braceletStats: StatItem[]
+}
+
+const makeUniqueStats = (stats: StatItem[]) => {
+  const seen = new Set<string>()
+  return stats.filter(stat => {
+    const key = `${normalizeKeyword(stat.type)}|${stat.value}|${stat.richValue ?? ''}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+const groupedBraceletStats = computed<BraceletStatGrouping>(() => {
+  const hasAdditional = Boolean(selectedParsed.value?.additionalStats?.length)
+  const baseStats = hasAdditional ? selectedParsed.value!.additionalStats! : statsWithoutMain.value
+  const numericPartStats = parsedBraceletLines.value
+    .filter(item => !item.isEffect && item.stat)
+    .map(item => item.stat)
+    .filter((stat): stat is StatItem => Boolean(stat))
+
+  const baseCombatStats = makeUniqueStats(
+    baseStats.filter(stat =>
+      combatStatKeywords.some(keyword => normalizeKeyword(stat.type).includes(normalizeKeyword(keyword)))
+    )
+  )
+  const baseOtherStats = baseStats.filter(stat => !baseCombatStats.includes(stat))
+
+  const combatStatsOrdered = combatStatKeywords
+    .map(keyword => {
+      const normalizedKeyword = normalizeKeyword(keyword)
+      return (
+        numericPartStats.find(stat => normalizeKeyword(stat.type).includes(normalizedKeyword)) ||
+        baseCombatStats.find(stat => normalizeKeyword(stat.type).includes(normalizedKeyword)) ||
+        braceletFallbackStats.value.find(stat => normalizeKeyword(stat.type).includes(normalizedKeyword))
+      )
+    })
+    .filter((stat): stat is StatItem => Boolean(stat))
+
+  const uniqueCombatStats = makeUniqueStats(combatStatsOrdered)
+  const combatSet = new Set(uniqueCombatStats)
+  const remainingNumeric = numericPartStats.filter(stat => !combatSet.has(stat))
+
+  return {
+    combatStats: uniqueCombatStats.length ? uniqueCombatStats : [],
+    braceletStats: makeUniqueStats([...baseOtherStats, ...braceletFallbackStats.value, ...remainingNumeric])
+  }
 })
 
 const abilityStoneStatBuckets = computed(() => {
@@ -565,7 +699,9 @@ const abilityStoneStatBuckets = computed(() => {
 })
 
 const abilityStoneStageBonusLines = computed(() =>
-  extractItemPartLines(selectedParsed.value?.rawElements?.Element_006, /세공\s*단계\s*보너스/i)
+  extractItemPartLines(selectedParsed.value?.rawElements?.Element_006, /세공\s*단계\s*보너스/i).map(
+    line => line.rich || line.text
+  )
 )
 
 const abilityStoneEngravingLines = computed(() => selectedParsed.value?.abilityStoneEngravings ?? [])
@@ -573,15 +709,15 @@ const abilityStoneEngravingLines = computed(() => selectedParsed.value?.abilityS
 const abilityStoneBaseStats = computed<StatItem[]>(() => {
   const lines = extractItemPartLines(selectedParsed.value?.rawElements?.Element_004, /기본\s*효과/i)
   const unique = new Map<string, StatItem>()
-  lines.forEach(line => {
-    const plusIndex = line.indexOf('+')
+  lines.forEach(({ text, rich }) => {
+    const plusIndex = text.indexOf('+')
     if (plusIndex === -1) return
-    const type = line.slice(0, plusIndex).trim()
-    const value = line.slice(plusIndex + 1).trim()
+    const type = text.slice(0, plusIndex).trim()
+    const value = text.slice(plusIndex + 1).trim()
     if (!type || !value) return
     const key = type.replace(/\s+/g, '').toLowerCase()
     if (!unique.has(key)) {
-      unique.set(key, { type, value })
+      unique.set(key, { type, value, richValue: rich })
     }
   })
   return Array.from(unique.values())
@@ -744,7 +880,9 @@ const additionalEffectLines = computed(() => {
 const refinementLines = computed(() => {
   const parsed = selectedParsed.value
   if (!parsed) return []
-  const elementLines = extractItemPartLines(parsed.rawElements?.Element_006, /연마\s*효과/i)
+  const elementLines = extractItemPartLines(parsed.rawElements?.Element_006, /연마\s*효과/i).map(
+    line => line.rich || line.text
+  )
   if (elementLines.length) return elementLines
   const lines = [
     parsed.elixirStageSummary,
@@ -808,8 +946,12 @@ const parseSangjaeFromElement = (rawElement: unknown) => {
   return { stage: bestStage, value: bestValue }
 }
 
-const sangjaeInfo = computed(() => {
-  const parsed = selectedParsed.value
+type SangjaeInfo = {
+  stage?: number
+  value?: string
+}
+
+const computeSangjaeInfoFromParsed = (parsed?: ParsedTooltip): SangjaeInfo => {
   const fallback = parseSangjaeFromElement(parsed?.rawElements?.Element_005)
 
   const parsedStage = parsed?.sangjaeStage
@@ -838,7 +980,9 @@ const sangjaeInfo = computed(() => {
   }
 
   return { stage, value }
-})
+}
+
+const sangjaeInfo = computed(() => computeSangjaeInfoFromParsed(selectedParsed.value))
 
 interface CoreCell {
   label: string
@@ -958,12 +1102,12 @@ const coreRows = computed<CoreRow[]>(() => {
       break
     case 'armor': {
       pushRow(
-        createStatCell('물리 방어력', physicalDefenseStat.value ?? null),
-        createStatCell('마법 방어력', magicDefenseStat.value ?? null)
+        createStatCell('물리 방어력', physicalDefenseStat.value ?? null, true),
+        createStatCell('마법 방어력', magicDefenseStat.value ?? null, true)
       )
       pushRow(
         createMainStatCell(mainStat.value ?? null),
-        createStatCell('체력', vitalityStat.value ?? null)
+        createStatCell('체력', vitalityStat.value ?? null, true)
       )
       const armorBonusStat = additionalEffectStat.value ?? damageReductionStat.value ?? null
       if (armorBonusStat && !isDefenseStatType(armorBonusStat.type)) {
@@ -986,8 +1130,28 @@ const coreRows = computed<CoreRow[]>(() => {
       break
     }
     case 'bracelet': {
-      const stats = braceletStatList.value.slice(0, 4)
-      buildRowsFromStats(stats, '팔찌 옵션')
+      const combatStats = groupedBraceletStats.value.combatStats
+      if (combatStats.length) {
+        pushRow(
+          createTextCell('전투 특성', ''),
+          createSpacerCell(),
+          { fullWidth: true }
+        )
+        for (let i = 0; i < combatStats.length; i += 2) {
+          const left = combatStats[i]
+          const right = combatStats[i + 1]
+          pushRow(createStatCell(left.type, left, true), right ? createStatCell(right.type, right, true) : undefined)
+        }
+      } else {
+        pushRow(createTextCell('전투 특성', '부여된 전투 특성이 없습니다.'), undefined, { fullWidth: true })
+      }
+
+
+
+      braceletEffectLines.value.forEach(line => {
+        pushRow(createTextCell('팔찌 특성', line), undefined, { fullWidth: true })
+      })
+
       break
     }
     case 'abilityStone': {
@@ -1011,7 +1175,7 @@ const coreRows = computed<CoreRow[]>(() => {
         pushRow(createTextCell('세공 단계 보너스', line), undefined, { fullWidth: true })
       })
       abilityStoneEngravingLines.value.forEach((line, idx) => {
-        pushRow(createTextCell(idx === 0 ? '무작위 각인' : '', formatNumbersInText(line)), undefined, {
+        pushRow(createTextCell(idx === 0 ? '세공' : '', formatNumbersInText(line)), undefined, {
           fullWidth: true
         })
       })
@@ -1074,6 +1238,26 @@ const tooltipValueMap = computed<Record<string, TooltipValueBuckets>>(() => {
   return map
 })
 
+const slotInfoMap = computed<Record<string, SlotEffectInfo | null>>(() => {
+  const map: Record<string, SlotEffectInfo | null> = {}
+  equipmentWithIds.value.forEach(item => {
+    const parsed = getParsedEquipment(item)
+    const bucket = tooltipValueMap.value[item.__uid]
+    map[item.__uid] = computeSlotEffectInfoFromParsed(parsed, bucket)
+  })
+  return map
+})
+
+const getSlotInfoForItem = (item: EquipmentWithId) => slotInfoMap.value[item.__uid] ?? null
+const sangjaeInfoMap = computed<Record<string, SangjaeInfo>>(() => {
+  const map: Record<string, SangjaeInfo> = {}
+  equipmentWithIds.value.forEach(item => {
+    map[item.__uid] = computeSangjaeInfoFromParsed(getParsedEquipment(item))
+  })
+  return map
+})
+const getSangjaeStageForItem = (item: EquipmentWithId) => sangjaeInfoMap.value[item.__uid]?.stage ?? null
+
 const filterNoise = (lines: string[]) => {
   const cleaned = lines
     .map(line => line?.trim())
@@ -1103,6 +1287,43 @@ const condenseBasicEffectStages = (lines: string[]) => {
     others.push(maxLine)
   }
   return others
+}
+
+const buildSlotEffectLines = (parsed?: ParsedTooltip, bucket?: TooltipValueBuckets) => {
+  const lines: string[] = []
+  if (!parsed) return lines
+  if (parsed.additionalEffectStat) {
+    lines.push(`${parsed.additionalEffectStat.type} +${parsed.additionalEffectStat.value}`)
+  }
+  parsed.additionalStats?.forEach(stat => {
+    lines.push(`${stat.type} +${stat.value}`)
+  })
+  parsed.elixirEffects?.forEach(effect => lines.push(effect))
+  parsed.engravingEffects?.forEach(effect => lines.push(effect))
+  if (bucket) {
+    lines.push(...bucket.enhancements)
+  }
+  return lines
+}
+
+const computeSlotEffectInfoFromParsed = (
+  parsed?: ParsedTooltip,
+  bucket?: TooltipValueBuckets
+): SlotEffectInfo | null => {
+  const lines = buildSlotEffectLines(parsed, bucket)
+  if (!lines.length) return null
+  const condensed = condenseBasicEffectStages(lines)
+  for (const line of condensed) {
+    const trimmed = line.trim()
+    const slotMatch = trimmed.match(/슬롯\s*효과\s*\[초월\]\s*(\d+)\s*단계\s*(\d+)/i)
+    if (slotMatch) {
+      return {
+        stage: Number(slotMatch[1]),
+        value: Number(slotMatch[2])
+      }
+    }
+  }
+  return null
 }
 
 const parseTradeStatus = (rawElements?: Record<string, any>) => {
@@ -1390,8 +1611,8 @@ const cleanText = (text: string) =>
 }
 
 .equipment-detail-layout {
-  display: grid;
-  grid-template-columns: 230px 230px minmax(520px, 1fr) ;
+  display: flex;
+  /* grid-template-columns: 230px 230px minmax(520px, 1fr) ; */
   gap: 20px;
   align-items: start;
 }
@@ -1418,8 +1639,8 @@ const cleanText = (text: string) =>
 
 .equipment-card__icon-box {
   flex-shrink: 0;
-  width: 88px;
-  height: 88px;
+  width: 65px;
+  height: 65px;
   border-radius: 16px;
   background: var(--bg-secondary);
   display: flex;
@@ -1466,8 +1687,8 @@ const cleanText = (text: string) =>
 }
 
 .chip--quality {
-  border: 1px solid currentColor;
-  background: transparent;
+  /* border: 1px solid currentColor; */
+  background: var(--bg-secondary);
 }
 
 .chip--sangjae {
@@ -1486,6 +1707,7 @@ const cleanText = (text: string) =>
   border-radius: 14px;
   padding: 18px;
   border: 1px solid var(--border-color);
+  width: 500px;
 }
 
 .section-head {
@@ -1530,6 +1752,7 @@ const cleanText = (text: string) =>
 }
 
 .core-cell .cell-label {
+  min-width: 80px;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
@@ -1538,6 +1761,9 @@ const cleanText = (text: string) =>
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
+  text-align: right;
+  word-break: keep-all;
+  white-space: pre-wrap;
 }
 
 .trans-tooltip {
@@ -1549,6 +1775,9 @@ const cleanText = (text: string) =>
   box-shadow: var(--shadow-sm);
   font-size: 0.85rem;
   color: var(--text-secondary);
+  width: inherit;
+  word-break: keep-all;
+  white-space: pre-wrap;
 }
 
 .trans-tooltip p {
@@ -1580,6 +1809,7 @@ const cleanText = (text: string) =>
 .equipment-list-panel {
   background: var(--card-bg);
   border-radius: 16px;
+  width: fit-content;
   /* padding: 20px; */
   /* border: 1px solid var(--border-color); */
   /* box-shadow: var(--shadow-lg); */
@@ -1635,6 +1865,8 @@ const cleanText = (text: string) =>
   cursor: pointer;
   transition: transform 0.2s, border-color 0.2s, background 0.2s;
   background: var(--bg-secondary);
+  width: fit-content;
+  min-width: 200px;
 }
 
 .equipment-summary-card.active {
@@ -1706,6 +1938,33 @@ const cleanText = (text: string) =>
   gap: 8px;
   font-size: 0.8rem;
   color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  gap: 4px;
+}
+
+.pill--stage {
+  border-color: #f0a500;
+  color: #d98a00;
+}
+
+.pill--transcend {
+  border-color: #4b7bff;
+  color: #4b7bff;
+}
+
+.pill--value-only {
+  padding: 2px 6px;
 }
 
 .summary-effects {

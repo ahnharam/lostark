@@ -35,6 +35,7 @@ export interface StatItem {
   type: string
   value: string
   color?: string
+  richValue?: string
 }
 
 export interface SetEffect {
@@ -52,9 +53,20 @@ export interface TranscendenceAggregates {
 /**
  * HTML 태그 제거 및 텍스트 추출
  */
-function stripHtml(html: string): string {
+interface StripHtmlOptions {
+  preserveColor?: boolean
+}
+
+export function stripHtml(html: string, options: StripHtmlOptions = {}): string {
   if (!html) return ''
-  return html
+  let working = html
+  if (options.preserveColor) {
+    working = working.replace(
+      /<font[^>]*color=['"]([^'"]+)['"][^>]*>(.*?)<\/font>/gi,
+      (_, color, inner) => `<span style="color:${color}">${inner}</span>`
+    )
+  }
+  return working
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/g, ' ')
