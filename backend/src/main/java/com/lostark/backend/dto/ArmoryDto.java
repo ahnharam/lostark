@@ -17,4 +17,10 @@ public class ArmoryDto {
 
     @JsonAlias("ArmoryEngraving")
     private EngravingResponseDto engraving;
+
+    @JsonAlias("ArkPassive")
+    private ArkPassiveDto arkPassive;
+
+    @JsonAlias("ArkGrid")
+    private ArkGridDto arkGrid;
 }

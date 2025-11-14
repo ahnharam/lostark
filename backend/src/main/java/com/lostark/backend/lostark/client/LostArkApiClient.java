@@ -2,6 +2,8 @@ package com.lostark.backend.lostark.client;
 
 import com.lostark.backend.dto.ArmoryDto;
 import com.lostark.backend.dto.CharacterProfileDto;
+import com.lostark.backend.dto.CollectibleDto;
+import com.lostark.backend.dto.LeaderboardEntryDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +47,31 @@ public class LostArkApiClient {
                 .uri("/characters/{characterName}/siblings", characterName)
                 .retrieve()
                 .bodyToFlux(SiblingCharacterDto.class)
+                .collectList();
+    }
+
+    public Mono<List<LeaderboardEntryDto>> getLeaderboardRankings(String leaderboardCode, String seasonId, int page) {
+        return webClient.get()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder
+                            .path("/leaderboards/rankings")
+                            .queryParam("leaderboardCode", leaderboardCode)
+                            .queryParam("page", page);
+                    if (seasonId != null && !seasonId.isBlank()) {
+                        builder.queryParam("seasonId", seasonId);
+                    }
+                    return builder.build();
+                })
+                .retrieve()
+                .bodyToFlux(LeaderboardEntryDto.class)
+                .collectList();
+    }
+
+    public Mono<List<CollectibleDto>> getCharacterCollectibles(String characterName) {
+        return webClient.get()
+                .uri("/armories/characters/{characterName}/collectibles", characterName)
+                .retrieve()
+                .bodyToFlux(CollectibleDto.class)
                 .collectList();
     }
 }

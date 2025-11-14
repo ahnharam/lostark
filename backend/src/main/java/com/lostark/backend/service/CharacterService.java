@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.CharacterStatDto;
+import com.lostark.backend.dto.CollectibleDto;
 import com.lostark.backend.entity.Character;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.exception.CharacterNotFoundException;
@@ -67,12 +68,13 @@ public class CharacterService {
         log.info("로스트아크 API 호출: {}", characterName);
         try {
             CharacterProfileDto profile = lostArkProfileDomainService.fetchCharacterProfile(characterName);
+            List<CollectibleDto> collectibles = lostArkProfileDomainService.fetchCollectibles(characterName);
 
             log.info("API 호출 성공: {}", profile.getCharacterName());
 
             // 3. DB에 저장 또는 업데이트
             Character character = cachedCharacter.orElse(new Character());
-            updateCharacterFromDto(character, profile);
+            updateCharacterFromDto(character, profile, calculateCollectionScore(collectibles));
             characterRepository.save(character);
 
             return profile;
@@ -130,7 +132,18 @@ public class CharacterService {
         }
     }
     
-    private void updateCharacterFromDto(Character character, CharacterProfileDto dto) {
+    private Double calculateCollectionScore(List<CollectibleDto> collectibles) {
+        if (collectibles == null || collectibles.isEmpty()) {
+            return null;
+        }
+        return collectibles.stream()
+                .map(CollectibleDto::getPoint)
+                .filter(point -> point != null && point > 0)
+                .mapToDouble(Integer::doubleValue)
+                .sum();
+    }
+
+    private void updateCharacterFromDto(Character character, CharacterProfileDto dto, Double collectionScore) {
         character.setCharacterName(dto.getCharacterName());
         character.setServerName(dto.getServerName());
         character.setCharacterClassName(dto.getCharacterClassName());
@@ -144,6 +157,7 @@ public class CharacterService {
         character.setPvpGradeName(dto.getPvpGradeName());
         character.setGuildName(dto.getGuildName());
         character.setCombatPower(dto.getCombatPower());
+        character.setCollectionScore(collectionScore);
         try {
             character.setStatsJson(dto.getStats() != null ?
                     objectMapper.writeValueAsString(dto.getStats()) : null);

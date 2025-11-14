@@ -2,9 +2,13 @@ import { apiClient } from './http'
 import { cachedApiCall, createCacheKey, cacheManager } from '@/utils/cache'
 import type {
   ApiResult,
+  ArkGridResponse,
   CharacterProfile,
   Equipment,
   Engraving,
+  ProfileRankingResponse,
+  RankingQueryParams,
+  RankingResponse,
   SearchHistory,
   SiblingCharacter
 } from './types'
@@ -13,7 +17,10 @@ const CACHE_TTL = {
   CHARACTER: 5 * 60 * 1000,
   EQUIPMENT: 10 * 60 * 1000,
   ENGRAVINGS: 10 * 60 * 1000,
-  SIBLINGS: 15 * 60 * 1000
+  SIBLINGS: 15 * 60 * 1000,
+  RANKING: 5 * 60 * 1000,
+  ARK_GRID: 10 * 60 * 1000,
+  PROFILE_RANKING: 5 * 60 * 1000
 } as const
 
 const USER_ID_STORAGE_KEY = 'loa:user-id'
@@ -100,6 +107,42 @@ export const lostarkApi = {
     )
   },
 
+  async getArkGrid(characterName: string): Promise<ApiResult<ArkGridResponse>> {
+    return cachedRequest(
+      'arkGrid',
+      { name: characterName },
+      async () => {
+        const response = await apiClient.get<ArkGridResponse>(`/ark-grid/${characterName}`)
+        return response.data
+      },
+      CACHE_TTL.ARK_GRID
+    )
+  },
+
+  async getRanking(params: RankingQueryParams): Promise<ApiResult<RankingResponse>> {
+    return cachedRequest(
+      'ranking',
+      params,
+      async () => {
+        const response = await apiClient.get<RankingResponse>('/rankings', { params })
+        return response.data
+      },
+      CACHE_TTL.RANKING
+    )
+  },
+
+  async getProfileRanking(characterName: string): Promise<ApiResult<ProfileRankingResponse>> {
+    return cachedRequest(
+      'profileRanking',
+      { characterName },
+      async () => {
+        const response = await apiClient.get<ProfileRankingResponse>(`/rankings/profile/${characterName}`)
+        return response.data
+      },
+      CACHE_TTL.PROFILE_RANKING
+    )
+  },
+
   addFavorite(characterName: string) {
     return apiClient.post('/favorites', { userId: USER_ID, characterName })
   },
@@ -133,6 +176,7 @@ export const lostarkApi = {
 
 export type {
   ApiResult,
+  ArkGridResponse,
   CharacterProfile,
   CharacterStat,
   Equipment,

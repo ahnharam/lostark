@@ -55,3 +55,128 @@ export interface ApiResult<T> {
   data: T
   fromCache: boolean
 }
+
+export interface ArkPassivePoint {
+  name?: string
+  value?: number
+  description?: string
+  tooltip?: string
+}
+
+export interface ArkPassiveEffect {
+  name?: string
+  icon?: string
+  description?: string
+  toolTip?: string
+}
+
+export interface ArkPassive {
+  title?: string
+  isArkPassive?: boolean
+  points?: ArkPassivePoint[]
+  effects?: ArkPassiveEffect[]
+}
+
+export interface ArkGridGem {
+  index?: number
+  icon?: string
+  grade?: string
+  isActive?: boolean
+  tooltip?: string
+}
+
+export interface ArkGridSlot {
+  index?: number
+  name?: string
+  icon?: string
+  point?: number
+  grade?: string
+  tooltip?: string
+  gems?: ArkGridGem[]
+}
+
+export interface ArkGridEffect {
+  name?: string
+  level?: number
+  tooltip?: string
+}
+
+export interface ArkGrid {
+  slots?: ArkGridSlot[]
+  effects?: ArkGridEffect[]
+}
+
+export interface ArkGridResponse {
+  characterName: string
+  arkPassive?: ArkPassive
+  arkGrid?: ArkGrid
+}
+
+export interface RankingEntry {
+  rank?: number
+  characterName: string
+  serverName?: string
+  characterClassName?: string
+  itemAvgLevel?: string
+  itemMaxLevel?: string
+  rating?: number
+  score?: number
+  tier?: number
+  division?: number
+  seasonId?: string
+  seasonName?: string
+  guildName?: string
+  updatedDate?: string
+}
+
+export interface RankingHighlight {
+  characterName: string
+  serverName?: string
+  characterClassName?: string
+  rank?: number
+  rating?: number
+  itemAvgLevel?: string
+  tier?: number
+  division?: number
+}
+
+export interface RankingSummary {
+  leaderboardCode: string
+  seasonId?: string
+  page: number
+  totalFetched: number
+  lastUpdated?: string
+  highlightedCharacter?: RankingHighlight | null
+}
+
+export interface RankingResponse {
+  summary: RankingSummary
+  entries: RankingEntry[]
+}
+
+export interface RankingQueryParams {
+  leaderboardCode: string
+  seasonId?: string
+  page?: number
+  characterName?: string
+}
+
+export interface RankingMetric {
+  rank?: number | null
+  total?: number | null
+  metricValue?: number | null
+  unit?: string
+  percentile?: number | null
+}
+
+export interface ProfileRankingResponse {
+  characterName: string
+  serverName?: string
+  characterClassName?: string
+  globalItemLevel?: RankingMetric | null
+  globalClassItemLevel?: RankingMetric | null
+  serverItemLevel?: RankingMetric | null
+  serverClassItemLevel?: RankingMetric | null
+  expeditionLevel?: RankingMetric | null
+  collectionScore?: RankingMetric | null
+}

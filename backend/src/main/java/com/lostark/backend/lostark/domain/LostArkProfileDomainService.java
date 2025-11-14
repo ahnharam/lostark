@@ -1,6 +1,7 @@
 package com.lostark.backend.lostark.domain;
 
 import com.lostark.backend.dto.ArmoryDto;
+import com.lostark.backend.dto.CollectibleDto;
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
 import com.lostark.backend.exception.ApiException;
@@ -63,6 +64,19 @@ public class LostArkProfileDomainService {
             return Collections.emptyList();
         } catch (Exception e) {
             throw new ApiException("로스트아크 API 호출 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    public List<CollectibleDto> fetchCollectibles(String characterName) {
+        try {
+            return lostArkApiClient.getCharacterCollectibles(characterName)
+                    .blockOptional()
+                    .orElse(Collections.emptyList());
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("수집품 정보를 찾을 수 없습니다: {}", characterName);
+            return Collections.emptyList();
+        } catch (Exception e) {
+            throw new ApiException("수집품 정보를 불러오는 중 오류가 발생했습니다.", e);
         }
     }
 

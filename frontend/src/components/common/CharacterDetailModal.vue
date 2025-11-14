@@ -1611,7 +1611,7 @@ const cleanText = (text: string) =>
 }
 
 .global-summary__item .summary-icon {
-  font-size: 1rem;
+  font-size: calc(1rem - 1px);
 }
 
 .global-summary__item .summary-icon-img {
@@ -1629,11 +1629,12 @@ const cleanText = (text: string) =>
 }
 
 .global-summary__item .label {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
   color: var(--text-secondary);
 }
 
 .global-summary__item .value {
+  font-size: calc(0.85rem);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -1683,7 +1684,7 @@ const cleanText = (text: string) =>
 }
 
 .equipment-card__icon--fallback {
-  font-size: 2rem;
+  font-size: calc(2rem - 1px);
   color: var(--text-tertiary);
 }
 
@@ -1696,7 +1697,7 @@ const cleanText = (text: string) =>
 
 .equipment-card__title-row h3 {
   margin: 0 0 8px 0;
-  font-size: 1.25rem;
+  font-size: calc(1.25rem - 1px);
 }
 
 .chip-row {
@@ -1709,7 +1710,7 @@ const cleanText = (text: string) =>
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--bg-secondary);
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 1px);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -1726,7 +1727,7 @@ const cleanText = (text: string) =>
 
 .item-level-inline {
   margin-left: 8px;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 1px);
   color: var(--primary-color);
 }
 
@@ -1781,12 +1782,12 @@ const cleanText = (text: string) =>
 
 .core-cell .cell-label {
   min-width: 80px;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
   color: var(--text-secondary);
 }
 
 .core-cell .cell-value {
-  font-size: 1rem;
+  font-size: calc(1rem - 1px);
   font-weight: 700;
   color: var(--text-primary);
   text-align: right;
@@ -1801,7 +1802,7 @@ const cleanText = (text: string) =>
   border-radius: 10px;
   padding: 10px 14px;
   box-shadow: var(--shadow-sm);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
   color: var(--text-secondary);
   width: inherit;
   word-break: keep-all;
@@ -1816,12 +1817,12 @@ const cleanText = (text: string) =>
 .core-empty {
   margin: 0;
   color: var(--text-tertiary);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
 }
 
 .trade-status-line {
   margin: 12px 0 0;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 1px);
   color: var(--text-secondary);
   display: flex;
   gap: 12px;
@@ -1857,7 +1858,7 @@ const cleanText = (text: string) =>
 .equipment-list-header p {
   margin: 4px 0 0;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
 }
 
 .equipment-empty {
@@ -1865,7 +1866,7 @@ const cleanText = (text: string) =>
   padding: 12px;
   border-radius: 10px;
   border: 1px dashed var(--border-color);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
   color: var(--text-secondary);
   background: var(--bg-secondary);
 }
@@ -1874,7 +1875,7 @@ const cleanText = (text: string) =>
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--bg-secondary);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
 }
 
 .equipment-stack {
@@ -1932,7 +1933,7 @@ const cleanText = (text: string) =>
 }
 
 .summary-icon--fallback {
-  font-size: 1.25rem;
+  font-size: calc(1.25rem - 1px);
   color: var(--text-secondary);
 }
 
@@ -1951,12 +1952,12 @@ const cleanText = (text: string) =>
 
 .summary-headline h5 {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
 }
 
 .summary-level {
   display: inline-flex;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
   color: #4b7bff;
   font-weight: 600;
 }
@@ -1964,7 +1965,7 @@ const cleanText = (text: string) =>
 .summary-meta {
   display: flex;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 1px);
   color: var(--text-secondary);
   flex-wrap: wrap;
 }
@@ -1974,7 +1975,7 @@ const cleanText = (text: string) =>
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: calc(0.75rem - 1px);
   font-weight: 600;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
@@ -1999,7 +2000,7 @@ const cleanText = (text: string) =>
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 1px);
   color: var(--text-secondary);
 }
 
@@ -2009,7 +2010,7 @@ const cleanText = (text: string) =>
   padding: 4px 6px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  font-size: 0.75rem;
+  font-size: calc(0.75rem - 1px);
   font-weight: 600;
 }
 

@@ -130,9 +130,28 @@
           <button class="sidebar-close" type="button" aria-label="메뉴 닫기" @click="closeMenu">×</button>
         </div>
         <div class="sidebar-content">
-          <h3>메뉴</h3>
-          <p class="sidebar-placeholder">추가 메뉴는 곧 제공될 예정입니다.</p>
-          <button class="sidebar-placeholder-btn" type="button" disabled>메뉴 준비 중</button>
+          <h3>전체 메뉴</h3>
+          <p class="sidebar-description">이용 가능한 메뉴와 준비 중인 기능을 확인해 보세요.</p>
+          <ul class="sidebar-menu-list">
+            <li v-for="menu in siteMenuItems" :key="menu.key">
+              <button
+                type="button"
+                class="sidebar-menu-item"
+                :class="{ active: activeSiteMenu === menu.key, disabled: !menu.available }"
+                :aria-current="activeSiteMenu === menu.key ? 'page' : undefined"
+                :disabled="!menu.available"
+                @click="handleMenuSelect(menu)"
+              >
+                <span class="sidebar-menu-icon" aria-hidden="true">{{ menu.icon }}</span>
+                <span class="sidebar-menu-text">
+                  <span class="sidebar-menu-label">{{ menu.label }}</span>
+                  <span class="sidebar-menu-desc">{{ menu.description }}</span>
+                </span>
+                <span v-if="menu.badge" class="sidebar-menu-badge">{{ menu.badge }}</span>
+              </button>
+            </li>
+          </ul>
+          <p class="sidebar-footnote">재련, 경매, 생활 메뉴는 순차적으로 공개됩니다.</p>
         </div>
       </aside>
     </transition>
@@ -503,6 +522,11 @@
                   />
                 </section>
 
+                <RankingTab
+                  v-else-if="activeResultTab === 'ranking'"
+                  :character-name="activeCharacter?.characterName"
+                />
+
                 <section
                   v-else-if="activeResultTab === 'expedition'"
                   class="expedition-section"
@@ -546,6 +570,19 @@
                 </section>
 
                 <section
+                  v-else-if="activeResultTab === 'arkGrid'"
+                  class="detail-panel ark-grid-panel"
+                >
+                  <ArkGridPanel
+                    :response="arkGridResponse"
+                    :loading="arkGridLoading"
+                    :error-message="arkGridError"
+                    :character-name="character?.characterName || ''"
+                    @retry="ensureArkGridData"
+                  />
+                </section>
+
+                <section
                   v-else
                   class="detail-panel placeholder-panel"
                 >
@@ -586,8 +623,17 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { lostarkApi } from '@/api/lostark'
-import type { CharacterProfile, SiblingCharacter, SearchHistory, Equipment, Engraving, CharacterStat } from '@/api/types'
+import type {
+  CharacterProfile,
+  SiblingCharacter,
+  SearchHistory,
+  Equipment,
+  Engraving,
+  CharacterStat,
+  ArkGridResponse
+} from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
 import EmptyState from './common/EmptyState.vue'
@@ -595,6 +641,8 @@ import ThemeToggle from './common/ThemeToggle.vue'
 import LazyImage from './common/LazyImage.vue'
 import AutocompleteInput from './common/AutocompleteInput.vue'
 import CharacterDetailModal from './common/CharacterDetailModal.vue'
+import ArkGridPanel from './common/ArkGridPanel.vue'
+import RankingTab from './ranking/RankingTab.vue'
 import { useTheme } from '@/composables/useTheme'
 import type { Suggestion } from './common/AutocompleteInput.vue'
 
@@ -622,9 +670,22 @@ interface TabPlaceholderCopy {
   description: string
 }
 
+type SiteMenuKey = 'character-search' | 'reforge' | 'auction' | 'life'
+
+interface SiteMenuItem {
+  key: SiteMenuKey
+  label: string
+  description: string
+  icon: string
+  available: boolean
+  routeName?: string
+  badge?: string
+}
+
 const FAVORITES_STORAGE_KEY = 'loa:favorites'
 const HISTORY_STORAGE_KEY = 'loa:history'
 const DEFAULT_RESULT_TAB: ResultTabKey = 'summary'
+const DEFAULT_SITE_MENU: SiteMenuKey = 'character-search'
 const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
   { key: 'summary', label: '내 정보 간소화' },
   { key: 'skills', label: '스킬' },
@@ -648,17 +709,48 @@ const tabPlaceholderCopy: Record<ResultTabKey, TabPlaceholderCopy | null> = {
     title: '수집 정보 준비 중',
     description: '아브렐슈드, 모코코 씨앗 등 수집 컨텐츠 현황을 곧 확인할 수 있습니다.'
   },
-  ranking: {
-    icon: '🏆',
-    title: '랭킹 대시보드 준비 중',
-    description: '클래스별 랭킹과 친구 비교 기능을 순차적으로 제공할 예정입니다.'
-  },
-  arkGrid: {
-    icon: '🌀',
-    title: '아크 그리드 준비 중',
-    description: '어빌리티 스톤, 카드, 아크 패시브 등의 빌드를 그리드 형태로 보여줄 계획이에요.'
-  }
+  ranking: null,
+  arkGrid: null
 }
+
+const siteMenuItems: SiteMenuItem[] = [
+  {
+    key: 'character-search',
+    label: '캐릭터 검색',
+    description: '원정대 캐릭터와 상세 스펙을 확인할 수 있는 기본 화면이에요.',
+    icon: '🧭',
+    available: true,
+    routeName: 'character-search',
+    badge: '기본'
+  },
+  {
+    key: 'reforge',
+    label: '재련',
+    description: '재련 확률과 필요 재료 계산 기능을 준비하고 있어요.',
+    icon: '⚒️',
+    available: false,
+    badge: '준비 중'
+  },
+  {
+    key: 'auction',
+    label: '경매',
+    description: '경매장 시세와 수익 계산 도구를 곧 제공할 예정입니다.',
+    icon: '💰',
+    available: false,
+    badge: '준비 중'
+  },
+  {
+    key: 'life',
+    label: '생활',
+    description: '생활 컨텐츠 수익 분석과 동선 추천을 만들고 있어요.',
+    icon: '🌿',
+    available: false,
+    badge: '준비 중'
+  }
+]
+
+const router = useRouter()
+const route = useRoute()
 
 const characterName = ref('')
 const character = ref<CharacterProfile | null>(null)
@@ -671,6 +763,7 @@ const characterAvailability = ref<Record<string, 'available' | 'unavailable' | '
 const selectedCharacterProfile = ref<CharacterProfile | null>(null)
 const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
 const activePlaceholder = computed(() => tabPlaceholderCopy[activeResultTab.value])
+const activeSiteMenu = ref<SiteMenuKey>(DEFAULT_SITE_MENU)
 const characterOverviewRef = ref<HTMLElement | null>(null)
 const overviewWidth = ref(0)
 const searchPanelWrapperRef = ref<HTMLElement | null>(null)
@@ -696,6 +789,10 @@ const detailEquipment = ref<Equipment[]>([])
 const detailEngravings = ref<Engraving[]>([])
 const detailLoading = ref(false)
 const detailError = ref<string | null>(null)
+const arkGridResponse = ref<ArkGridResponse | null>(null)
+const arkGridLoading = ref(false)
+const arkGridError = ref<string | null>(null)
+const arkGridLoadedFor = ref<string | null>(null)
 const specialEquipmentKeywords = ['나침반', '부적', '문장', '보주']
 
 const isSpecialEquipment = (item: Equipment) => {
@@ -717,6 +814,23 @@ const specialEquipmentsDetailed = computed(() => {
 
 const menuOpen = ref(false)
 const sidebarRef = ref<HTMLElement | null>(null)
+
+const syncActiveMenuWithRoute = () => {
+  const currentName = typeof route.name === 'string' ? route.name : null
+  const matchedMenu = currentName
+    ? siteMenuItems.find(item => item.routeName === currentName) ?? null
+    : null
+  activeSiteMenu.value = matchedMenu?.key ?? DEFAULT_SITE_MENU
+}
+
+syncActiveMenuWithRoute()
+
+watch(
+  () => route.name,
+  () => {
+    syncActiveMenuWithRoute()
+  }
+)
 
 const loadFromStorage = <T>(key: string, fallback: T): T => {
   if (typeof window === 'undefined' || !window.localStorage) return fallback
@@ -791,6 +905,15 @@ const openMenu = () => {
 
 const closeMenu = () => {
   menuOpen.value = false
+}
+
+const handleMenuSelect = (menu: SiteMenuItem) => {
+  if (!menu.available) return
+  activeSiteMenu.value = menu.key
+  if (menu.routeName) {
+    router.push({ name: menu.routeName })
+  }
+  closeMenu()
 }
 
 const expandHeroImage = () => {
@@ -1053,10 +1176,13 @@ watch(
   }
 )
 
-watch(activeResultTab, async () => {
+watch(activeResultTab, async newTab => {
   await nextTick()
   syncOverviewWidth()
   handleSpecialHover(null)
+  if (newTab === 'arkGrid') {
+    await ensureArkGridData()
+  }
 })
 
 const searchCharacterByInput = () => {
@@ -1082,6 +1208,10 @@ const searchCharacter = async (name: string) => {
   detailEngravings.value = []
   detailError.value = null
   characterAvailability.value = {}
+  arkGridResponse.value = null
+  arkGridLoadedFor.value = null
+  arkGridError.value = null
+  arkGridLoading.value = false
 
   try {
     const charResponse = await lostarkApi.getCharacter(name)
@@ -1141,6 +1271,10 @@ const clearSearch = () => {
   detailEngravings.value = []
   detailError.value = null
   characterAvailability.value = {}
+  arkGridResponse.value = null
+  arkGridLoadedFor.value = null
+  arkGridError.value = null
+  arkGridLoading.value = false
   activeResultTab.value = DEFAULT_RESULT_TAB
   handleSpecialHover(null)
 }
@@ -1257,6 +1391,33 @@ const loadCharacterDetails = async (name: string, options: { profile?: Character
     console.error('Failed to load character details', err)
   } finally {
     detailLoading.value = false
+  }
+}
+
+const ensureArkGridData = async () => {
+  const targetName = character.value?.characterName
+  if (!targetName) return
+  if (arkGridLoading.value) return
+  if (arkGridLoadedFor.value === targetName && arkGridResponse.value) return
+  await loadArkGridData(targetName)
+}
+
+const loadArkGridData = async (name: string) => {
+  arkGridLoading.value = true
+  arkGridError.value = null
+  try {
+    const response = await lostarkApi.getArkGrid(name)
+    arkGridResponse.value = response.data
+    arkGridLoadedFor.value = name
+  } catch (err: any) {
+    arkGridResponse.value = null
+    const message =
+      err.response?.status === 404
+        ? `'${name}' 캐릭터의 아크 그리드 정보를 확인할 수 없어요.`
+        : err.response?.data?.message || '아크 그리드 정보를 불러오지 못했어요.'
+    arkGridError.value = message
+  } finally {
+    arkGridLoading.value = false
   }
 }
 
@@ -1494,7 +1655,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .page-header h1 {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem - 2px);
   color: var(--text-primary);
   margin: 0;
   font-weight: 700;
@@ -1574,7 +1735,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .sidebar-close {
   background: transparent;
   border: none;
-  font-size: 1.6rem;
+  font-size: calc(1.6rem - 2px);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -1582,22 +1743,92 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .sidebar-content h3 {
   margin: 0 0 10px;
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
 }
 
-.sidebar-placeholder {
-  margin: 0;
+.sidebar-description {
+  margin: 0 0 16px;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
 }
 
-.sidebar-placeholder-btn {
+.sidebar-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-menu-item {
   width: 100%;
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px dashed var(--border-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
   background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sidebar-menu-item:hover:not(.disabled) {
+  border-color: var(--primary-color);
+  transform: translateX(2px);
+}
+
+.sidebar-menu-item.active {
+  border-color: var(--primary-color);
+  background: rgba(102, 126, 234, 0.12);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.dark .sidebar-menu-item.active {
+  background: rgba(124, 143, 216, 0.2);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.45);
+}
+
+.sidebar-menu-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.sidebar-menu-icon {
+  font-size: calc(1.4rem - 2px);
+}
+
+.sidebar-menu-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-menu-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sidebar-menu-desc {
+  font-size: calc(0.85rem - 2px);
+  color: var(--text-secondary);
+}
+
+.sidebar-menu-badge {
+  font-size: calc(0.75rem - 2px);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.sidebar-footnote {
+  margin: 16px 0 0;
+  font-size: calc(0.8rem - 2px);
   color: var(--text-tertiary);
 }
 
@@ -1652,7 +1883,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   align-items: center;
   justify-content: center;
   color: var(--text-tertiary);
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
   text-align: center;
   padding: 20px;
   min-height: 60vh;
@@ -1665,7 +1896,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .search-input {
   flex: 1;
   padding: 12px 16px;
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   border: 2px solid var(--input-border);
   border-radius: 8px;
   background: var(--input-bg);
@@ -1677,7 +1908,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .states-section h2 {
-  font-size: 1.3rem;
+  font-size: calc(1.3rem - 2px);
   color: var(--text-primary);
   margin-bottom: 15px;
   font-weight: 700;
@@ -1701,7 +1932,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .state-label {
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
   color: var(--text-secondary);
   font-weight: 600;
   margin-bottom: 10px;
@@ -1737,6 +1968,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-secondary);
+  font-size: calc(1rem - 4px);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -1784,7 +2016,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .summary-name {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: calc(1.4rem - 2px);
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -1801,7 +2033,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-meta-list li {
   display: flex;
   justify-content: space-between;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
   color: var(--text-secondary);
 }
 
@@ -1833,18 +2065,18 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-stat span {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-secondary);
 }
 
 .summary-stat strong {
-  font-size: 1.05rem;
+  font-size: calc(1.05rem - 2px);
   color: var(--text-primary);
 }
 
 .summary-note {
   margin: 10px 0 0;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-secondary);
 }
 
@@ -1932,7 +2164,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   border: none;
   background: transparent;
   color: var(--text-primary);
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 2px);
   font-weight: 600;
   cursor: pointer;
   padding: 2px 8px;
@@ -1999,7 +2231,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   height: 32px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 16px;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -2015,7 +2247,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .hero-title {
-  font-size: 0.95rem;
+  font-size: calc(0.95rem - 2px);
   color: var(--text-secondary);
 }
 
@@ -2027,7 +2259,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .hero-text h2 {
   margin: 4px 0;
-  font-size: 1.6rem;
+  font-size: calc(1.6rem - 2px);
   color: var(--text-primary);
   text-align: center;
 }
@@ -2065,7 +2297,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   border-radius: 50%;
   background: #ffffff;
   color: #d1d5db;
-  font-size: 1.2rem;
+  font-size: calc(1.2rem - 2px);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
   padding-bottom: 3px;
 }
@@ -2090,13 +2322,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .meta-item span {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 2px);
   color: var(--text-tertiary);
   margin-right: 5px;
 }
 
 .meta-item strong {
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   color: var(--text-primary);
 }
 
@@ -2117,12 +2349,12 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .special-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   color: var(--text-secondary);
 }
 
 .special-count {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-tertiary);
 }
 
@@ -2200,12 +2432,12 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .special-icon--fallback {
-  font-size: 1.1rem;
+  font-size: calc(1.1rem - 2px);
 }
 
 .special-label {
   width: 100%;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 2px);
   color: var(--text-secondary);
   text-align: center;
   white-space: nowrap;
@@ -2270,7 +2502,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .special-type {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-tertiary);
 }
 
@@ -2278,7 +2510,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   margin: 0;
   /* padding-left: 18px; */
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2291,7 +2523,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .special-tooltip-empty {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-tertiary);
 }
 
@@ -2302,7 +2534,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .hero-row--profile-stats h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   color: var(--text-secondary);
   text-align: center;
 }
@@ -2316,14 +2548,14 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .profile-stat span {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 2px);
   color: var(--text-tertiary);
   word-break: keep-all;
   /* min-width: 100px; */
 }
 
 .profile-stat strong {
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   color: var(--text-primary);
 }
 
@@ -2360,7 +2592,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .section-subtitle {
   margin: 4px 0 0;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
   color: var(--text-secondary);
 }
 
@@ -2380,7 +2612,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .expedition-group h4 {
   margin: 0 0 10px 0;
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: calc(0.95rem - 2px);
 }
 
 .expedition-grid {
@@ -2414,22 +2646,22 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .member-top {
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-secondary);
 }
 
 .member-name {
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   color: var(--text-primary);
 }
 
 .member-ilvl {
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
   color: var(--text-secondary);
 }
 
 .member-detail {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 2px);
   color: var(--primary-color);
   font-weight: 600;
 }
@@ -2491,7 +2723,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
   color: var(--text-secondary);
 }
 
@@ -2502,7 +2734,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   background: var(--error-color);
   color: var(--text-inverse);
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 2px);
   font-weight: 600;
 }
 
@@ -2512,7 +2744,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   border: 1px dashed var(--border-color);
   border-radius: 12px;
   color: var(--text-tertiary);
-  font-size: 0.9rem;
+  font-size: calc(0.9rem - 2px);
 }
 
 .panel-list {
@@ -2544,13 +2776,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .panel-list-name {
-  font-size: 0.95rem;
+  font-size: calc(0.95rem - 2px);
   color: var(--text-primary);
   font-weight: 600;
 }
 
 .panel-list-meta {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-secondary);
 }
 
@@ -2592,11 +2824,11 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .panel-favorite-name {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: calc(0.95rem - 2px);
 }
 
 .panel-favorite-meta {
-  font-size: 0.85rem;
+  font-size: calc(0.85rem - 2px);
   color: var(--text-secondary);
 }
 
@@ -2642,7 +2874,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   }
 
   .page-header h1 {
-    font-size: 1.2rem;
+    font-size: calc(1.2rem - 2px);
   }
 
   .header-search {
@@ -2672,7 +2904,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .hero-row--paradise h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   color: var(--text-secondary);
   text-align: center;
 }
@@ -2691,13 +2923,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .paradise-item span {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem - 2px);
   color: var(--text-tertiary);
   min-width: 70px;
 }
 
 .paradise-item strong {
-  font-size: 1rem;
+  font-size: calc(1rem - 2px);
   color: var(--text-primary);
 }
 </style>

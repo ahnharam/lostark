@@ -50,6 +50,8 @@ public class Character {
     private String apiResponse;
 
     private String combatPower;
+
+    private Double collectionScore;
     
     @OneToMany(mappedBy = "character", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Equipment> equipments = new ArrayList<>();
