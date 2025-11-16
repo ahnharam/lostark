@@ -6,10 +6,12 @@ import type {
   CharacterProfile,
   Equipment,
   Engraving,
+  Collectible,
   ProfileRankingResponse,
   RankingQueryParams,
   RankingResponse,
   SearchHistory,
+  SkillMenuResponse,
   SiblingCharacter
 } from './types'
 
@@ -20,7 +22,9 @@ const CACHE_TTL = {
   SIBLINGS: 15 * 60 * 1000,
   RANKING: 5 * 60 * 1000,
   ARK_GRID: 10 * 60 * 1000,
-  PROFILE_RANKING: 5 * 60 * 1000
+  PROFILE_RANKING: 5 * 60 * 1000,
+  SKILLS: 5 * 60 * 1000,
+  COLLECTIBLES: 5 * 60 * 1000
 } as const
 
 const USER_ID_STORAGE_KEY = 'loa:user-id'
@@ -119,6 +123,30 @@ export const lostarkApi = {
     )
   },
 
+  async getSkills(characterName: string): Promise<ApiResult<SkillMenuResponse>> {
+    return cachedRequest(
+      'skills',
+      { name: characterName },
+      async () => {
+        const response = await apiClient.get<SkillMenuResponse>(`/skills/${characterName}`)
+        return response.data
+      },
+      CACHE_TTL.SKILLS
+    )
+  },
+
+  async getCollectibles(characterName: string): Promise<ApiResult<Collectible[]>> {
+    return cachedRequest(
+      'collectibles',
+      { name: characterName },
+      async () => {
+        const response = await apiClient.get<Collectible[]>(`/collectibles/${characterName}`)
+        return response.data
+      },
+      CACHE_TTL.COLLECTIBLES
+    )
+  },
+
   async getRanking(params: RankingQueryParams): Promise<ApiResult<RankingResponse>> {
     return cachedRequest(
       'ranking',
@@ -181,6 +209,8 @@ export type {
   CharacterStat,
   Equipment,
   Engraving,
+  Collectible,
+  SkillMenuResponse,
   SearchHistory,
   SiblingCharacter
 } from './types'

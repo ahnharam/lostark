@@ -24,6 +24,8 @@ public class Engraving {
     private String name;
     private String icon;
     private Integer level;
+    private String grade;
+    private Integer abilityStoneLevel;
     
     @Column(columnDefinition = "TEXT")
     private String tooltip;

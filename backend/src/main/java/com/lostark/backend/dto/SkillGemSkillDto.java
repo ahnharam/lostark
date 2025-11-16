@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class EngravingEffectDto {
+public class SkillGemSkillDto {
 
     @JsonAlias("Name")
     private String name;
@@ -16,13 +16,4 @@ public class EngravingEffectDto {
 
     @JsonAlias("Description")
     private String description;
-
-    @JsonAlias("Level")
-    private Integer level;
-
-    @JsonAlias("Grade")
-    private String grade;
-
-    @JsonAlias("AbilityStoneLevel")
-    private Integer abilityStoneLevel;
 }

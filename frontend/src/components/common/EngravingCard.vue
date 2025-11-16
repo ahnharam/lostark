@@ -1,248 +1,133 @@
 <template>
-  <div class="engraving-card">
-    <!-- 이미지 (고정 높이 176px) -->
-    <div class="card-image-wrapper">
-      <LazyImage
-        v-if="engraving.icon"
-        :src="engraving.icon"
-        :alt="engraving.name"
-        width="288"
-        height="176"
-        imageClass="card-image"
-        errorIcon="📜"
-      />
-      <div
-        v-if="parsedData.level > 0"
-        class="level-badge"
-        :style="{ backgroundColor: levelColor }"
-      >
-        {{ levelText }}
+  <article class="engraving-card">
+    <div class="engraving-row">
+      <div class="engraving-left">
+        <span class="engraving-level">Lv.{{ formatLevel(displayLevel) }}</span>
+        <span v-if="engraving.grade" class="meta-chip grade-chip">{{ engraving.grade }}</span>
+        <div class="ability-area">
+          <span v-if="abilityStoneLabel" class="meta-chip ability-chip">
+            🔷 {{ abilityStoneLabel }}
+          </span>
+        </div>
+        <span class="engraving-name">{{ displayName }}</span>
+        <span v-if="primaryDescription" class="engraving-description">{{ primaryDescription }}</span>
       </div>
     </div>
-
-    <!-- 텍스트 정보 -->
-    <div class="card-content">
-      <!-- 이름 (16px Bold) -->
-      <h3 class="card-title" :class="{ debuff: parsedData.isDebuff }">
-        {{ parsedData.name || engraving.name }}
-      </h3>
-
-      <!-- Sub: 직업 • iLv (12px) -->
-      <div class="card-subtitle">
-        <span>{{ engraving.class || '공용' }}</span>
-        <span v-if="engraving.itemLevel">• Lv.{{ engraving.itemLevel }}</span>
-      </div>
-
-      <!-- 각인 뱃지 행 (pill 형태) -->
-      <div class="badge-row">
-        <span
-          v-if="parsedData.effectValue"
-          class="badge pill"
-          :class="{ debuff: parsedData.isDebuff }"
-        >
-          {{ parsedData.effectValue }}
-        </span>
-        <span
-          v-for="(badge, idx) in additionalBadges"
-          :key="`badge-${idx}`"
-          class="badge pill"
-        >
-          {{ badge }}
-        </span>
-      </div>
-    </div>
-  </div>
+  </article>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { parseEngravingDescription, getEngravingLevelColor, getEngravingLevelText, type ParsedEngraving } from '@/utils/engravingParser'
-import LazyImage from './LazyImage.vue'
-
-interface Engraving {
-  name: string
-  icon: string
-  description: string
-  class?: string
-  itemLevel?: string | number
-  badges?: string[]
-}
+import { parseEngravingDescription } from '@/utils/engravingParser'
+import { stripHtml } from '@/utils/tooltipParser'
+import type { Engraving } from '@/api/types'
 
 interface Props {
   engraving: Engraving
-  showDescription?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showDescription: false
+const props = defineProps<Props>()
+
+const parsedData = computed(() => parseEngravingDescription(props.engraving.description ?? ''))
+
+const displayName = computed(() => props.engraving.name || parsedData.value.name || '각인')
+
+const displayLevel = computed(() => {
+  if (typeof props.engraving.level === 'number') {
+    return props.engraving.level
+  }
+  if (typeof parsedData.value.level === 'number') {
+    return parsedData.value.level
+  }
+  return 0
 })
 
-const parsedData = computed<ParsedEngraving>(() => {
-  return parseEngravingDescription(props.engraving.description)
+const abilityStoneLabel = computed(() => {
+  const value = props.engraving.abilityStoneLevel
+  if (value === null || value === undefined) return ''
+  return `세공 ${value}`
 })
 
-const levelColor = computed(() => {
-  return getEngravingLevelColor(parsedData.value.level, parsedData.value.isDebuff)
+const primaryDescription = computed(() => {
+  const raw = props.engraving.description || parsedData.value.rawDescription
+  if (!raw) return ''
+  const firstLine = raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .split(/\r?\n/g)
+    .map(line => stripHtml(line).replace(/\s+/g, ' ').trim())
+    .find(Boolean)
+  return firstLine || ''
 })
 
-const levelText = computed(() => {
-  return getEngravingLevelText(parsedData.value.level)
-})
-
-const additionalBadges = computed(() => {
-  return props.engraving.badges || []
-})
+const formatLevel = (value: number) => {
+  return Number.isFinite(value) ? value : 0
+}
 </script>
 
 <style scoped>
-/* 카드 프레임: Vertical / Gap 12 / Padding 16 / Radius 14 / W 320(Fixed) / H Hug */
 .engraving-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  width: 320px;
-  background: var(--card-bg);
-  border-radius: 14px;
-  transition: all 0.3s;
-  border: 2px solid transparent;
-  box-shadow: var(--shadow-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
 }
 
-.engraving-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-color);
-}
-
-/* 이미지: H=176(Fixed), W=Fill */
-.card-image-wrapper {
-  position: relative;
-  width: 100%;
-  height: 176px;
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--bg-secondary);
-}
-
-:deep(.card-image) {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.card-image-wrapper :deep(.lazy-image-wrapper) {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* 레벨 배지 */
-.level-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  min-width: 36px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 12px;
+.engraving-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-inverse, #ffffff);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(4px);
+  font-size: 0.95rem;
+  color: var(--text-primary, #1f2937);
 }
 
-/* 카드 컨텐츠 */
-.card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* 이름: 16px Bold */
-.card-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.card-title.debuff {
-  color: var(--error-color, #ff6b6b);
-}
-
-/* Sub: 직업 • iLv (12px) */
-.card-subtitle {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-/* 배지 행: Horizontal / Gap 8 / W,H=Hug */
-.badge-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-/* pill: Fill/Radius=999 → 알약 모양 */
-.badge.pill {
+.engraving-left {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  background: var(--primary-color);
-  color: var(--text-inverse, #ffffff);
-  font-size: 12px;
+  flex: 1;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.engraving-name {
+  min-width: 100px;
   font-weight: 600;
-  border-radius: 999px;
+}
+
+.engraving-description {
+  color: var(--text-secondary, #4b5563);
+  font-size: 0.85rem;
+  min-width: 120px;
   white-space: nowrap;
-  transition: all 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: auto;
+  margin-right: 0;
 }
 
-.badge.pill:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+.engraving-level {
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+  padding-left: 12px;
 }
 
-.badge.pill.debuff {
-  background: var(--error-color, #ff6b6b);
-  color: var(--text-inverse, #ffffff);
+.meta-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #d1d5db);
+  font-size: 0.78rem;
+  color: var(--text-secondary, #4b5563);
+  white-space: nowrap;
 }
 
-/* 모바일 반응형 */
-@media (max-width: 640px) {
-  .engraving-card {
-    width: 100%;
-    max-width: 320px;
-  }
+.grade-chip {
+  text-transform: uppercase;
+  font-weight: 700;
+}
 
-  .card-image-wrapper {
-    height: 160px;
-  }
+.ability-area{
+  width: 100px;
+}
 
-  .card-title {
-    font-size: 15px;
-  }
-
-  .card-subtitle {
-    font-size: 11px;
-  }
-
-  .badge.pill {
-    font-size: 11px;
-    padding: 5px 10px;
-  }
+.ability-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 </style>

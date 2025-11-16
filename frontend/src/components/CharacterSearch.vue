@@ -510,6 +510,19 @@
                 </section>
 
                 <section
+                  v-else-if="activeResultTab === 'skills'"
+                  class="detail-panel skill-panel"
+                >
+                  <SkillPanel
+                    :response="skillResponse"
+                    :loading="skillLoading"
+                    :error-message="skillError"
+                    :character-name="character?.characterName || ''"
+                    @retry="ensureSkillData"
+                  />
+                </section>
+
+                <section
                   v-else-if="activeResultTab === 'detail'"
                   class="detail-panel"
                 >
@@ -519,6 +532,19 @@
                     :engravings="detailEngravings"
                     :loading="detailLoading"
                     :error-message="detailError"
+                  />
+                </section>
+
+                <section
+                  v-else-if="activeResultTab === 'collection'"
+                  class="detail-panel collection-panel-wrapper"
+                >
+                  <CollectionPanel
+                    :collectibles="collectibles"
+                    :loading="collectiblesLoading"
+                    :error-message="collectiblesError"
+                    :character-name="character?.characterName || ''"
+                    @retry="ensureCollectiblesData"
                   />
                 </section>
 
@@ -632,7 +658,9 @@ import type {
   Equipment,
   Engraving,
   CharacterStat,
-  ArkGridResponse
+  ArkGridResponse,
+  SkillMenuResponse,
+  Collectible
 } from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
@@ -642,6 +670,8 @@ import LazyImage from './common/LazyImage.vue'
 import AutocompleteInput from './common/AutocompleteInput.vue'
 import CharacterDetailModal from './common/CharacterDetailModal.vue'
 import ArkGridPanel from './common/ArkGridPanel.vue'
+import SkillPanel from './common/SkillPanel.vue'
+import CollectionPanel from './common/CollectionPanel.vue'
 import RankingTab from './ranking/RankingTab.vue'
 import { useTheme } from '@/composables/useTheme'
 import type { Suggestion } from './common/AutocompleteInput.vue'
@@ -699,16 +729,8 @@ const tabPlaceholderCopy: Record<ResultTabKey, TabPlaceholderCopy | null> = {
   summary: null,
   detail: null,
   expedition: null,
-  skills: {
-    icon: '🎯',
-    title: '스킬 정보 준비 중',
-    description: '빠르게 스킬 트리와 보석 정보를 보여줄 수 있도록 준비하고 있어요.'
-  },
-  collection: {
-    icon: '📦',
-    title: '수집 정보 준비 중',
-    description: '아브렐슈드, 모코코 씨앗 등 수집 컨텐츠 현황을 곧 확인할 수 있습니다.'
-  },
+  skills: null,
+  collection: null,
   ranking: null,
   arkGrid: null
 }
@@ -793,6 +815,14 @@ const arkGridResponse = ref<ArkGridResponse | null>(null)
 const arkGridLoading = ref(false)
 const arkGridError = ref<string | null>(null)
 const arkGridLoadedFor = ref<string | null>(null)
+const skillResponse = ref<SkillMenuResponse | null>(null)
+const skillLoading = ref(false)
+const skillError = ref<string | null>(null)
+const skillLoadedFor = ref<string | null>(null)
+const collectibles = ref<Collectible[]>([])
+const collectiblesLoading = ref(false)
+const collectiblesError = ref<string | null>(null)
+const collectiblesLoadedFor = ref<string | null>(null)
 const specialEquipmentKeywords = ['나침반', '부적', '문장', '보주']
 
 const isSpecialEquipment = (item: Equipment) => {
@@ -1182,6 +1212,10 @@ watch(activeResultTab, async newTab => {
   handleSpecialHover(null)
   if (newTab === 'arkGrid') {
     await ensureArkGridData()
+  } else if (newTab === 'skills') {
+    await ensureSkillData()
+  } else if (newTab === 'collection') {
+    await ensureCollectiblesData()
   }
 })
 
@@ -1212,6 +1246,14 @@ const searchCharacter = async (name: string) => {
   arkGridLoadedFor.value = null
   arkGridError.value = null
   arkGridLoading.value = false
+  skillResponse.value = null
+  skillLoadedFor.value = null
+  skillError.value = null
+  skillLoading.value = false
+  collectibles.value = []
+  collectiblesLoadedFor.value = null
+  collectiblesError.value = null
+  collectiblesLoading.value = false
 
   try {
     const charResponse = await lostarkApi.getCharacter(name)
@@ -1275,6 +1317,14 @@ const clearSearch = () => {
   arkGridLoadedFor.value = null
   arkGridError.value = null
   arkGridLoading.value = false
+  skillResponse.value = null
+  skillLoadedFor.value = null
+  skillError.value = null
+  skillLoading.value = false
+  collectibles.value = []
+  collectiblesLoadedFor.value = null
+  collectiblesError.value = null
+  collectiblesLoading.value = false
   activeResultTab.value = DEFAULT_RESULT_TAB
   handleSpecialHover(null)
 }
@@ -1391,6 +1441,62 @@ const loadCharacterDetails = async (name: string, options: { profile?: Character
     console.error('Failed to load character details', err)
   } finally {
     detailLoading.value = false
+  }
+}
+
+const ensureSkillData = async () => {
+  const targetName = character.value?.characterName
+  if (!targetName) return
+  if (skillLoading.value) return
+  if (skillLoadedFor.value === targetName && skillResponse.value) return
+  await loadSkillData(targetName)
+}
+
+const loadSkillData = async (name: string) => {
+  skillLoading.value = true
+  skillError.value = null
+  try {
+    const response = await lostarkApi.getSkills(name)
+    skillResponse.value = response.data
+    skillLoadedFor.value = name
+  } catch (err: any) {
+    skillResponse.value = null
+    skillLoadedFor.value = null
+    const message =
+      err.response?.status === 404
+        ? `'${name}' 캐릭터의 스킬 정보를 찾을 수 없어요.`
+        : err.response?.data?.message || '스킬 정보를 불러오지 못했어요.'
+    skillError.value = message
+  } finally {
+    skillLoading.value = false
+  }
+}
+
+const ensureCollectiblesData = async () => {
+  const targetName = character.value?.characterName
+  if (!targetName) return
+  if (collectiblesLoading.value) return
+  if (collectiblesLoadedFor.value === targetName && collectibles.value.length) return
+  await loadCollectiblesData(targetName)
+}
+
+const loadCollectiblesData = async (name: string) => {
+  collectiblesLoading.value = true
+  collectiblesError.value = null
+  try {
+    const response = await lostarkApi.getCollectibles(name)
+    collectibles.value = response.data
+    collectiblesLoadedFor.value = name
+  } catch (err: any) {
+    collectibles.value = []
+    collectiblesLoadedFor.value = null
+    const message =
+      err.response?.status === 404
+        ? `'${name}' 캐릭터의 수집 정보를 찾을 수 없어요.`
+        : err.response?.data?.message || '수집 정보를 불러오지 못했어요.'
+    collectiblesError.value = message
+  } finally {
+    collectiblesLoading.value = false
   }
 }
 

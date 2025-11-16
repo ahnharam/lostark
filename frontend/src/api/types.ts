@@ -32,6 +32,18 @@ export interface Engraving {
   name: string
   icon?: string
   description: string
+  grade?: string
+  level?: number | null
+  abilityStoneLevel?: number | null
+}
+
+export interface Collectible {
+  collectibleId?: number
+  collectibleLevel?: number
+  point?: number
+  maxPoint?: number
+  type?: string
+  icon?: string
 }
 
 export interface SiblingCharacter {
@@ -110,6 +122,57 @@ export interface ArkGridResponse {
   characterName: string
   arkPassive?: ArkPassive
   arkGrid?: ArkGrid
+}
+
+export interface SkillTripod {
+  tier?: number
+  slot?: number
+  name?: string
+  icon?: string
+  level?: number
+  selected?: boolean
+  tooltip?: string
+}
+
+export interface SkillRune {
+  name?: string
+  grade?: string
+  icon?: string
+  tooltip?: string
+}
+
+export interface CombatSkill {
+  name?: string
+  type?: string
+  icon?: string
+  level?: number
+  skillType?: string
+  skillPoints?: number
+  tooltip?: string
+  tripods?: SkillTripod[]
+  rune?: SkillRune | null
+}
+
+export interface SkillGemSkill {
+  name?: string
+  icon?: string
+  description?: string
+}
+
+export interface SkillGem {
+  slot?: number
+  name?: string
+  grade?: string
+  level?: number
+  icon?: string
+  tooltip?: string
+  skill?: SkillGemSkill | null
+}
+
+export interface SkillMenuResponse {
+  characterName: string
+  combatSkills?: CombatSkill[]
+  skillGems?: SkillGem[]
 }
 
 export interface RankingEntry {

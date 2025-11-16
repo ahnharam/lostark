@@ -1,8 +1,11 @@
 package com.lostark.backend.lostark.domain;
 
 import com.lostark.backend.dto.ArmoryDto;
-import com.lostark.backend.dto.CollectibleDto;
 import com.lostark.backend.dto.CharacterProfileDto;
+import com.lostark.backend.dto.CombatSkillDto;
+import com.lostark.backend.dto.CollectibleDto;
+import com.lostark.backend.dto.EngravingResponseDto;
+import com.lostark.backend.dto.SkillGemDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.exception.CharacterNotFoundException;
@@ -77,6 +80,45 @@ public class LostArkProfileDomainService {
             return Collections.emptyList();
         } catch (Exception e) {
             throw new ApiException("수집품 정보를 불러오는 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    public List<CombatSkillDto> fetchCombatSkills(String characterName) {
+        try {
+            return lostArkApiClient.getCharacterCombatSkills(characterName)
+                    .blockOptional()
+                    .orElse(Collections.emptyList());
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("전투 스킬 정보를 찾을 수 없습니다: {}", characterName);
+            return Collections.emptyList();
+        } catch (Exception e) {
+            throw new ApiException("전투 스킬 정보를 불러오는 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    public List<SkillGemDto> fetchSkillGems(String characterName) {
+        try {
+            return lostArkApiClient.getCharacterSkillGems(characterName)
+                    .blockOptional()
+                    .orElse(Collections.emptyList());
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("스킬 보석 정보를 찾을 수 없습니다: {}", characterName);
+            return Collections.emptyList();
+        } catch (Exception e) {
+            throw new ApiException("스킬 보석 정보를 불러오는 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    public EngravingResponseDto fetchEngravings(String characterName) {
+        try {
+            return lostArkApiClient.getCharacterEngravings(characterName)
+                    .blockOptional()
+                    .orElse(null);
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("각인 정보를 찾을 수 없습니다: {}", characterName);
+            return null;
+        } catch (Exception e) {
+            throw new ApiException("각인 정보를 불러오는 중 오류가 발생했습니다.", e);
         }
     }
 

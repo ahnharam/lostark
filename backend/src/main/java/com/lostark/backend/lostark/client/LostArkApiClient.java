@@ -2,8 +2,11 @@ package com.lostark.backend.lostark.client;
 
 import com.lostark.backend.dto.ArmoryDto;
 import com.lostark.backend.dto.CharacterProfileDto;
+import com.lostark.backend.dto.CombatSkillDto;
 import com.lostark.backend.dto.CollectibleDto;
+import com.lostark.backend.dto.EngravingResponseDto;
 import com.lostark.backend.dto.LeaderboardEntryDto;
+import com.lostark.backend.dto.SkillGemDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,5 +76,28 @@ public class LostArkApiClient {
                 .retrieve()
                 .bodyToFlux(CollectibleDto.class)
                 .collectList();
+    }
+
+    public Mono<List<CombatSkillDto>> getCharacterCombatSkills(String characterName) {
+        return webClient.get()
+                .uri("/armories/characters/{characterName}/combat-skills", characterName)
+                .retrieve()
+                .bodyToFlux(CombatSkillDto.class)
+                .collectList();
+    }
+
+    public Mono<List<SkillGemDto>> getCharacterSkillGems(String characterName) {
+        return webClient.get()
+                .uri("/armories/characters/{characterName}/skill-gems", characterName)
+                .retrieve()
+                .bodyToFlux(SkillGemDto.class)
+                .collectList();
+    }
+
+    public Mono<EngravingResponseDto> getCharacterEngravings(String characterName) {
+        return webClient.get()
+                .uri("/armories/characters/{characterName}/engravings", characterName)
+                .retrieve()
+                .bodyToMono(EngravingResponseDto.class);
     }
 }

@@ -205,6 +205,42 @@
           </article>
         </section>
       </div>
+      <section class="engraving-panel">
+        <div class="engraving-panel__head">
+          <div>
+            <h4>각인 구성</h4>
+            <!-- <p>장비 상세 정보에서 감지된 각인 효과를 한눈에 정리했습니다.</p> -->
+          </div>
+          <!-- <div class="engraving-metrics">
+            <div class="engraving-metric">
+              <span>각인 등급</span>
+              <strong>{{ engravingSummary.grade }}</strong>
+            </div>
+            <div class="engraving-metric">
+              <span>활성 각인</span>
+              <strong>{{ formatPlainNumber(engravingSummary.activeCount) }}개</strong>
+            </div>
+            <div class="engraving-metric">
+              <span>총 레벨</span>
+              <strong>{{ formatPlainNumber(engravingSummary.totalLevel) }}포인트</strong>
+            </div>
+            <div v-if="engravingSummary.debuffCount" class="engraving-metric engraving-metric--alert">
+              <span>감소 효과</span>
+              <strong>{{ formatPlainNumber(engravingSummary.debuffCount) }}개</strong>
+            </div>
+          </div> -->
+        </div>
+        <div v-if="hasEngravings" class="engraving-grid">
+          <EngravingCard
+            v-for="engraving in engravingCards"
+            :key="engraving.__uid"
+            :engraving="engraving"
+          />
+        </div>
+        <p v-else class="engraving-empty">
+          각인 정보가 감지되지 않았습니다.
+        </p>
+      </section>
     </div>
   </div>
 </template>
@@ -213,6 +249,7 @@
 import { computed, ref, watch } from 'vue'
 import LazyImage from './LazyImage.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
+import EngravingCard from './EngravingCard.vue'
 import {
   parseTooltip,
   stripHtml,
@@ -222,6 +259,7 @@ import {
   getQualityColor,
   getGradeColor
 } from '@/utils/tooltipParser'
+import { parseEngravingDescription, calculateEngravingGrade, type ParsedEngraving } from '@/utils/engravingParser'
 import type { Equipment, Engraving } from '@/api/types'
 
 interface Character {
@@ -247,6 +285,8 @@ interface EquipmentPanel {
   description?: string
   items: EquipmentWithId[]
 }
+
+type EngravingWithId = Engraving & { __uid: string }
 
 const props = withDefaults(defineProps<Props>(), {
   character: null,
@@ -349,6 +389,49 @@ const equipmentPanels = computed<EquipmentPanel[]>(() => [
     items: accessoryItems.value
   }
 ])
+
+const engravingCards = computed<EngravingWithId[]>(() =>
+  props.engravings.map((engraving, index) => ({
+    ...engraving,
+    __uid: `${engraving.name ?? 'engraving'}-${index}`
+  }))
+)
+
+const parsedEngravingDetails = computed<ParsedEngraving[]>(() =>
+  props.engravings.map(engraving => {
+    const parsed = parseEngravingDescription(engraving.description ?? '')
+    return {
+      ...parsed,
+      name: parsed.name || engraving.name,
+      level:
+        typeof engraving.level === 'number' && engraving.level > 0 ? engraving.level : parsed.level,
+      rawDescription: engraving.description ?? parsed.rawDescription
+    }
+  })
+)
+
+const engravingSummary = computed(() => {
+  const parsed = parsedEngravingDetails.value
+  if (!parsed.length) {
+    return {
+      grade: '미설정',
+      activeCount: 0,
+      debuffCount: 0,
+      totalLevel: 0
+    }
+  }
+  const active = parsed.filter(entry => entry.level > 0 && !entry.isDebuff)
+  const debuffCount = parsed.filter(entry => entry.isDebuff && entry.level > 0).length
+  const totalLevel = active.reduce((sum, entry) => sum + entry.level, 0)
+  return {
+    grade: calculateEngravingGrade(parsed),
+    activeCount: active.length,
+    debuffCount,
+    totalLevel
+  }
+})
+
+const hasEngravings = computed(() => engravingCards.value.length > 0)
 
 const selectedEquipmentKey = ref<string | null>(null)
 
@@ -1644,6 +1727,78 @@ const cleanText = (text: string) =>
   /* grid-template-columns: 230px 230px minmax(520px, 1fr) ; */
   gap: 20px;
   align-items: start;
+}
+
+.engraving-panel {
+  margin-top: 28px;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.engraving-panel__head {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.engraving-panel__head h4 {
+  margin: 0;
+}
+
+.engraving-panel__head p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+}
+
+.engraving-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.engraving-metric {
+  min-width: 120px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.engraving-metric span {
+  font-size: calc(0.8rem - 1px);
+  color: var(--text-secondary);
+}
+
+.engraving-metric strong {
+  font-size: calc(1rem - 1px);
+  color: var(--text-primary);
+}
+
+.engraving-metric--alert strong {
+  color: var(--error-color, #ef4444);
+}
+
+.engraving-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.engraving-empty {
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  text-align: center;
 }
 
 .selected-equipment-panel {

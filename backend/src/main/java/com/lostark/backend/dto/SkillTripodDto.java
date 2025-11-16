@@ -6,7 +6,13 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class EngravingEffectDto {
+public class SkillTripodDto {
+
+    @JsonAlias("Tier")
+    private Integer tier;
+
+    @JsonAlias("Slot")
+    private Integer slot;
 
     @JsonAlias("Name")
     private String name;
@@ -14,15 +20,12 @@ public class EngravingEffectDto {
     @JsonAlias("Icon")
     private String icon;
 
-    @JsonAlias("Description")
-    private String description;
-
     @JsonAlias("Level")
     private Integer level;
 
-    @JsonAlias("Grade")
-    private String grade;
+    @JsonAlias({"IsSelected", "isSelected"})
+    private Boolean selected;
 
-    @JsonAlias("AbilityStoneLevel")
-    private Integer abilityStoneLevel;
+    @JsonAlias("Tooltip")
+    private String tooltip;
 }
