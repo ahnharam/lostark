@@ -113,6 +113,7 @@ const selectedOption = computed(() =>
   border-radius: 12px;
   background: var(--panel-bg, rgba(255, 255, 255, 0.02));
   margin-bottom: 1rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .filter-group {

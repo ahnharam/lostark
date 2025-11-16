@@ -248,6 +248,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .ranking-category-tabs {
@@ -261,14 +262,14 @@ watch(
   border-radius: 999px;
   padding: 0.35rem 0.9rem;
   background: transparent;
-  color: inherit;
+  color: var(--text-primary, #1f2937);
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .ranking-category-tab.active {
   background: var(--accent-color, rgba(128, 178, 255, 0.2));
-  color: #fff;
+  color: var(--text-inverse, #ffffff);
   border-color: transparent;
 }
 
@@ -276,7 +277,7 @@ watch(
   align-self: flex-start;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  background: rgba(128, 178, 255, 0.15);
+  background: var(--accent-soft-bg, rgba(128, 178, 255, 0.15));
   color: var(--accent-color, #80b2ff);
   font-weight: 600;
   font-size: 0.75rem;

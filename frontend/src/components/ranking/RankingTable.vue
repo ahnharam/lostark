@@ -60,6 +60,7 @@ const formatItemLevel = (value?: string) => {
   border-radius: 12px;
   overflow: hidden;
   background: var(--panel-bg, rgba(0, 0, 0, 0.2));
+  color: var(--text-primary, #1f2937);
 }
 
 table {
@@ -72,10 +73,11 @@ th,
 td {
   padding: 0.75rem;
   text-align: left;
+  color: var(--text-primary, #1f2937);
 }
 
 thead {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-muted, rgba(255, 255, 255, 0.04));
 }
 
 .table-subtle {
@@ -101,7 +103,7 @@ thead {
   width: 100%;
   height: 16px;
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.04));
+  background: linear-gradient(90deg, var(--panel-bg, rgba(255, 255, 255, 0.04)), var(--accent-soft-bg, rgba(255, 255, 255, 0.15)), var(--panel-bg, rgba(255, 255, 255, 0.04)));
   background-size: 200% 100%;
   animation: pulse 1.4s ease-in-out infinite;
 }

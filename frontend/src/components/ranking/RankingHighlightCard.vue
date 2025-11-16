@@ -66,9 +66,10 @@ defineProps<{
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   border-radius: 16px;
   padding: 1rem;
-  background: linear-gradient(125deg, rgba(255, 255, 255, 0.05), rgba(128, 178, 255, 0.08));
+  background: linear-gradient(125deg, var(--panel-bg, rgba(255, 255, 255, 0.05)), var(--accent-soft-bg, rgba(128, 178, 255, 0.08)));
   margin-bottom: 1.25rem;
   min-height: 150px;
+  color: var(--text-primary, #1f2937);
 }
 
 .highlight-header {
@@ -82,7 +83,7 @@ defineProps<{
   font-size: 0.7rem;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.3));
 }
 
 .highlight-rank {
@@ -130,7 +131,7 @@ defineProps<{
 
 .skeleton-line {
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  background: linear-gradient(90deg, var(--panel-bg, rgba(255, 255, 255, 0.05)), var(--accent-soft-bg, rgba(255, 255, 255, 0.12)), var(--panel-bg, rgba(255, 255, 255, 0.05)));
   background-size: 200% 100%;
   animation: pulse 1.4s ease-in-out infinite;
 }

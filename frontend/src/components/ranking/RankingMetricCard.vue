@@ -69,6 +69,7 @@ const formatPercent = (value: number) => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .metric-header {
@@ -92,7 +93,7 @@ const formatPercent = (value: number) => {
 .metric-chip {
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.3));
   font-size: 0.75rem;
 }
 
@@ -115,7 +116,7 @@ const formatPercent = (value: number) => {
 }
 
 .metric-error {
-  color: #ff9f9f;
+  color: var(--error-color, #ff9f9f);
   font-size: 0.9rem;
 }
 
@@ -133,7 +134,7 @@ const formatPercent = (value: number) => {
 .skeleton-line {
   height: 14px;
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  background: linear-gradient(90deg, var(--panel-bg, rgba(255, 255, 255, 0.05)), var(--accent-soft-bg, rgba(255, 255, 255, 0.15)), var(--panel-bg, rgba(255, 255, 255, 0.05)));
   background-size: 200% 100%;
   animation: pulse 1.4s ease-in-out infinite;
 }

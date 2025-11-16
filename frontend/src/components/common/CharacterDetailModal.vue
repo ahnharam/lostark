@@ -1900,7 +1900,7 @@ const cleanText = (text: string) =>
 
 .equipment-summary-card.active {
   border-color: var(--primary-color);
-  background: rgba(102, 126, 234, 0.15);
+  background: var(--primary-soft-bg, rgba(102, 126, 234, 0.15));
 }
 
 .equipment-summary-card:hover {
@@ -1958,7 +1958,7 @@ const cleanText = (text: string) =>
 .summary-level {
   display: inline-flex;
   font-size: calc(0.85rem - 1px);
-  color: #4b7bff;
+  color: var(--primary-color, #4b7bff);
   font-weight: 600;
 }
 
@@ -1983,13 +1983,13 @@ const cleanText = (text: string) =>
 }
 
 .pill--stage {
-  border-color: #f0a500;
-  color: #d98a00;
+  border-color: var(--warning-color, #f0a500);
+  color: var(--warning-color, #f0a500);
 }
 
 .pill--transcend {
-  border-color: #4b7bff;
-  color: #4b7bff;
+  border-color: var(--primary-color, #4b7bff);
+  color: var(--primary-color, #4b7bff);
 }
 
 .pill--value-only {

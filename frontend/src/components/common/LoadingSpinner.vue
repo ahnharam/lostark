@@ -34,8 +34,8 @@ defineProps<{
 .spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid rgba(102, 126, 234, 0.1);
-  border-top-color: #667eea;
+  border: 4px solid var(--primary-soft-bg, rgba(102, 126, 234, 0.12));
+  border-top-color: var(--primary-color, #667eea);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -48,12 +48,12 @@ defineProps<{
 
 .spinner-message {
   margin-top: 16px;
-  color: #667eea;
+  color: var(--primary-color, #667eea);
   font-size: 1rem;
   font-weight: 500;
 }
 
 .overlay .spinner-message {
-  color: white;
+  color: var(--text-inverse, #ffffff);
 }
 </style>

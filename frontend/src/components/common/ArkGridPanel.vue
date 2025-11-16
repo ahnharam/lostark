@@ -28,9 +28,6 @@
         <div>
           <p class="ark-grid-label">현재 루트</p>
           <h3>{{ arkPassiveTitle }}</h3>
-          <p class="ark-grid-subtext">
-            패치된 아크 포인트 분배와 코어 조합을 한 눈에 확인할 수 있도록 3단 레이아웃으로 구성했습니다.
-          </p>
         </div>
         <ul v-if="pointSummary.length" class="ark-grid-point-list">
           <li v-for="point in pointSummary" :key="point.name" class="ark-grid-point">
@@ -54,7 +51,7 @@
             <div
               v-for="section in PASSIVE_SECTIONS"
               :key="section.key"
-              class="matrix-cell matrix-cell--section"
+              class="matrix-cell"
             >
               {{ section.label }}
             </div>
@@ -72,20 +69,20 @@
                 class="passive-card passive-table-card"
               >
                 <div class="passive-card-head">
-                  <LazyImage
-                    v-if="effect.icon"
-                    :src="effect.icon"
-                    :alt="effect.name || '아크 패시브 아이콘'"
-                    width="44"
-                    height="44"
-                    imageClass="passive-card-icon"
-                    errorIcon="✨"
-                    :useProxy="true"
-                  />
-                  <strong class="passive-card-name">{{ effect.name }}</strong>
+                  <div class="passive-card-visual" :title="effect.tooltipText">
+                    <LazyImage
+                      v-if="effect.icon"
+                      :src="effect.icon"
+                      :alt="effect.name || '아크 패시브 아이콘'"
+                      width="44"
+                      height="44"
+                      imageClass="passive-card-icon"
+                      errorIcon="✨"
+                      :useProxy="true"
+                    />
+                    <span v-if="effect.levelDisplay" class="passive-card-level">{{ effect.levelDisplay }}</span>
+                  </div>
                 </div>
-                <p v-if="effect.levelLine" class="passive-card-description">{{ effect.levelLine }}</p>
-                <p v-if="effect.summaryLine" class="passive-card-summary">{{ effect.summaryLine }}</p>
               </article>
             </div>
           </div>
@@ -118,10 +115,18 @@
                 <span v-if="slot.point !== undefined" class="slot-card-point">{{ slot.point }}P</span>
               </div>
             </header>
-            <p v-if="slot.tooltipTitle" class="slot-card-title">{{ slot.tooltipTitle }}</p>
+            <!-- <p v-if="slot.tooltipTitle" class="slot-card-title">{{ slot.tooltipTitle }}</p> -->
             <ul v-if="slot.tooltipLines.length" class="slot-tooltip-list">
-              <li v-for="(line, idx) in slot.tooltipLines" :key="`slot-line-${slot.index}-${idx}`">
-                {{ line }}
+              <li
+                v-for="(line, idx) in slot.tooltipLines"
+                :key="`slot-line-${slot.index}-${idx}`"
+                :class="{
+                  'slot-tooltip-line--highlighted': line.highlighted,
+                  'slot-tooltip-line--locked': line.hasThreshold && !line.highlighted
+                }"
+              >
+                <span v-if="line.pointLabel" class="slot-tooltip-point">{{ line.pointLabel }}</span>
+                <span class="slot-tooltip-body">{{ line.text }}</span>
               </li>
             </ul>
             <div v-if="slot.gemCards.length" class="slot-gem-stack">
@@ -139,7 +144,7 @@
                   />
                   <div>
                     <p class="gem-card-grade">{{ gem.grade || '젬' }}</p>
-                    <strong class="gem-card-name">{{ gem.title || `젬 ${gem.index ?? ''}` }}</strong>
+                    <!-- <strong class="gem-card-name">{{ gem.title || `젬 ${gem.index ?? ''}` }}</strong> -->
                   </div>
                 </div>
                 <ul v-if="gem.tooltipLines.length" class="gem-tooltip-list">
@@ -204,6 +209,8 @@ interface PassiveCard {
   tierLabel: string
   levelLine: string
   summaryLine: string
+  levelDisplay: string
+  tooltipText: string
 }
 
 interface PassiveSection {
@@ -220,11 +227,33 @@ interface PassiveMatrixRow {
   columns: Record<PassiveSectionKey, PassiveCard[]>
 }
 
+interface SlotTooltipLine {
+  text: string
+  highlighted: boolean
+  hasThreshold: boolean
+  pointLabel?: string
+}
+
 const PASSIVE_SECTIONS: readonly PassiveSection[] = [
   { key: 'evolution', label: '진화', keyword: '진화' },
   { key: 'realization', label: '깨달음', keyword: '깨달음' },
   { key: 'leap', label: '도약', keyword: '도약' }
 ]
+const PASSIVE_SECTION_KEYWORDS = PASSIVE_SECTIONS.map(section => section.keyword)
+const PASSIVE_SECTION_PATTERN = PASSIVE_SECTION_KEYWORDS.join('|')
+const PASSIVE_SECTION_REGEX = new RegExp(`(${PASSIVE_SECTION_PATTERN})`, 'g')
+const PASSIVE_SECTION_PREFIX_REGEX = new RegExp(`^\\s*(?:\\[)?(${PASSIVE_SECTION_PATTERN})(?:\\])?\\s*([·:\\-]+)?\\s*`, 'g')
+const PASSIVE_SECTION_SUFFIX_REGEX = new RegExp(`\\s*([·:\\-]+)?\\s*(?:\\[)?(${PASSIVE_SECTION_PATTERN})(?:\\])?$`, 'g')
+
+const ROMAN_NUMERAL_MAP: Record<string, number> = {
+  I: 1,
+  V: 5,
+  X: 10,
+  L: 50,
+  C: 100,
+  D: 500,
+  M: 1000
+}
 
 interface ParsedTooltip {
   title: string
@@ -236,6 +265,20 @@ const sanitizeInline = (value?: string | null) => {
   return stripHtml(value)
     .replace(/\\r\\n|\\n|\\r/g, ' ')
     .replace(/\\s+/g, ' ')
+    .trim()
+}
+
+const stripStageKeywords = (value?: string | null) => {
+  if (!value) return ''
+  return value
+    .replace(PASSIVE_SECTION_PREFIX_REGEX, ' ')
+    .replace(PASSIVE_SECTION_SUFFIX_REGEX, ' ')
+    .replace(PASSIVE_SECTION_REGEX, ' ')
+    .replace(/[\[\]\(\)]/g, ' ')
+    .replace(/[·:\-]{2,}/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[·:\-\s]+/, '')
+    .replace(/[·:\-\s]+$/, '')
     .trim()
 }
 
@@ -308,14 +351,84 @@ const buildPassiveCard = (effect: ArkPassiveEffect, index: number): PassiveCard 
   const summaryLine =
     lastLineCandidate && lastLineCandidate !== levelLine ? lastLineCandidate : tooltip.lines.find(line => line !== levelLine) || ''
 
+  const name = sanitizeInline(effect.name)
+  const displayName = stripStageKeywords(name) || name
+  const levelValueMatch = levelLine.match(/(\d+)/)
+  const levelValue = levelValueMatch ? Number(levelValueMatch[1]) : null
+  const levelDisplay = levelValue ? `레벨 ${levelValue}` : ''
+  const tooltipChunks = [levelLine, summaryLine].filter((line, idx, arr) => {
+    if (!line) return false
+    if (idx > 0 && line === arr[idx - 1]) return false
+    return true
+  })
+  const tooltipText = tooltipChunks.join('\n') || '효과 정보 없음'
+
   return {
     key: `${effect.name}-${index}`,
-    name: sanitizeInline(effect.name),
+    name: displayName,
     icon: effect.icon,
     tierLabel,
     levelLine,
-    summaryLine
+    summaryLine,
+    levelDisplay,
+    tooltipText
   }
+}
+
+const normalizeTierText = (value?: string | null) => {
+  if (!value) return ''
+  return value
+    .replace(PASSIVE_SECTION_REGEX, ' ')
+    .replace(/[·:]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const romanToNumber = (value: string) => {
+  const chars = value.toUpperCase().split('')
+  if (!chars.every(char => ROMAN_NUMERAL_MAP[char])) {
+    return null
+  }
+  let total = 0
+  let previous = 0
+  for (let i = chars.length - 1; i >= 0; i -= 1) {
+    const current = ROMAN_NUMERAL_MAP[chars[i]]
+    if (current < previous) {
+      total -= current
+    } else {
+      total += current
+      previous = current
+    }
+  }
+  return total
+}
+
+const extractTierGroupLabel = (card: PassiveCard) => {
+  const candidates = [card.tierLabel, card.levelLine]
+  for (const candidate of candidates) {
+    const normalized = normalizeTierText(candidate)
+    if (!normalized) continue
+    const digitMatch = normalized.match(/(\d+)/)
+    if (digitMatch) {
+      return `${digitMatch[1]}티어`
+    }
+    const romanMatch = normalized.match(/\b([IVXLCDM]+)\b/i)
+    if (romanMatch) {
+      const numericValue = romanToNumber(romanMatch[1])
+      if (numericValue) {
+        return `${numericValue}티어`
+      }
+      return `티어 ${romanMatch[1].toUpperCase()}`
+    }
+    if (normalized.includes('티어')) {
+      return normalized
+    }
+    if (normalized.includes('계층') || normalized.includes('단계')) {
+      return normalized.replace(/(계층|단계)/g, '티어')
+    }
+    return normalized
+  }
+  return '티어 정보 없음'
 }
 
 const passiveMatrix = computed<PassiveMatrixRow[]>(() => {
@@ -338,7 +451,7 @@ const passiveMatrix = computed<PassiveMatrixRow[]>(() => {
   effects.forEach((effect, index) => {
     const card = buildPassiveCard(effect, index)
     const section = resolveSection(card)
-    const rowLabel = card.tierLabel || '티어 정보 없음'
+    const rowLabel = extractTierGroupLabel(card)
     let row = rowMap.get(rowLabel)
     if (!row) {
       row = {
@@ -355,6 +468,99 @@ const passiveMatrix = computed<PassiveMatrixRow[]>(() => {
   return rows
 })
 
+const CORE_OPTION_PATTERN = /코어\s*옵션/i
+const ITEM_PART_BOX_PATTERN = /itempartbox/i
+const GEM_EFFECT_PATTERN = /젬\s*효과/i
+const INDENT_STRING_GROUP_PATTERN = /indentstringgroup/i
+const CHAOS_CORE_PATTERN = /혼돈.*코어/i
+const SINGLE_TEXT_BOX_PATTERN = /singletextbox/i
+const POINT_VALUE_REGEX = /\[(\d+)\s*P\]/i
+
+const extractCoreOptionLines = (lines: string[]) => {
+  if (!lines || !lines.length) return []
+  const normalized = lines.map(line => line.trim()).filter(Boolean)
+  if (!normalized.length) return []
+  const startIndex = normalized.findIndex(line => CORE_OPTION_PATTERN.test(line))
+  if (startIndex === -1) {
+    return normalized
+  }
+  let boundaryIndex = normalized.slice(startIndex + 1).findIndex(line => ITEM_PART_BOX_PATTERN.test(line))
+  if (boundaryIndex !== -1) {
+    boundaryIndex += startIndex + 1
+  } else {
+    boundaryIndex = normalized.length
+  }
+  const sliced = normalized
+    .slice(startIndex + 1, boundaryIndex)
+    .filter(line => !ITEM_PART_BOX_PATTERN.test(line))
+  return sliced.length ? sliced : normalized
+}
+
+const extractGemEffectLines = (lines: string[]) => {
+  if (!lines || !lines.length) return []
+  const normalized = lines.map(line => line.trim()).filter(Boolean)
+  if (!normalized.length) return []
+  const startIndex = normalized.findIndex(line => GEM_EFFECT_PATTERN.test(line))
+  if (startIndex === -1) {
+    return normalized
+  }
+  let boundaryIndex = normalized.slice(startIndex + 1).findIndex(line => INDENT_STRING_GROUP_PATTERN.test(line))
+  if (boundaryIndex !== -1) {
+    boundaryIndex += startIndex + 1
+  } else {
+    boundaryIndex = normalized.length
+  }
+  const sliced = normalized
+    .slice(startIndex + 1, boundaryIndex)
+    .filter(line => !INDENT_STRING_GROUP_PATTERN.test(line))
+  return sliced.length ? sliced : normalized
+}
+
+const trimChaosCoreLines = (slotName?: string, lines: string[]) => {
+  if (!lines || !lines.length) return []
+  if (!CHAOS_CORE_PATTERN.test(slotName ?? '')) {
+    return lines
+  }
+  const cutoffIndex = lines.findIndex(line => SINGLE_TEXT_BOX_PATTERN.test(line))
+  if (cutoffIndex === -1) {
+    return lines
+  }
+  return lines.slice(0, cutoffIndex).filter(Boolean)
+}
+
+const normalizePointValue = (value?: number | string | null) => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/[^\d.]/g, ''))
+    return Number.isNaN(parsed) ? null : parsed
+  }
+  return null
+}
+
+const extractPointFromLine = (line: string) => {
+  const match = line.match(POINT_VALUE_REGEX)
+  if (!match || match.index === undefined) return null
+  if (match.index > 6) return null
+  return Number(match[1])
+}
+
+const splitPointLabel = (line: string) => {
+  const match = line.match(POINT_VALUE_REGEX)
+  if (!match || match.index === undefined) {
+    return { label: '', body: line }
+  }
+  const label = match[0].trim()
+  const labelStart = match.index
+  if (labelStart > 6) {
+    return { label: '', body: line }
+  }
+  const prefix = line
+    .slice(0, labelStart)
+    .replace(/^[\s•·\-\*()\[\]]+/, '')
+  const suffix = line.slice(labelStart + match[0].length).trimStart()
+  const body = `${prefix} ${suffix}`.trim()
+  return { label, body: body || suffix || line }
+}
 const slotCards = computed(() => {
   return (arkGrid.value?.slots ?? []).map((slot: ArkGridSlot) => {
     const tooltip = parseTooltip(slot.tooltip)
@@ -364,13 +570,26 @@ const slotCards = computed(() => {
         return {
           ...gem,
           title: gemTooltip.title,
-          tooltipLines: gemTooltip.lines
+          tooltipLines: extractGemEffectLines(gemTooltip.lines)
         }
       }) ?? []
+    const coreTooltipLines = trimChaosCoreLines(slot.name, extractCoreOptionLines(tooltip.lines))
+    const normalizedPoint = normalizePointValue(slot.point)
+    const tooltipLines: SlotTooltipLine[] = coreTooltipLines.map(line => {
+      const { label, body } = splitPointLabel(line)
+      const linePoint = extractPointFromLine(line)
+      const highlighted = normalizedPoint !== null && linePoint !== null && linePoint <= normalizedPoint
+      return {
+        text: body,
+        pointLabel: label,
+        highlighted,
+        hasThreshold: linePoint !== null
+      }
+    })
     return {
       ...slot,
       tooltipTitle: tooltip.title,
-      tooltipLines: tooltip.lines,
+      tooltipLines,
       gemCards
     }
   })
@@ -404,6 +623,7 @@ const emptyStateDescription = computed(() => {
 <style scoped>
 .ark-grid-shell {
   width: 100%;
+  color: var(--text-primary, #1f2937);
 }
 
 .ark-grid-placeholder {
@@ -418,7 +638,7 @@ const emptyStateDescription = computed(() => {
   padding: 8px 16px;
   border-radius: 999px;
   background: var(--primary-color, #3b82f6);
-  color: #fff;
+  color: var(--text-inverse, #ffffff);
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -451,6 +671,7 @@ const emptyStateDescription = computed(() => {
 .ark-grid-overview h3 {
   margin: 0;
   font-size: 1.5rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .ark-grid-subtext {
@@ -470,8 +691,8 @@ const emptyStateDescription = computed(() => {
 .ark-grid-point {
   padding: 12px 16px;
   border-radius: 12px;
-  background: var(--surface-color, #fff);
-  border: 1px solid var(--border-color, #e5e7eb);
+  /* background: var(--surface-color, #fff); */
+  /* border: 1px solid var(--border-color, #e5e7eb); */
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -485,6 +706,7 @@ const emptyStateDescription = computed(() => {
 .point-value {
   font-size: 1.4rem;
   font-weight: 600;
+  color: var(--text-primary, #1f2937);
 }
 
 .point-description {
@@ -502,6 +724,7 @@ const emptyStateDescription = computed(() => {
 .section-heading h4 {
   margin: 0 0 4px;
   font-size: 1.1rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .section-heading p {
@@ -532,10 +755,11 @@ const emptyStateDescription = computed(() => {
 }
 
 .matrix-header {
-  background: var(--surface-muted, #f3f4f6);
+  /* background: var(--surface-muted, #f3f4f6); */
   border-bottom: 1px solid var(--border-color, #e5e7eb);
   font-weight: 600;
   color: var(--text-muted, #6b7280);
+  text-align: center;
 }
 
 .matrix-row:not(:last-child) {
@@ -543,7 +767,7 @@ const emptyStateDescription = computed(() => {
 }
 
 .matrix-cell {
-  padding: 16px;
+  padding: 4px;
   border-right: 1px solid var(--border-color, #e5e7eb);
   display: flex;
   flex-direction: column;
@@ -554,22 +778,33 @@ const emptyStateDescription = computed(() => {
   border-right: none;
 }
 
+.matrix-cell--section {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.matrix-cell--section .passive-card {
+  width: 100%;
+}
+
 .matrix-cell--tier {
   justify-content: center;
   align-items: center;
-  background: var(--surface-color, #fff);
+  /* background: var(--surface-color, #fff); */
   font-weight: 600;
   color: var(--text-muted, #6b7280);
   text-align: center;
 }
 
 .passive-card {
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
-  padding: 16px;
-  background: var(--surface-color, #fff);
+  /* border: 1px solid var(--border-color, #e5e7eb); */
+  /* border-radius: 16px; */
+  /* padding: 16px; */
+  /* background: var(--surface-color, #fff); */
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
 }
 
@@ -584,8 +819,24 @@ const emptyStateDescription = computed(() => {
   align-items: center;
 }
 
+.passive-card-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 48px;
+  cursor: help;
+}
+
 .passive-card-icon {
   border-radius: 12px;
+}
+
+.passive-card-level {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-color, #2563eb);
+  line-height: 1.2;
 }
 
 .passive-card-tier {
@@ -596,6 +847,7 @@ const emptyStateDescription = computed(() => {
 
 .passive-card-name {
   font-size: 1rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .passive-card-description {
@@ -645,11 +897,12 @@ const emptyStateDescription = computed(() => {
 .slot-card-name {
   display: block;
   font-size: 1.05rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .slot-card-point {
   display: inline-flex;
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--primary-soft-bg, rgba(59, 130, 246, 0.12));
   color: var(--primary-color, #2563eb);
   padding: 2px 8px;
   border-radius: 999px;
@@ -669,6 +922,40 @@ const emptyStateDescription = computed(() => {
   padding-left: 18px;
   font-size: 0.9rem;
   color: var(--text-primary, #1f2937);
+}
+
+.slot-tooltip-list, .gem-tooltip-list li{
+  white-space: pre-line;
+  word-break: keep-all;  
+}
+
+.slot-tooltip-point {
+  display: inline-block;
+  min-width: 52px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+}
+
+.slot-tooltip-body {
+  display: inline;
+}
+
+.slot-tooltip-line--highlighted {
+  color: var(--accent-color, #f97316);
+  font-weight: 700;
+}
+
+.slot-tooltip-line--locked {
+  color: var(--text-muted, #6b7280);
+  opacity: 0.75;
+}
+
+.slot-tooltip-line--locked .slot-tooltip-point {
+  color: inherit;
+}
+
+.slot-tooltip-line--highlighted .slot-tooltip-point {
+  color: inherit;
 }
 
 .slot-gem-stack {
@@ -695,6 +982,7 @@ const emptyStateDescription = computed(() => {
 
 .gem-card-name {
   font-size: 0.95rem;
+  color: var(--text-primary, #1f2937);
 }
 
 .ark-grid-effects .effect-list {
@@ -713,6 +1001,10 @@ const emptyStateDescription = computed(() => {
   border-radius: 12px;
   border: 1px solid var(--border-color, #e5e7eb);
   background: var(--surface-color, #fff);
+}
+
+.effect-item strong {
+  color: var(--text-primary, #1f2937);
 }
 
 .effect-level {

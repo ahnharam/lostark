@@ -55,18 +55,18 @@ defineEmits<{
 }
 
 .error-container.error {
-  background: #fee;
-  border: 2px solid #f88;
+  background: var(--error-soft-bg, #ffeeee);
+  border: 2px solid var(--error-color, #ff8888);
 }
 
 .error-container.warning {
-  background: #fff9db;
-  border: 2px solid #ffd93d;
+  background: var(--warning-soft-bg, #fff9db);
+  border: 2px solid var(--warning-color, #ffd93d);
 }
 
 .error-container.info {
-  background: #e3f2fd;
-  border: 2px solid #64b5f6;
+  background: var(--info-soft-bg, #e3f2fd);
+  border: 2px solid var(--info-color, #64b5f6);
 }
 
 .error-icon {
@@ -80,22 +80,22 @@ defineEmits<{
 
 .error-title {
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--text-primary, #333333);
   font-size: 1.1rem;
   font-weight: 700;
 }
 
 .error-message {
   margin: 0;
-  color: #555;
+  color: var(--text-secondary, #555555);
   line-height: 1.6;
 }
 
 .retry-btn {
   margin-top: 12px;
   padding: 8px 20px;
-  background: #667eea;
-  color: white;
+  background: var(--primary-color, #667eea);
+  color: var(--text-inverse, #ffffff);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -104,7 +104,7 @@ defineEmits<{
 }
 
 .retry-btn:hover {
-  background: #5568d3;
+  background: var(--primary-hover, #5568d3);
 }
 
 .close-btn {
@@ -114,7 +114,7 @@ defineEmits<{
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #999;
+  color: var(--text-muted, #999999);
   cursor: pointer;
   line-height: 1;
   padding: 0;
@@ -123,6 +123,6 @@ defineEmits<{
 }
 
 .close-btn:hover {
-  color: #333;
+  color: var(--text-primary, #333333);
 }
 </style>

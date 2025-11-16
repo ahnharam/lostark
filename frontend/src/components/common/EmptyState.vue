@@ -41,14 +41,14 @@ defineEmits<{
 
 .empty-title {
   margin: 0 0 12px 0;
-  color: #333;
+  color: var(--text-primary, #333333);
   font-size: 1.5rem;
   font-weight: 700;
 }
 
 .empty-description {
   margin: 0 0 24px 0;
-  color: #666;
+  color: var(--text-secondary, #666666);
   font-size: 1rem;
   line-height: 1.6;
   max-width: 400px;
@@ -57,8 +57,8 @@ defineEmits<{
 
 .action-btn {
   padding: 12px 32px;
-  background: #667eea;
-  color: white;
+  background: var(--primary-color, #667eea);
+  color: var(--text-inverse, #ffffff);
   border: none;
   border-radius: 8px;
   font-size: 1rem;
@@ -68,8 +68,8 @@ defineEmits<{
 }
 
 .action-btn:hover {
-  background: #5568d3;
+  background: var(--primary-hover, #5568d3);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>

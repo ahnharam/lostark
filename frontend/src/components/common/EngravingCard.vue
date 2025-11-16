@@ -151,7 +151,7 @@ const additionalBadges = computed(() => {
   justify-content: center;
   font-size: 0.8rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-inverse, #ffffff);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(4px);
 }
@@ -178,7 +178,7 @@ const additionalBadges = computed(() => {
 }
 
 .card-title.debuff {
-  color: #ff6b6b;
+  color: var(--error-color, #ff6b6b);
 }
 
 /* Sub: 직업 • iLv (12px) */
@@ -203,7 +203,7 @@ const additionalBadges = computed(() => {
   align-items: center;
   padding: 6px 12px;
   background: var(--primary-color);
-  color: white;
+  color: var(--text-inverse, #ffffff);
   font-size: 12px;
   font-weight: 600;
   border-radius: 999px;
@@ -217,7 +217,8 @@ const additionalBadges = computed(() => {
 }
 
 .badge.pill.debuff {
-  background: #ff6b6b;
+  background: var(--error-color, #ff6b6b);
+  color: var(--text-inverse, #ffffff);
 }
 
 /* 모바일 반응형 */

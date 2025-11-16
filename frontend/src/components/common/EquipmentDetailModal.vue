@@ -532,14 +532,14 @@ const gradeColor = computed(() => {
 }
 
 .effect-item.elixir {
-  background: rgba(147, 51, 234, 0.1);
-  border-left-color: #9333ea;
+  background: var(--accent-soft-bg, rgba(147, 51, 234, 0.1));
+  border-left-color: var(--accent-color, #9333ea);
   color: var(--text-primary);
 }
 
 .effect-item.engraving {
-  background: rgba(59, 130, 246, 0.1);
-  border-left-color: #3b82f6;
+  background: var(--primary-soft-bg, rgba(59, 130, 246, 0.1));
+  border-left-color: var(--primary-color, #3b82f6);
   color: var(--text-primary);
 }
 

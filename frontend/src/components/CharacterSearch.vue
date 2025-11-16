@@ -2006,12 +2006,19 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   box-shadow: var(--shadow-sm);
 }
 
+.summary-card h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+}
+
 .summary-card--hero {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1));
+  background: linear-gradient(135deg, var(--primary-soft-bg, rgba(102, 126, 234, 0.15)), var(--accent-soft-bg, rgba(118, 75, 162, 0.1)));
 }
 
 .summary-card--notes {
-  background: linear-gradient(135deg, rgba(56, 239, 125, 0.15), rgba(17, 153, 142, 0.1));
+  background: linear-gradient(135deg, var(--success-soft-bg, rgba(56, 239, 125, 0.15)), var(--info-soft-bg, rgba(17, 153, 142, 0.1)));
 }
 
 .summary-name {
@@ -2226,7 +2233,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   right: 12px;
   border: none;
   background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  color: var(--text-inverse, #ffffff);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -2295,16 +2302,16 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #ffffff;
-  color: #d1d5db;
+  background: var(--surface-color, #ffffff);
+  color: var(--text-tertiary, #d1d5db);
   font-size: calc(1.2rem - 2px);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
   padding-bottom: 3px;
 }
 
 .favorite-toggle-btn.is-active .favorite-star {
-  background: #ffe792;
-  color: #ff7b00;
+  background: var(--warning-soft-bg, #ffe792);
+  color: var(--text-inverse, #1a1a1a);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
