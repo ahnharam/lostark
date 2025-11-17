@@ -34,7 +34,7 @@ public class CharacterService {
     private static final Duration CACHE_DURATION = Duration.ofHours(1);
     
     @Transactional
-    public CharacterProfileDto getCharacterProfile(String characterName, String userId) {
+    public CharacterProfileDto getCharacterProfile(String characterName, String userId, boolean forceRefresh) {
         log.info("캐릭터 검색 시작: {}", characterName);
         
         // 검색 히스토리 저장
@@ -42,10 +42,9 @@ public class CharacterService {
             searchHistoryService.addSearchHistory(userId, characterName);
         }
         
-        // 1. DB에서 캐시 확인
         Optional<Character> cachedCharacter = characterRepository.findByCharacterName(characterName);
         
-        if (cachedCharacter.isPresent()) {
+        if (cachedCharacter.isPresent() && !forceRefresh) {
             Character character = cachedCharacter.get();
             boolean cacheFresh = Duration.between(character.getUpdatedAt(), LocalDateTime.now())
                     .compareTo(CACHE_DURATION) < 0;
@@ -79,6 +78,10 @@ public class CharacterService {
 
             return profile;
         } catch (CharacterNotFoundException e) {
+            if (cachedCharacter.isPresent()) {
+                log.warn("API에서 캐릭터를 찾지 못해 캐시 데이터로 대체: {}", characterName);
+                return convertToDto(cachedCharacter.get());
+            }
             throw e;
         } catch (Exception e) {
             log.error("캐릭터 검색 실패: {} - {}", characterName, e.getMessage(), e);

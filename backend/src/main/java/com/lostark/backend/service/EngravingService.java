@@ -24,11 +24,11 @@ public class EngravingService {
     private final LostArkProfileDomainService lostArkProfileDomainService;
 
     @Transactional
-    public List<EngravingEffectDto> getCharacterEngravings(String characterName) {
+    public List<EngravingEffectDto> getCharacterEngravings(String characterName, boolean forceRefresh) {
         try {
             Character character = characterRepository.findByCharacterName(characterName).orElse(null);
 
-            if (character != null && !character.getEngravings().isEmpty()) {
+            if (!forceRefresh && character != null && !character.getEngravings().isEmpty()) {
                 return character.getEngravings().stream()
                         .map(this::convertToDto)
                         .collect(Collectors.toList());

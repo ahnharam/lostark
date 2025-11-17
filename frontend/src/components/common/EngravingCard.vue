@@ -1,6 +1,21 @@
 <template>
   <article class="engraving-card">
     <div class="engraving-row">
+      <div class="engraving-icon-box">
+        <LazyImage
+          v-if="iconSrc"
+          :src="iconSrc"
+          :alt="displayName"
+          width="44"
+          height="44"
+          imageClass="engraving-icon-img"
+          errorIcon="📘"
+          :showSkeleton="false"
+        />
+        <div v-else class="engraving-icon-fallback">
+          {{ engravingInitial }}
+        </div>
+      </div>
       <div class="engraving-left">
         <span class="engraving-level">Lv.{{ formatLevel(displayLevel) }}</span>
         <span v-if="engraving.grade" class="meta-chip grade-chip">{{ engraving.grade }}</span>
@@ -21,6 +36,7 @@ import { computed } from 'vue'
 import { parseEngravingDescription } from '@/utils/engravingParser'
 import { stripHtml } from '@/utils/tooltipParser'
 import type { Engraving } from '@/api/types'
+import LazyImage from './LazyImage.vue'
 
 interface Props {
   engraving: Engraving
@@ -31,6 +47,10 @@ const props = defineProps<Props>()
 const parsedData = computed(() => parseEngravingDescription(props.engraving.description ?? ''))
 
 const displayName = computed(() => props.engraving.name || parsedData.value.name || '각인')
+
+const iconSrc = computed(() => props.engraving.icon?.trim() || '')
+
+const engravingInitial = computed(() => displayName.value.charAt(0) || '?')
 
 const displayLevel = computed(() => {
   if (typeof props.engraving.level === 'number') {
@@ -73,6 +93,7 @@ const formatLevel = (value: number) => {
 .engraving-row {
   display: flex;
   align-items: center;
+  gap: 12px;
   font-size: 0.95rem;
   color: var(--text-primary, #1f2937);
 }
@@ -94,11 +115,13 @@ const formatLevel = (value: number) => {
   color: var(--text-secondary, #4b5563);
   font-size: 0.85rem;
   min-width: 120px;
-  white-space: nowrap;
+  max-width: 500px;
+  white-space: pre-wrap;
+  word-break: keep-all;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-left: auto;
-  margin-right: 0;
+  margin-left: 0;
+  margin-right: auto;
 }
 
 .engraving-level {
@@ -129,5 +152,38 @@ const formatLevel = (value: number) => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.engraving-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-default, #f9fafb);
+}
+
+.engraving-icon-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+}
+
+.engraving-icon-fallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg-muted, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--text-secondary, #4b5563);
 }
 </style>

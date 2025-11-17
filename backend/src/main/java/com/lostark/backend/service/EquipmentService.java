@@ -23,26 +23,32 @@ public class EquipmentService {
     private final LostArkProfileDomainService lostArkProfileDomainService;
     
     @Transactional
-    public List<EquipmentDto> getCharacterEquipment(String characterName) {
+    public List<EquipmentDto> getCharacterEquipment(String characterName, boolean forceRefresh) {
         Character character = characterRepository.findByCharacterName(characterName)
                 .orElseThrow(() -> new RuntimeException("캐릭터를 찾을 수 없습니다."));
         
-        // 캐시된 장비 정보가 있으면 반환
-        if (!character.getEquipments().isEmpty()) {
+        // 캐시된 장비 정보가 있고 강제 새로고침이 아니면 반환
+        if (!forceRefresh && !character.getEquipments().isEmpty()) {
             return character.getEquipments().stream()
                     .map(this::convertToDto)
                     .collect(Collectors.toList());
         }
         
-        // API 호출
-        ArmoryDto armory = lostArkProfileDomainService.fetchArmory(characterName);
-        if (armory == null || armory.getEquipment() == null) {
+        // API 호출: 전용 equipment 엔드포인트 우선
+        List<EquipmentDto> equipmentList = lostArkProfileDomainService.fetchEquipment(characterName);
+        if (equipmentList == null || equipmentList.isEmpty()) {
+            // 새 데이터가 없으면 기존 캐시를 유지
+            if (!character.getEquipments().isEmpty()) {
+                return character.getEquipments().stream()
+                        .map(this::convertToDto)
+                        .collect(Collectors.toList());
+            }
             return List.of();
         }
         
-        // DB에 저장
+        // DB에 저장 (갱신)
         character.getEquipments().clear();
-        for (EquipmentDto dto : armory.getEquipment()) {
+        for (EquipmentDto dto : equipmentList) {
             Equipment equipment = new Equipment();
             equipment.setCharacter(character);
             equipment.setType(dto.getType());
@@ -54,7 +60,7 @@ public class EquipmentService {
         }
         
         characterRepository.save(character);
-        return armory.getEquipment();
+        return equipmentList;
     }
     
     private EquipmentDto convertToDto(Equipment equipment) {

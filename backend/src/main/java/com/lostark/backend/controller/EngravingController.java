@@ -16,9 +16,11 @@ public class EngravingController {
     private final EngravingService engravingService;
     
     @GetMapping("/{characterName}")
-    public ResponseEntity<List<EngravingEffectDto>> getEngravings(@PathVariable String characterName) {
+    public ResponseEntity<List<EngravingEffectDto>> getEngravings(
+            @PathVariable String characterName,
+            @RequestParam(defaultValue = "false") boolean force) {
         try {
-            List<EngravingEffectDto> engravings = engravingService.getCharacterEngravings(characterName);
+            List<EngravingEffectDto> engravings = engravingService.getCharacterEngravings(characterName, force);
             return ResponseEntity.ok(engravings);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

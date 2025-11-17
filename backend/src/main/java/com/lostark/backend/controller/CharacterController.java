@@ -16,9 +16,10 @@ public class CharacterController {
     @GetMapping("/{characterName}")
     public ResponseEntity<CharacterProfileDto> getCharacter(
             @PathVariable String characterName,
-            @RequestParam(required = false) String userId) {
+            @RequestParam(required = false) String userId,
+            @RequestParam(defaultValue = "false") boolean force) {
         try {
-            CharacterProfileDto profile = characterService.getCharacterProfile(characterName, userId);
+            CharacterProfileDto profile = characterService.getCharacterProfile(characterName, userId, force);
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

@@ -33,6 +33,15 @@
   --info-soft-bg: rgba(100, 181, 246, 0.15);
   --accent-soft-bg: rgba(139, 92, 246, 0.12);
 
+  /* 장비/스킬 등급 색상 (필요 시 값 교체) */
+  --rarity-normal: #d1d5db;
+  --rarity-uncommon: #6ee7b7;
+  --rarity-rare: #60a5fa;
+  --rarity-heroic: #a78bfa;
+  --rarity-legendary: #fbbf24;
+  --rarity-relic: #f97316;
+  --rarity-ancient: #eab308;
+
   /* 그림자 */
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);

@@ -100,4 +100,12 @@ public class LostArkApiClient {
                 .retrieve()
                 .bodyToMono(EngravingResponseDto.class);
     }
+
+    public Mono<List<com.lostark.backend.dto.EquipmentDto>> getCharacterEquipment(String characterName) {
+        return webClient.get()
+                .uri("/armories/characters/{characterName}/equipment", characterName)
+                .retrieve()
+                .bodyToFlux(com.lostark.backend.dto.EquipmentDto.class)
+                .collectList();
+    }
 }

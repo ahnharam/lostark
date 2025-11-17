@@ -2050,7 +2050,7 @@ const cleanText = (text: string) =>
   transition: transform 0.2s, border-color 0.2s, background 0.2s;
   background: var(--bg-secondary);
   width: fit-content;
-  min-width: 200px;
+  min-width: 250px;
 }
 
 .equipment-summary-card.active {

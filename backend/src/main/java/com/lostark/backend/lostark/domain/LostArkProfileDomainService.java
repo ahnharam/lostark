@@ -5,6 +5,7 @@ import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.CombatSkillDto;
 import com.lostark.backend.dto.CollectibleDto;
 import com.lostark.backend.dto.EngravingResponseDto;
+import com.lostark.backend.dto.EquipmentDto;
 import com.lostark.backend.dto.SkillGemDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
 import com.lostark.backend.exception.ApiException;
@@ -119,6 +120,26 @@ public class LostArkProfileDomainService {
             return null;
         } catch (Exception e) {
             throw new ApiException("각인 정보를 불러오는 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    public List<EquipmentDto> fetchEquipment(String characterName) {
+        try {
+            List<EquipmentDto> equipment = lostArkApiClient.getCharacterEquipment(characterName)
+                    .blockOptional()
+                    .orElse(Collections.emptyList());
+            if (equipment == null || equipment.isEmpty()) {
+                ArmoryDto armoryDto = fetchArmory(characterName);
+                if (armoryDto != null && armoryDto.getEquipment() != null) {
+                    return armoryDto.getEquipment();
+                }
+            }
+            return equipment;
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("장비 정보를 찾을 수 없습니다: {}", characterName);
+            return Collections.emptyList();
+        } catch (Exception e) {
+            throw new ApiException("장비 정보를 불러오는 중 오류가 발생했습니다.", e);
         }
     }
 

@@ -16,9 +16,11 @@ public class EquipmentController {
     private final EquipmentService equipmentService;
     
     @GetMapping("/{characterName}")
-    public ResponseEntity<List<EquipmentDto>> getEquipment(@PathVariable String characterName) {
+    public ResponseEntity<List<EquipmentDto>> getEquipment(
+            @PathVariable String characterName,
+            @RequestParam(defaultValue = "false") boolean force) {
         try {
-            List<EquipmentDto> equipment = equipmentService.getCharacterEquipment(characterName);
+            List<EquipmentDto> equipment = equipmentService.getCharacterEquipment(characterName, force);
             return ResponseEntity.ok(equipment);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

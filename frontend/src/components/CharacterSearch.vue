@@ -1304,9 +1304,11 @@ const searchCharacter = async (name: string, options: { forceRefresh?: boolean }
         loadCollectiblesData(name, { forceRefresh: true }),
         loadArkGridData(name, { forceRefresh: true })
       ])
+      await loadHistory({ forceRefresh: true })
+    } else {
+      await loadHistory()
     }
     activeResultTab.value = DEFAULT_RESULT_TAB
-    await loadHistory()
   } catch (err: any) {
     const errorData = err.response?.data
     if (err.response?.status === 404) {
@@ -1417,9 +1419,9 @@ const toggleFavorite = () => {
     })
 }
 
-const loadHistory = async () => {
+const loadHistory = async (options: { forceRefresh?: boolean } = {}) => {
   try {
-    const response = await lostarkApi.getHistory()
+    const response = await lostarkApi.getHistory({ force: options.forceRefresh })
     const items = response.data
       .slice()
       .sort((a, b) => new Date(b.searchedAt).getTime() - new Date(a.searchedAt).getTime())
@@ -1577,7 +1579,7 @@ const executeSearch = (name: string) => {
   if (!trimmed) return
   closeSearchPanel()
   characterName.value = trimmed
-  searchCharacter(trimmed)
+  searchCharacter(trimmed, { forceRefresh: true })
 }
 
 type AutocompleteSelectPayload = Suggestion | { id: string; name: string }

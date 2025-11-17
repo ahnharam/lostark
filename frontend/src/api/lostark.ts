@@ -53,101 +53,151 @@ const cachedRequest = async <T>(
   namespace: string,
   params: Record<string, unknown>,
   requester: () => Promise<T>,
-  ttl: number
+  ttl: number,
+  options?: { force?: boolean }
 ): Promise<ApiResult<T>> => {
   const cacheKey = createCacheKey(namespace, params)
+  if (options?.force) {
+    cacheManager.invalidate(cacheKey)
+    const data = await requester()
+    cacheManager.set(cacheKey, data, ttl)
+    return { data, fromCache: false }
+  }
   const { data, fromCache } = await cachedApiCall(cacheKey, requester, ttl)
   return { data, fromCache }
 }
 
 export const lostarkApi = {
-  async getCharacter(characterName: string): Promise<ApiResult<CharacterProfile>> {
+  async getCharacter(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<CharacterProfile>> {
     return cachedRequest(
       'character',
       { name: characterName },
       async () => {
         const response = await apiClient.get<CharacterProfile>(`/characters/${characterName}`, {
-          params: { userId: USER_ID }
+          params: { userId: USER_ID, force: options?.force }
         })
         return response.data
       },
-      CACHE_TTL.CHARACTER
+      CACHE_TTL.CHARACTER,
+      options
     )
   },
 
-  async getEquipment(characterName: string): Promise<ApiResult<Equipment[]>> {
+  async getEquipment(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<Equipment[]>> {
     return cachedRequest(
       'equipment',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<Equipment[]>(`/equipment/${characterName}`)
+        const response = await apiClient.get<Equipment[]>(`/equipment/${characterName}`, {
+          params: { force: options?.force }
+        })
         return response.data
       },
-      CACHE_TTL.EQUIPMENT
+      CACHE_TTL.EQUIPMENT,
+      options
     )
   },
 
-  async getEngravings(characterName: string): Promise<ApiResult<Engraving[]>> {
+  async getEngravings(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<Engraving[]>> {
     return cachedRequest(
       'engravings',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<Engraving[]>(`/engravings/${characterName}`)
+        const response = await apiClient.get<Engraving[]>(`/engravings/${characterName}`, {
+          params: { force: options?.force }
+        })
         return response.data
       },
-      CACHE_TTL.ENGRAVINGS
+      CACHE_TTL.ENGRAVINGS,
+      options
     )
   },
 
-  async getSiblings(characterName: string): Promise<ApiResult<SiblingCharacter[]>> {
+  async getSiblings(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<SiblingCharacter[]>> {
     return cachedRequest(
       'siblings',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<SiblingCharacter[]>(`/siblings/${characterName}`)
+        const response = await apiClient.get<SiblingCharacter[]>(`/siblings/${characterName}`, {
+          params: { force: options?.force }
+        })
         return response.data
       },
-      CACHE_TTL.SIBLINGS
+      CACHE_TTL.SIBLINGS,
+      options
     )
   },
 
-  async getArkGrid(characterName: string): Promise<ApiResult<ArkGridResponse>> {
+  async getArkGrid(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<ArkGridResponse>> {
     return cachedRequest(
       'arkGrid',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<ArkGridResponse>(`/ark-grid/${characterName}`)
+        const response = await apiClient.get<ArkGridResponse>(`/ark-grid/${characterName}`, {
+          params: { force: options?.force }
+        })
         return response.data
       },
-      CACHE_TTL.ARK_GRID
+      CACHE_TTL.ARK_GRID,
+      options
     )
   },
 
-  async getSkills(characterName: string): Promise<ApiResult<SkillMenuResponse>> {
+  async getSkills(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<SkillMenuResponse>> {
     return cachedRequest(
       'skills',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<SkillMenuResponse>(`/skills/${characterName}`)
+        const response = await apiClient.get<SkillMenuResponse>(`/skills/${characterName}`, {
+          params: { force: options?.force }
+        })
         return response.data
       },
-      CACHE_TTL.SKILLS
+      CACHE_TTL.SKILLS,
+      options
     )
   },
 
-  async getCollectibles(characterName: string): Promise<ApiResult<Collectible[]>> {
+  async getCollectibles(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<Collectible[]>> {
     return cachedRequest(
       'collectibles',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<Collectible[]>(`/collectibles/${characterName}`)
+        const response = await apiClient.get<Collectible[]>(`/collectibles/${characterName}`, {
+          params: { force: options?.force }
+        })
         return response.data
       },
-      CACHE_TTL.COLLECTIBLES
+      CACHE_TTL.COLLECTIBLES,
+      options
     )
   },
 
-  async getRanking(params: RankingQueryParams): Promise<ApiResult<RankingResponse>> {
+  async getRanking(
+    params: RankingQueryParams,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<RankingResponse>> {
     return cachedRequest(
       'ranking',
       params,
@@ -155,11 +205,15 @@ export const lostarkApi = {
         const response = await apiClient.get<RankingResponse>('/rankings', { params })
         return response.data
       },
-      CACHE_TTL.RANKING
+      CACHE_TTL.RANKING,
+      options
     )
   },
 
-  async getProfileRanking(characterName: string): Promise<ApiResult<ProfileRankingResponse>> {
+  async getProfileRanking(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<ProfileRankingResponse>> {
     return cachedRequest(
       'profileRanking',
       { characterName },
@@ -167,7 +221,8 @@ export const lostarkApi = {
         const response = await apiClient.get<ProfileRankingResponse>(`/rankings/profile/${characterName}`)
         return response.data
       },
-      CACHE_TTL.PROFILE_RANKING
+      CACHE_TTL.PROFILE_RANKING,
+      options
     )
   },
 
@@ -179,7 +234,10 @@ export const lostarkApi = {
     return apiClient.delete('/favorites', { params: { userId: USER_ID, characterName } })
   },
 
-  getFavorites() {
+  getFavorites(options?: { force?: boolean }) {
+    if (options?.force) {
+      cacheManager.invalidate(createCacheKey('favorites', { userId: USER_ID }))
+    }
     return apiClient.get<CharacterProfile[]>('/favorites', { params: { userId: USER_ID } })
   },
 
@@ -189,12 +247,29 @@ export const lostarkApi = {
     })
   },
 
-  getHistory() {
+  getHistory(options?: { force?: boolean }) {
+    if (options?.force) {
+      cacheManager.invalidate(createCacheKey('history', { userId: USER_ID }))
+    }
     return apiClient.get<SearchHistory[]>('/history', { params: { userId: USER_ID } })
   },
 
   clearHistory() {
     return apiClient.delete('/history', { params: { userId: USER_ID } })
+  },
+
+  invalidateCharacterCache(characterName: string) {
+    const targets = [
+      createCacheKey('character', { name: characterName }),
+      createCacheKey('equipment', { name: characterName }),
+      createCacheKey('engravings', { name: characterName }),
+      createCacheKey('siblings', { name: characterName }),
+      createCacheKey('skills', { name: characterName }),
+      createCacheKey('collectibles', { name: characterName }),
+      createCacheKey('arkGrid', { name: characterName }),
+      createCacheKey('ranking', { characterName })
+    ]
+    targets.forEach(key => cacheManager.invalidate(key))
   },
 
   clearCache() {

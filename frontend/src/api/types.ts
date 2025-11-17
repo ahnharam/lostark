@@ -146,7 +146,7 @@ export interface CombatSkill {
   type?: string
   icon?: string
   level?: number
-  skillType?: string
+  skillType?: string | number
   skillPoints?: number
   tooltip?: string
   tripods?: SkillTripod[]
