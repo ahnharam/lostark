@@ -204,6 +204,19 @@
           <section v-if="character && !loading" class="character-results">
             <div class="results-layout">
               <div class="character-overview-card" ref="characterOverviewRef">
+                <div class="overview-toolbar">
+                  <button
+                    type="button"
+                    class="refresh-button"
+                    :disabled="loading || !characterName"
+                    @click="handleRefreshClick"
+                  >
+                    갱신하기
+                  </button>
+                  <span class="refresh-timestamp">
+                    {{ lastRefreshedLabel }}
+                  </span>
+                </div>
                 <div class="hero-row hero-row--levels" v-if="activeCharacter">
                   <div class="profile-stats-grid hero-levels-grid">
                     <div class="profile-stat">
@@ -806,6 +819,14 @@ const isCharacterFavorite = computed(() => {
 })
 
 const shouldShowSearchPanel = computed(() => searchPanelOpen.value)
+const lastRefreshedLabel = computed(() => {
+  if (!lastRefreshedAt.value) return '갱신 이력이 없어요'
+  const formatted = new Intl.DateTimeFormat('ko-KR', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(lastRefreshedAt.value)
+  return `마지막 갱신: ${formatted}`
+})
 
 const detailEquipment = ref<Equipment[]>([])
 const detailEngravings = ref<Engraving[]>([])
@@ -823,6 +844,7 @@ const collectibles = ref<Collectible[]>([])
 const collectiblesLoading = ref(false)
 const collectiblesError = ref<string | null>(null)
 const collectiblesLoadedFor = ref<string | null>(null)
+const lastRefreshedAt = ref<Date | null>(null)
 const specialEquipmentKeywords = ['나침반', '부적', '문장', '보주']
 
 const isSpecialEquipment = (item: Equipment) => {
@@ -1232,9 +1254,12 @@ const searchCharacterByInput = () => {
   executeSearch(name)
 }
 
-const searchCharacter = async (name: string) => {
+const searchCharacter = async (name: string, options: { forceRefresh?: boolean } = {}) => {
   loading.value = true
   error.value = null
+  if (options.forceRefresh) {
+    lostarkApi.invalidateCharacterCache(name)
+  }
   character.value = null
   siblings.value = []
   selectedCharacterProfile.value = null
@@ -1254,13 +1279,14 @@ const searchCharacter = async (name: string) => {
   collectiblesLoadedFor.value = null
   collectiblesError.value = null
   collectiblesLoading.value = false
+  lastRefreshedAt.value = null
 
   try {
-    const charResponse = await lostarkApi.getCharacter(name)
+    const charResponse = await lostarkApi.getCharacter(name, { force: options.forceRefresh })
     character.value = charResponse.data
     characterName.value = name
 
-    const siblingsResponse = await lostarkApi.getSiblings(name)
+    const siblingsResponse = await lostarkApi.getSiblings(name, { force: options.forceRefresh })
     const unique = new Map<string, SiblingCharacter>()
     siblingsResponse.data.forEach(member => {
       if (member.characterName === charResponse.data.characterName) return
@@ -1271,7 +1297,14 @@ const searchCharacter = async (name: string) => {
     })
     siblings.value = Array.from(unique.values())
 
-    await loadCharacterDetails(name, { profile: charResponse.data })
+    await loadCharacterDetails(name, { profile: charResponse.data, forceRefresh: options.forceRefresh })
+    if (options.forceRefresh) {
+      await Promise.allSettled([
+        loadSkillData(name, { forceRefresh: true }),
+        loadCollectiblesData(name, { forceRefresh: true }),
+        loadArkGridData(name, { forceRefresh: true })
+      ])
+    }
     activeResultTab.value = DEFAULT_RESULT_TAB
     await loadHistory()
   } catch (err: any) {
@@ -1297,6 +1330,13 @@ const retrySearch = () => {
   if (characterName.value) {
     searchCharacter(characterName.value)
   }
+}
+
+const handleRefreshClick = () => {
+  if (loading.value) return
+  const target = characterName.value?.trim()
+  if (!target) return
+  searchCharacter(target, { forceRefresh: true })
 }
 
 const dismissError = () => {
@@ -1325,6 +1365,7 @@ const clearSearch = () => {
   collectiblesLoadedFor.value = null
   collectiblesError.value = null
   collectiblesLoading.value = false
+  lastRefreshedAt.value = null
   activeResultTab.value = DEFAULT_RESULT_TAB
   handleSpecialHover(null)
 }
@@ -1408,7 +1449,10 @@ const clearHistory = async () => {
   }
 }
 
-const loadCharacterDetails = async (name: string, options: { profile?: CharacterProfile } = {}) => {
+const loadCharacterDetails = async (
+  name: string,
+  options: { profile?: CharacterProfile; forceRefresh?: boolean } = {}
+) => {
   detailLoading.value = true
   detailError.value = null
   characterAvailability.value[name] = 'loading'
@@ -1416,18 +1460,19 @@ const loadCharacterDetails = async (name: string, options: { profile?: Character
   try {
     const profilePromise = options.profile
       ? Promise.resolve(options.profile)
-      : lostarkApi.getCharacter(name).then(res => res.data)
+      : lostarkApi.getCharacter(name, { force: options.forceRefresh }).then(res => res.data)
 
     const [profile, equipmentResponse, engravingsResponse] = await Promise.all([
       profilePromise,
-      lostarkApi.getEquipment(name),
-      lostarkApi.getEngravings(name)
+      lostarkApi.getEquipment(name, { force: options.forceRefresh }),
+      lostarkApi.getEngravings(name, { force: options.forceRefresh })
     ])
 
     selectedCharacterProfile.value = profile
     detailEquipment.value = equipmentResponse.data
     detailEngravings.value = engravingsResponse.data
     characterAvailability.value[name] = 'available'
+    lastRefreshedAt.value = new Date()
   } catch (err: any) {
     characterAvailability.value[name] = 'unavailable'
     selectedCharacterProfile.value = options.profile || null
@@ -1444,19 +1489,19 @@ const loadCharacterDetails = async (name: string, options: { profile?: Character
   }
 }
 
-const ensureSkillData = async () => {
+const ensureSkillData = async (options: { forceRefresh?: boolean } = {}) => {
   const targetName = character.value?.characterName
   if (!targetName) return
   if (skillLoading.value) return
-  if (skillLoadedFor.value === targetName && skillResponse.value) return
-  await loadSkillData(targetName)
+  if (!options.forceRefresh && skillLoadedFor.value === targetName && skillResponse.value) return
+  await loadSkillData(targetName, options)
 }
 
-const loadSkillData = async (name: string) => {
+const loadSkillData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
   skillLoading.value = true
   skillError.value = null
   try {
-    const response = await lostarkApi.getSkills(name)
+    const response = await lostarkApi.getSkills(name, { force: options.forceRefresh })
     skillResponse.value = response.data
     skillLoadedFor.value = name
   } catch (err: any) {
@@ -1472,19 +1517,19 @@ const loadSkillData = async (name: string) => {
   }
 }
 
-const ensureCollectiblesData = async () => {
+const ensureCollectiblesData = async (options: { forceRefresh?: boolean } = {}) => {
   const targetName = character.value?.characterName
   if (!targetName) return
   if (collectiblesLoading.value) return
-  if (collectiblesLoadedFor.value === targetName && collectibles.value.length) return
-  await loadCollectiblesData(targetName)
+  if (!options.forceRefresh && collectiblesLoadedFor.value === targetName && collectibles.value.length) return
+  await loadCollectiblesData(targetName, options)
 }
 
-const loadCollectiblesData = async (name: string) => {
+const loadCollectiblesData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
   collectiblesLoading.value = true
   collectiblesError.value = null
   try {
-    const response = await lostarkApi.getCollectibles(name)
+    const response = await lostarkApi.getCollectibles(name, { force: options.forceRefresh })
     collectibles.value = response.data
     collectiblesLoadedFor.value = name
   } catch (err: any) {
@@ -1500,19 +1545,19 @@ const loadCollectiblesData = async (name: string) => {
   }
 }
 
-const ensureArkGridData = async () => {
+const ensureArkGridData = async (options: { forceRefresh?: boolean } = {}) => {
   const targetName = character.value?.characterName
   if (!targetName) return
   if (arkGridLoading.value) return
-  if (arkGridLoadedFor.value === targetName && arkGridResponse.value) return
-  await loadArkGridData(targetName)
+  if (!options.forceRefresh && arkGridLoadedFor.value === targetName && arkGridResponse.value) return
+  await loadArkGridData(targetName, options)
 }
 
-const loadArkGridData = async (name: string) => {
+const loadArkGridData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
   arkGridLoading.value = true
   arkGridError.value = null
   try {
-    const response = await lostarkApi.getArkGrid(name)
+    const response = await lostarkApi.getArkGrid(name, { force: options.forceRefresh })
     arkGridResponse.value = response.data
     arkGridLoadedFor.value = name
   } catch (err: any) {
@@ -2214,6 +2259,42 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   height: fit-content;
   overflow: visible;
   max-width: 350px;
+}
+
+.overview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.refresh-button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.refresh-button:hover,
+.refresh-button:focus-visible {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.refresh-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh-timestamp {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: calc(0.95rem - 2px);
+  white-space: nowrap;
 }
 
 .hero-row {
