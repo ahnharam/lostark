@@ -9,6 +9,11 @@ const router = createRouter({
       name: 'character-search',
       component: CharacterSearch,
     },
+    {
+      path: '/reforge',
+      name: 'reforge',
+      component: CharacterSearch,
+    },
   ],
 })
 

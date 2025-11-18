@@ -16,7 +16,7 @@
       :alt="alt"
       :class="imageClass"
       :referrerpolicy="referrerPolicy"
-      crossorigin="anonymous"
+      :crossorigin="crossOrigin || null"
       @load="onLoad"
       @error="onError"
     />
@@ -76,6 +76,7 @@ interface Props {
   lazy?: boolean
   referrerPolicy?: ReferrerPolicy
   useProxy?: boolean
+  crossOrigin?: '' | 'anonymous' | 'use-credentials'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,7 +89,8 @@ const props = withDefaults(defineProps<Props>(), {
   showSkeleton: true,
   lazy: false,  // lazy를 false로 변경하여 즉시 로드
   referrerPolicy: 'no-referrer',
-  useProxy: true
+  useProxy: true,
+  crossOrigin: ''
 })
 
 const imgRef = ref<HTMLImageElement | null>(null)
@@ -240,9 +242,6 @@ watch(
 <style scoped>
 .lazy-image-wrapper {
   position: relative;
-  display: inline-block;
-  overflow: hidden;
-  /* background: var(--bg-secondary); */
 }
 
 .lazy-image-wrapper img {

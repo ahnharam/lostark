@@ -34,6 +34,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { parseEngravingDescription } from '@/utils/engravingParser'
+import { ENGRAVING_ICON_MAP } from '@/assets/BuffImage'
 import { stripHtml } from '@/utils/tooltipParser'
 import type { Engraving } from '@/api/types'
 import LazyImage from './LazyImage.vue'
@@ -48,7 +49,12 @@ const parsedData = computed(() => parseEngravingDescription(props.engraving.desc
 
 const displayName = computed(() => props.engraving.name || parsedData.value.name || '각인')
 
-const iconSrc = computed(() => props.engraving.icon?.trim() || '')
+const iconSrc = computed(() => {
+  const explicit = props.engraving.icon?.trim()
+  if (explicit) return explicit
+  const key = displayName.value.trim()
+  return key && ENGRAVING_ICON_MAP[key] ? ENGRAVING_ICON_MAP[key] : ''
+})
 
 const engravingInitial = computed(() => displayName.value.charAt(0) || '?')
 

@@ -151,7 +151,7 @@
               </button>
             </li>
           </ul>
-          <p class="sidebar-footnote">재련, 경매, 생활 메뉴는 순차적으로 공개됩니다.</p>
+          <p class="sidebar-footnote">경매, 생활 메뉴는 순차적으로 공개됩니다.</p>
         </div>
       </aside>
     </transition>
@@ -161,7 +161,8 @@
         <span>광고 영역</span>
       </aside>
       <main class="main-content">
-        <div class="search-container">
+        <ReforgeMenu v-if="activeSiteMenu === 'reforge'" />
+        <div v-else class="search-container">
           <section class="states-section" v-if="false">
             <h2>States</h2>
             <div class="states-grid">
@@ -642,7 +643,7 @@
     </div>
   </div>
   <div
-    v-if="isHeroImagePopupOpen && hasCharacterImage"
+    v-if="activeSiteMenu === 'character-search' && isHeroImagePopupOpen && hasCharacterImage"
     class="character-portrait-overlay"
     @click.self="closeHeroImagePopup"
   >
@@ -686,6 +687,7 @@ import ArkGridPanel from './common/ArkGridPanel.vue'
 import SkillPanel from './common/SkillPanel.vue'
 import CollectionPanel from './common/CollectionPanel.vue'
 import RankingTab from './ranking/RankingTab.vue'
+import ReforgeMenu from './ReforgeMenu.vue'
 import { useTheme } from '@/composables/useTheme'
 import type { Suggestion } from './common/AutocompleteInput.vue'
 
@@ -761,10 +763,11 @@ const siteMenuItems: SiteMenuItem[] = [
   {
     key: 'reforge',
     label: '재련',
-    description: '재련 확률과 필요 재료 계산 기능을 준비하고 있어요.',
+    description: '제련/상급 제련 재료와 확률을 한눈에 확인하세요.',
     icon: '⚒️',
-    available: false,
-    badge: '준비 중'
+    available: true,
+    routeName: 'reforge',
+    badge: 'NEW'
   },
   {
     key: 'auction',

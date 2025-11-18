@@ -103,11 +103,35 @@
             </div>
 
             <!-- 각인 효과 -->
-            <div v-if="parsedData.engravingEffects && parsedData.engravingEffects.length > 0" class="engraving-section">
+            <div v-if="engravingEffectItems.length > 0" class="engraving-section">
               <div class="section-title">📜 각인 효과</div>
               <div class="effect-list">
-                <div v-for="(effect, idx) in parsedData.engravingEffects" :key="`engraving-${idx}`" class="effect-item engraving">
-                  {{ effect }}
+                <div
+                  v-for="(effect, idx) in engravingEffectItems"
+                  :key="`engraving-${idx}`"
+                  class="effect-item engraving"
+                >
+                  <div class="engraving-icon-wrapper">
+                    <LazyImage
+                      v-if="effect.icon"
+                      :src="effect.icon"
+                      :alt="effect.name || '각인 아이콘'"
+                      width="32"
+                      height="32"
+                      imageClass="engraving-icon-img"
+                      errorIcon="📜"
+                      :lazy="false"
+                      :showSkeleton="false"
+                      :useProxy="false"
+                      crossOrigin=""
+                    />
+                    <div v-else class="engraving-icon-fallback">
+                      {{ effect.fallback }}
+                    </div>
+                  </div>
+                  <div class="engraving-text">
+                    {{ effect.text }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -117,9 +141,33 @@
         <!-- 각인 탭 -->
         <div v-show="activeTab === 'engravings'" class="tab-content">
           <div class="section-title">활성 각인 효과</div>
-          <div v-if="parsedData.engravingEffects && parsedData.engravingEffects.length > 0" class="effect-list">
-            <div v-for="(effect, idx) in parsedData.engravingEffects" :key="`engraving-tab-${idx}`" class="effect-item engraving">
-              {{ effect }}
+          <div v-if="engravingEffectItems.length > 0" class="effect-list">
+            <div
+              v-for="(effect, idx) in engravingEffectItems"
+              :key="`engraving-tab-${idx}`"
+              class="effect-item engraving"
+            >
+              <div class="engraving-icon-wrapper">
+                <LazyImage
+                  v-if="effect.icon"
+                  :src="effect.icon"
+                  :alt="effect.name || '각인 아이콘'"
+                  width="32"
+                  height="32"
+                  imageClass="engraving-icon-img"
+                  errorIcon="📜"
+                  :lazy="false"
+                  :showSkeleton="false"
+                  :useProxy="false"
+                  crossOrigin=""
+                />
+                <div v-else class="engraving-icon-fallback">
+                  {{ effect.fallback }}
+                </div>
+              </div>
+              <div class="engraving-text">
+                {{ effect.text }}
+              </div>
             </div>
           </div>
           <div v-else class="empty-state">
@@ -151,6 +199,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { parseTooltip, getQualityColor, getGradeColor, type ParsedTooltip } from '@/utils/tooltipParser'
+import { ENGRAVING_ICON_MAP } from '@/assets/BuffImage'
 import LazyImage from './LazyImage.vue'
 import type { Equipment } from '@/api/types'
 
@@ -160,6 +209,13 @@ interface Props {
   characterClass?: string
   characterLevel?: string | number
   showRawData?: boolean
+}
+
+interface EngravingEffectItem {
+  text: string
+  name: string
+  icon: string
+  fallback: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -192,6 +248,44 @@ const qualityColor = computed(() => {
 
 const gradeColor = computed(() => {
   return getGradeColor(props.equipment.grade)
+})
+
+const engravingNames = Object.keys(ENGRAVING_ICON_MAP)
+
+const normalize = (text: string) => text.replace(/[^가-힣A-Za-z0-9]/g, '').toLowerCase()
+
+const extractEngravingName = (effect: string): string => {
+  if (!effect) return ''
+
+  const cleaned = effect.replace(/\[[^\]]+]/g, '').trim()
+  const normalizedEffect = normalize(cleaned)
+
+  // 이름 길이 순으로 우선 매칭 (부분 매칭 포함)
+  const matchedName = engravingNames
+    .slice()
+    .sort((a, b) => b.length - a.length)
+    .find(name => {
+      const normalizedName = normalize(name)
+      return normalizedName && normalizedEffect.includes(normalizedName)
+    })
+
+  if (matchedName) return matchedName
+
+  const levelMatch = cleaned.match(/(.+?)(?:\s*(?:Lv\.?\s*\d+|활성도|노드|레벨)\b)/i)
+  if (levelMatch) return levelMatch[1].trim()
+  const plusMatch = cleaned.match(/(.+?)\s*\+\s*\d+/)
+  if (plusMatch) return plusMatch[1].trim()
+  return cleaned.split(/\s+/)[0] || ''
+}
+
+const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
+  const effects = parsedData.value.engravingEffects || []
+  return effects.map(effect => {
+    const name = extractEngravingName(effect)
+    const icon = (name && ENGRAVING_ICON_MAP[name]) || ''
+    const fallback = (name || effect || '각').trim().charAt(0) || '각'
+    return { text: effect, name, icon, fallback }
+  })
 })
 </script>
 
@@ -541,6 +635,49 @@ const gradeColor = computed(() => {
   background: var(--primary-soft-bg, rgba(59, 130, 246, 0.1));
   border-left-color: var(--primary-color, #3b82f6);
   color: var(--text-primary);
+}
+
+.effect-item.engraving {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.engraving-icon-wrapper {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.engraving-icon-img {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.engraving-icon-fallback {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.engraving-text {
+  flex: 1;
+  line-height: 1.5;
 }
 
 /* 세트 효과 */
