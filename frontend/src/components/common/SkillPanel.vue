@@ -114,20 +114,24 @@
                     </p>
                   </div>
                 </div>
-                <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="tripod-detail-inline gem-detail">
-                  <div class="tripod-inline-icon">
-                    <span class="gem-icon-wrapper">💎</span>
+                <div v-if="skill.gemBadges.length" class="skill-gem-row">
+                  <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
+                    <LazyImage
+                      v-if="gem.icon"
+                      :src="gem.icon"
+                      :alt="gem.name"
+                      width="32"
+                      height="32"
+                      imageClass="skill-gem-icon-img"
+                      errorIcon="💎"
+                      :useProxy="true"
+                    />
+                    <span v-else class="skill-gem-icon-fallback">💎</span>
+                    <div class="skill-gem-info">
+                      <span class="skill-gem-name">{{ gem.name }}</span>
+                      <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                    </div>
                   </div>
-                  <div class="tripod-inline-name">
-                    <span class="tripod-name">{{ gem.name }}</span>
-                    <span v-if="gem.levelLabel" class="tripod-level">{{ gem.levelLabel }}</span>
-                  </div>
-                  <span class="tripod-desc">
-                    <span v-if="gem.effectLabel" class="gem-effect-label">{{ gem.effectLabel }}</span>
-                    {{ gem.effectText }}
-                    <span v-if="gem.extraEffect" class="gem-extra-effect">추가 효과: {{ gem.extraEffect }}</span>
-                  </span>
-                  <span class="tripod-slot">{{ gem.effectLabel || '보석' }}</span>
                 </div>
               </div>
             </div>
@@ -252,20 +256,24 @@
                               </div>
                             </div>
                           </div>
-                          <div v-for="gem in pair.left.gemBadges" :key="`gem-${pair.left.key}-${gem.key}`" class="tripod-detail-inline gem-detail">
-                            <div class="tripod-inline-icon">
-                              <span class="gem-icon-wrapper">💎</span>
+                          <div v-if="pair.left.gemBadges.length" class="skill-gem-row">
+                            <div v-for="gem in pair.left.gemBadges" :key="`gem-${pair.left.key}-${gem.key}`" class="skill-gem-item">
+                              <LazyImage
+                                v-if="gem.icon"
+                                :src="gem.icon"
+                                :alt="gem.name"
+                                width="32"
+                                height="32"
+                                imageClass="skill-gem-icon-img"
+                                errorIcon="💎"
+                                :useProxy="true"
+                              />
+                              <span v-else class="skill-gem-icon-fallback">💎</span>
+                              <div class="skill-gem-info">
+                                <span class="skill-gem-name">{{ gem.name }}</span>
+                                <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                              </div>
                             </div>
-                            <div class="tripod-inline-name">
-                              <span class="tripod-name">{{ gem.name }}</span>
-                              <span v-if="gem.levelLabel" class="tripod-level">{{ gem.levelLabel }}</span>
-                            </div>
-                            <span class="tripod-desc">
-                              <span v-if="gem.effectLabel" class="gem-effect-label">{{ gem.effectLabel }}</span>
-                              {{ gem.effectText }}
-                              <span v-if="gem.extraEffect" class="gem-extra-effect">추가 효과: {{ gem.extraEffect }}</span>
-                            </span>
-                            <span class="tripod-slot">{{ gem.effectLabel || '보석' }}</span>
                           </div>
                         </div>
                       </article>
@@ -369,20 +377,24 @@
                               </div>
                             </div>
                           </div>
-                          <div v-for="gem in pair.right.gemBadges" :key="`gem-${pair.right.key}-${gem.key}`" class="tripod-detail-inline gem-detail">
-                            <div class="tripod-inline-icon">
-                              <span class="gem-icon-wrapper">💎</span>
+                          <div v-if="pair.right.gemBadges.length" class="skill-gem-row">
+                            <div v-for="gem in pair.right.gemBadges" :key="`gem-${pair.right.key}-${gem.key}`" class="skill-gem-item">
+                              <LazyImage
+                                v-if="gem.icon"
+                                :src="gem.icon"
+                                :alt="gem.name"
+                                width="32"
+                                height="32"
+                                imageClass="skill-gem-icon-img"
+                                errorIcon="💎"
+                                :useProxy="true"
+                              />
+                              <span v-else class="skill-gem-icon-fallback">💎</span>
+                              <div class="skill-gem-info">
+                                <span class="skill-gem-name">{{ gem.name }}</span>
+                                <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                              </div>
                             </div>
-                            <div class="tripod-inline-name">
-                              <span class="tripod-name">{{ gem.name }}</span>
-                              <span v-if="gem.levelLabel" class="tripod-level">{{ gem.levelLabel }}</span>
-                            </div>
-                            <span class="tripod-desc">
-                              <span v-if="gem.effectLabel" class="gem-effect-label">{{ gem.effectLabel }}</span>
-                              {{ gem.effectText }}
-                              <span v-if="gem.extraEffect" class="gem-extra-effect">추가 효과: {{ gem.extraEffect }}</span>
-                            </span>
-                            <span class="tripod-slot">{{ gem.effectLabel || '보석' }}</span>
                           </div>
                         </div>
                       </article>
@@ -481,20 +493,24 @@
                             {{ getRuneAffixView(skill.rune, skill.runeEffect)!.text }}
                           </p>
                       </div>
-                      <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="tripod-detail-inline gem-detail">
-                        <div class="tripod-inline-icon">
-                          <span class="gem-icon-wrapper">💎</span>
+                      <div v-if="skill.gemBadges.length" class="skill-gem-row">
+                        <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
+                          <LazyImage
+                            v-if="gem.icon"
+                            :src="gem.icon"
+                            :alt="gem.name"
+                            width="32"
+                            height="32"
+                            imageClass="skill-gem-icon-img"
+                            errorIcon="💎"
+                            :useProxy="true"
+                          />
+                          <span v-else class="skill-gem-icon-fallback">💎</span>
+                          <div class="skill-gem-info">
+                            <span class="skill-gem-name">{{ gem.name }}</span>
+                            <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                          </div>
                         </div>
-                        <div class="tripod-inline-name">
-                          <span class="tripod-name">{{ gem.name }}</span>
-                          <span v-if="gem.levelLabel" class="tripod-level">{{ gem.levelLabel }}</span>
-                        </div>
-                        <span class="tripod-desc">
-                          <span v-if="gem.effectLabel" class="gem-effect-label">{{ gem.effectLabel }}</span>
-                          {{ gem.effectText }}
-                          <span v-if="gem.extraEffect" class="gem-extra-effect">추가 효과: {{ gem.extraEffect }}</span>
-                        </span>
-                        <span class="tripod-slot">{{ gem.effectLabel || '보석' }}</span>
                       </div>
                     </div>
                   </div>
@@ -683,6 +699,7 @@ interface SkillRuneView {
 interface SkillGemBadge {
   key: string
   name: string
+  icon?: string
   levelLabel?: string
   effectText?: string
   effectLabel?: string
@@ -970,6 +987,7 @@ const gemBadgesBySkill = computed(() => {
     const badge: SkillGemBadge = {
       key: `${skillName}-${index}`,
       name: sanitizeInline(gem.name) || '보석',
+      icon: gem.icon || undefined,
       levelLabel: formatLevelLabel(gem.level),
       effectText: sanitizeInline(effectTextRaw),
       effectLabel
@@ -990,6 +1008,7 @@ const gemBadgesBySkill = computed(() => {
     const badge: SkillGemBadge = {
       key: `${skillName}-effect-${index}`,
       name: sanitizeInline(effect?.Name) || '보석',
+      icon: effect?.Icon || undefined,
       levelLabel: sanitizeInline(effect?.Option),
       effectText,
       effectLabel: normalizeGemEffectLabel(effectText)
@@ -1006,6 +1025,7 @@ const gemBadgesBySkill = computed(() => {
     const badge: SkillGemBadge = {
       key: `${skillName}-inv-${index}`,
       name: sanitizeInline(gem?.Name) || '보석',
+      icon: gem?.Icon || undefined,
       levelLabel: formatLevelLabel(gem?.Level),
       effectText: parsed.effectText,
       extraEffect: parsed.extraEffect,
@@ -2008,37 +2028,53 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   color: var(--text-secondary, #374151);
 }
 
-/* Gem detail styles (tripod-like layout) */
-.gem-detail {
-  background: rgba(16, 185, 129, 0.05);
-  border-left: 3px solid rgba(16, 185, 129, 0.4);
+/* Gem inline row styles */
+.skill-gem-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
 }
 
-.gem-icon-wrapper {
+.skill-gem-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-gem-icon-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+}
+
+.skill-gem-icon-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
 }
 
-.gem-effect-label {
-  display: inline-block;
-  padding: 2px 8px;
-  margin-right: 6px;
-  background: rgba(16, 185, 129, 0.15);
-  border-radius: 4px;
+.skill-gem-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-gem-name {
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-primary, #1f2937);
-  font-size: 0.75rem;
+  line-height: 1;
 }
 
-.gem-extra-effect {
-  display: block;
-  margin-top: 4px;
-  font-style: italic;
-  color: var(--text-secondary, #6b7280);
+.skill-gem-level {
+  font-size: 0.7rem;
+  color: var(--text-muted, #6b7280);
+  line-height: 1;
 }
 
 @media (max-width: 768px) {
