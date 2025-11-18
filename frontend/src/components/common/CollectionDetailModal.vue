@@ -45,15 +45,15 @@
             <div class="status-card collected">
               <div class="status-icon">✓</div>
               <div class="status-info">
-                <div class="status-label">수집 포인트</div>
-                <div class="status-value">{{ formatNumber(collection.point || 0) }}</div>
+                <div class="status-label">수집 완료</div>
+                <div class="status-value">{{ collectedItems.length }}개</div>
               </div>
             </div>
             <div class="status-card remaining">
               <div class="status-icon">○</div>
               <div class="status-info">
-                <div class="status-label">남은 포인트</div>
-                <div class="status-value">{{ formatNumber(remainingPoints) }}</div>
+                <div class="status-label">미수집</div>
+                <div class="status-value">{{ uncollectedItems.length }}개</div>
               </div>
             </div>
             <div class="status-card reward">
@@ -65,60 +65,76 @@
             </div>
           </div>
 
-          <!-- 다음 보상 정보 -->
-          <div v-if="remainingPoints > 0" class="next-reward-section">
+          <!-- 수집 목록 (좌우 레이아웃) -->
+          <div v-if="hasCollectiblePoints" class="collections-section">
             <div class="section-title">
-              <span class="title-icon">🎯</span>
-              <h3>다음 목표</h3>
+              <span class="title-icon">📋</span>
+              <h3>수집 목록</h3>
             </div>
-            <div class="next-reward-card">
-              <div class="reward-level">Lv. {{ (collection.collectibleLevel || 0) + 1 }}</div>
-              <div class="reward-progress">
-                <span>{{ remainingPoints }} 포인트 남음</span>
-                <span class="reward-hint">계속 수집하여 다음 보상을 획득하세요!</span>
+
+            <div class="collections-grid">
+              <!-- 수집 완료 목록 (왼쪽) -->
+              <div class="collection-column collected-column">
+                <div class="column-header">
+                  <span class="column-icon">✓</span>
+                  <h4>수집 완료</h4>
+                  <span class="column-count">{{ collectedItems.length }}</span>
+                </div>
+                <div class="items-list">
+                  <div
+                    v-for="(item, index) in collectedItems"
+                    :key="`collected-${index}`"
+                    class="item-card collected-item"
+                  >
+                    <div class="item-name">{{ item.pointName }}</div>
+                    <div class="item-progress">
+                      <span class="item-points complete">{{ formatNumber(item.point) }} / {{ formatNumber(item.maxPoint) }}</span>
+                      <span class="completion-badge">완료</span>
+                    </div>
+                  </div>
+                  <div v-if="collectedItems.length === 0" class="empty-list">
+                    <span class="empty-icon">📭</span>
+                    <p>아직 수집한 항목이 없습니다</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 미수집 목록 (오른쪽) -->
+              <div class="collection-column uncollected-column">
+                <div class="column-header">
+                  <span class="column-icon">○</span>
+                  <h4>미수집</h4>
+                  <span class="column-count">{{ uncollectedItems.length }}</span>
+                </div>
+                <div class="items-list">
+                  <div
+                    v-for="(item, index) in uncollectedItems"
+                    :key="`uncollected-${index}`"
+                    class="item-card uncollected-item"
+                  >
+                    <div class="item-name">{{ item.pointName }}</div>
+                    <div class="item-progress">
+                      <span class="item-points incomplete">{{ formatNumber(item.point) }} / {{ formatNumber(item.maxPoint) }}</span>
+                      <div class="mini-progress-bar">
+                        <div class="mini-progress-fill" :style="{ width: `${getItemCompletion(item)}%` }"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="uncollectedItems.length === 0" class="empty-list">
+                    <span class="empty-icon">🎉</span>
+                    <p>모든 항목을 수집했습니다!</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- 완료 메시지 -->
-          <div v-else class="completion-message">
-            <div class="completion-icon">🎉</div>
-            <h3>수집 완료!</h3>
-            <p>이 수집품의 모든 포인트를 획득했습니다.</p>
-          </div>
-
-          <!-- 상세 정보 섹션 -->
-          <div class="detail-section">
-            <div class="section-title">
-              <span class="title-icon">📊</span>
-              <h3>상세 정보</h3>
-            </div>
-            <div class="detail-list">
-              <div class="detail-item">
-                <span class="detail-label">수집품 유형</span>
-                <span class="detail-value">{{ collection.type || '알 수 없음' }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">현재 포인트</span>
-                <span class="detail-value">{{ formatNumber(collection.point || 0) }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">최대 포인트</span>
-                <span class="detail-value">{{ formatNumber(collection.maxPoint || 0) }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">보상 단계</span>
-                <span class="detail-value">{{ collection.collectibleLevel || 0 }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 안내 메시지 -->
-          <div class="info-notice">
+          <!-- CollectiblePoints가 없는 경우 안내 -->
+          <div v-else class="info-notice">
             <div class="notice-icon">ℹ️</div>
             <p>
-              개별 수집 아이템의 상세 목록은 로스트아크 게임 내에서 확인할 수 있습니다.
-              현재 화면에서는 전체 진행 상황을 표시합니다.
+              이 수집품의 상세 목록 정보는 현재 제공되지 않습니다.
+              전체 진행 상황만 확인할 수 있습니다.
             </p>
           </div>
         </div>
@@ -134,7 +150,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import LazyImage from '@/components/common/LazyImage.vue'
-import type { Collectible } from '@/api/types'
+import type { Collectible, CollectiblePoint } from '@/api/types'
 
 const props = defineProps<{
   show: boolean
@@ -158,16 +174,54 @@ const remainingPoints = computed(() => {
   return Math.max(0, maxPoint - point)
 })
 
+const hasCollectiblePoints = computed(() => {
+  return props.collection.collectiblePoints && props.collection.collectiblePoints.length > 0
+})
+
+// 수집 완료된 항목들 (Point === MaxPoint)
+const collectedItems = computed(() => {
+  if (!hasCollectiblePoints.value) return []
+  return (props.collection.collectiblePoints || [])
+    .filter(item => {
+      const point = item.point || 0
+      const maxPoint = item.maxPoint || 0
+      return maxPoint > 0 && point >= maxPoint
+    })
+    .sort((a, b) => (a.pointName || '').localeCompare(b.pointName || ''))
+})
+
+// 미수집 또는 진행 중인 항목들 (Point < MaxPoint)
+const uncollectedItems = computed(() => {
+  if (!hasCollectiblePoints.value) return []
+  return (props.collection.collectiblePoints || [])
+    .filter(item => {
+      const point = item.point || 0
+      const maxPoint = item.maxPoint || 0
+      return maxPoint > 0 && point < maxPoint
+    })
+    .sort((a, b) => {
+      // 진행도가 높은 순으로 정렬 (진행 중인 것 우선)
+      const progressA = ((a.point || 0) / (a.maxPoint || 1)) * 100
+      const progressB = ((b.point || 0) / (b.maxPoint || 1)) * 100
+      return progressB - progressA
+    })
+})
+
+const getItemCompletion = (item: CollectiblePoint) => {
+  const point = item.point || 0
+  const maxPoint = item.maxPoint || 0
+  if (maxPoint === 0) return 0
+  return Math.min(100, (point / maxPoint) * 100)
+}
+
 const formatNumber = (value?: number) => {
   if (typeof value !== 'number' || Number.isNaN(value)) return '0'
   return value.toLocaleString()
 }
 
 const handleOverlayClick = () => {
-  // 오버레이 클릭 시 모달 닫기
-  // @click.stop으로 모달 내부 클릭은 전파되지 않음
-  // 필요시 주석 처리하여 오버레이 클릭으로 닫기 비활성화
-  // props.$emit('close')
+  // 오버레이 클릭 시 모달 닫기 (선택사항)
+  // $emit('close')
 }
 </script>
 
@@ -192,7 +246,7 @@ const handleOverlayClick = () => {
   border-radius: 1.5rem;
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
   width: 100%;
-  max-width: 600px;
+  max-width: 1000px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -389,102 +443,183 @@ const handleOverlayClick = () => {
   color: var(--text-primary, #fff);
 }
 
-.next-reward-section {
+.collections-section {
   padding: 1.25rem;
-  background: var(--card-bg, rgba(255, 255, 255, 0.04));
-  border-radius: 1rem;
-  border: 1px dashed var(--border-color, rgba(255, 255, 255, 0.15));
-}
-
-.next-reward-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
-  border-radius: 0.75rem;
-}
-
-.reward-level {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #fbbf24;
-  padding: 0.5rem 1rem;
-  background: rgba(251, 191, 36, 0.1);
-  border-radius: 0.5rem;
-}
-
-.reward-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.reward-progress span {
-  font-size: 0.9rem;
-  color: var(--text-primary, #fff);
-}
-
-.reward-hint {
-  font-size: 0.8rem !important;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.6)) !important;
-}
-
-.completion-message {
-  text-align: center;
-  padding: 2rem 1rem;
-  background: linear-gradient(135deg, rgba(110, 231, 183, 0.1), rgba(59, 130, 246, 0.1));
-  border-radius: 1rem;
-  border: 1px solid rgba(110, 231, 183, 0.3);
-}
-
-.completion-icon {
-  font-size: 3rem;
-  margin-bottom: 0.75rem;
-}
-
-.completion-message h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.3rem;
-  color: #6ee7b7;
-}
-
-.completion-message p {
-  margin: 0;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-}
-
-.detail-section {
-  padding: 1.25rem;
-  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  background: var(--card-bg, rgba(255, 255, 255, 0.02));
   border-radius: 1rem;
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
 }
 
-.detail-list {
+.collections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.collection-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.collected-column .column-header {
+  background: rgba(110, 231, 183, 0.1);
+  border: 1px solid rgba(110, 231, 183, 0.2);
+}
+
+.uncollected-column .column-header {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.column-icon {
+  font-size: 1.1rem;
+}
+
+.column-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary, #fff);
+  flex: 1;
+}
+
+.column-count {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.1));
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.items-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  overflow-y: auto;
+  max-height: 500px;
+  padding-right: 0.5rem;
 }
 
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
+.items-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.items-list::-webkit-scrollbar-track {
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
+  border-radius: 3px;
+}
+
+.items-list::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.2));
+  border-radius: 3px;
+}
+
+.items-list::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.3));
+}
+
+.item-card {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
   background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
-  border-radius: 0.5rem;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  transition: all 0.2s;
 }
 
-.detail-label {
+.item-card:hover {
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.06));
+  border-color: var(--border-color, rgba(255, 255, 255, 0.15));
+}
+
+.collected-item {
+  border-left: 3px solid rgba(110, 231, 183, 0.5);
+}
+
+.uncollected-item {
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+}
+
+.item-name {
   font-size: 0.9rem;
+  color: var(--text-primary, #fff);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.item-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.item-points {
+  font-size: 0.8rem;
   color: var(--text-secondary, rgba(255, 255, 255, 0.7));
 }
 
-.detail-value {
-  font-size: 0.95rem;
+.item-points.complete {
+  color: #6ee7b7;
+}
+
+.item-points.incomplete {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.completion-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  background: rgba(110, 231, 183, 0.2);
+  border: 1px solid rgba(110, 231, 183, 0.3);
+  border-radius: 999px;
+  color: #6ee7b7;
   font-weight: 600;
-  color: var(--text-primary, #fff);
+}
+
+.mini-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.08));
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.empty-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty-list p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
 }
 
 .info-notice {
@@ -533,7 +668,7 @@ const handleOverlayClick = () => {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .modal-container {
     max-width: 100%;
     margin: 0;
@@ -554,6 +689,15 @@ const handleOverlayClick = () => {
 
   .status-cards {
     grid-template-columns: 1fr;
+  }
+
+  .collections-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .items-list {
+    max-height: 300px;
   }
 }
 </style>

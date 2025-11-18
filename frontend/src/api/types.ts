@@ -37,6 +37,12 @@ export interface Engraving {
   abilityStoneLevel?: number | null
 }
 
+export interface CollectiblePoint {
+  pointName?: string
+  point?: number
+  maxPoint?: number
+}
+
 export interface Collectible {
   collectibleId?: number
   collectibleLevel?: number
@@ -44,6 +50,7 @@ export interface Collectible {
   maxPoint?: number
   type?: string
   icon?: string
+  collectiblePoints?: CollectiblePoint[]
 }
 
 export interface SiblingCharacter {
