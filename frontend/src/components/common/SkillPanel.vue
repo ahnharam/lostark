@@ -116,20 +116,28 @@
                 </div>
                 <div v-if="skill.gemBadges.length" class="skill-gem-row">
                   <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
-                    <LazyImage
-                      v-if="gem.icon"
-                      :src="gem.icon"
-                      :alt="gem.name"
-                      width="32"
-                      height="32"
-                      imageClass="skill-gem-icon-img"
-                      errorIcon="💎"
-                      :useProxy="true"
-                    />
-                    <span v-else class="skill-gem-icon-fallback">💎</span>
-                    <div class="skill-gem-info">
-                      <span class="skill-gem-name">{{ gem.name }}</span>
-                      <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                    <div class="skill-gem-main">
+                      <LazyImage
+                        v-if="gem.icon"
+                        :src="gem.icon"
+                        :alt="gem.name"
+                        width="32"
+                        height="32"
+                        imageClass="skill-gem-icon-img"
+                        errorIcon="💎"
+                        :useProxy="true"
+                      />
+                      <span v-else class="skill-gem-icon-fallback">💎</span>
+                      <div class="skill-gem-info">
+                        <span class="skill-gem-name">{{ gem.name }}</span>
+                        <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                      </div>
+                    </div>
+                    <div v-if="gem.effectText" class="skill-gem-effect">
+                      {{ gem.effectText }}
+                    </div>
+                    <div v-if="gem.extraEffect" class="skill-gem-extra">
+                      {{ gem.extraEffect }}
                     </div>
                   </div>
                 </div>
@@ -258,20 +266,28 @@
                           </div>
                           <div v-if="pair.left.gemBadges.length" class="skill-gem-row">
                             <div v-for="gem in pair.left.gemBadges" :key="`gem-${pair.left.key}-${gem.key}`" class="skill-gem-item">
-                              <LazyImage
-                                v-if="gem.icon"
-                                :src="gem.icon"
-                                :alt="gem.name"
-                                width="32"
-                                height="32"
-                                imageClass="skill-gem-icon-img"
-                                errorIcon="💎"
-                                :useProxy="true"
-                              />
-                              <span v-else class="skill-gem-icon-fallback">💎</span>
-                              <div class="skill-gem-info">
-                                <span class="skill-gem-name">{{ gem.name }}</span>
-                                <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                              <div class="skill-gem-main">
+                                <LazyImage
+                                  v-if="gem.icon"
+                                  :src="gem.icon"
+                                  :alt="gem.name"
+                                  width="32"
+                                  height="32"
+                                  imageClass="skill-gem-icon-img"
+                                  errorIcon="💎"
+                                  :useProxy="true"
+                                />
+                                <span v-else class="skill-gem-icon-fallback">💎</span>
+                                <div class="skill-gem-info">
+                                  <span class="skill-gem-name">{{ gem.name }}</span>
+                                  <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                                </div>
+                              </div>
+                              <div v-if="gem.effectText" class="skill-gem-effect">
+                                {{ gem.effectText }}
+                              </div>
+                              <div v-if="gem.extraEffect" class="skill-gem-extra">
+                                {{ gem.extraEffect }}
                               </div>
                             </div>
                           </div>
@@ -379,20 +395,28 @@
                           </div>
                           <div v-if="pair.right.gemBadges.length" class="skill-gem-row">
                             <div v-for="gem in pair.right.gemBadges" :key="`gem-${pair.right.key}-${gem.key}`" class="skill-gem-item">
-                              <LazyImage
-                                v-if="gem.icon"
-                                :src="gem.icon"
-                                :alt="gem.name"
-                                width="32"
-                                height="32"
-                                imageClass="skill-gem-icon-img"
-                                errorIcon="💎"
-                                :useProxy="true"
-                              />
-                              <span v-else class="skill-gem-icon-fallback">💎</span>
-                              <div class="skill-gem-info">
-                                <span class="skill-gem-name">{{ gem.name }}</span>
-                                <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                              <div class="skill-gem-main">
+                                <LazyImage
+                                  v-if="gem.icon"
+                                  :src="gem.icon"
+                                  :alt="gem.name"
+                                  width="32"
+                                  height="32"
+                                  imageClass="skill-gem-icon-img"
+                                  errorIcon="💎"
+                                  :useProxy="true"
+                                />
+                                <span v-else class="skill-gem-icon-fallback">💎</span>
+                                <div class="skill-gem-info">
+                                  <span class="skill-gem-name">{{ gem.name }}</span>
+                                  <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                                </div>
+                              </div>
+                              <div v-if="gem.effectText" class="skill-gem-effect">
+                                {{ gem.effectText }}
+                              </div>
+                              <div v-if="gem.extraEffect" class="skill-gem-extra">
+                                {{ gem.extraEffect }}
                               </div>
                             </div>
                           </div>
@@ -495,20 +519,28 @@
                       </div>
                       <div v-if="skill.gemBadges.length" class="skill-gem-row">
                         <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
-                          <LazyImage
-                            v-if="gem.icon"
-                            :src="gem.icon"
-                            :alt="gem.name"
-                            width="32"
-                            height="32"
-                            imageClass="skill-gem-icon-img"
-                            errorIcon="💎"
-                            :useProxy="true"
-                          />
-                          <span v-else class="skill-gem-icon-fallback">💎</span>
-                          <div class="skill-gem-info">
-                            <span class="skill-gem-name">{{ gem.name }}</span>
-                            <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                          <div class="skill-gem-main">
+                            <LazyImage
+                              v-if="gem.icon"
+                              :src="gem.icon"
+                              :alt="gem.name"
+                              width="32"
+                              height="32"
+                              imageClass="skill-gem-icon-img"
+                              errorIcon="💎"
+                              :useProxy="true"
+                            />
+                            <span v-else class="skill-gem-icon-fallback">💎</span>
+                            <div class="skill-gem-info">
+                              <span class="skill-gem-name">{{ gem.name }}</span>
+                              <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                            </div>
+                          </div>
+                          <div v-if="gem.effectText" class="skill-gem-effect">
+                            {{ gem.effectText }}
+                          </div>
+                          <div v-if="gem.extraEffect" class="skill-gem-extra">
+                            {{ gem.extraEffect }}
                           </div>
                         </div>
                       </div>
@@ -978,11 +1010,23 @@ const gemBadgesBySkill = computed(() => {
     const skillName = sanitizeInline(gem.skill?.name) || ''
     const key = normalizeSkillKey(skillName)
     if (!key) return
-    const effectTextRaw =
-      pickGemEffectText(gem.tooltip, gem.skill?.description) ||
-      extractNextLineAfterKeyword(gem.tooltip, '보석 효과') ||
-      extractNextLineAfterKeyword(gem.tooltip, '보석효과') ||
-      sanitizeInline(gem.skill?.description)
+
+    // Parse tooltip to extract effect text and extra effect
+    const parsed = parseGemTooltipMapping(gem.tooltip)
+    let effectTextRaw = ''
+    let extraEffectRaw = ''
+
+    if (parsed) {
+      effectTextRaw = parsed.effectText
+      extraEffectRaw = parsed.extraEffect
+    } else {
+      effectTextRaw =
+        pickGemEffectText(gem.tooltip, gem.skill?.description) ||
+        extractNextLineAfterKeyword(gem.tooltip, '보석 효과') ||
+        extractNextLineAfterKeyword(gem.tooltip, '보석효과') ||
+        sanitizeInline(gem.skill?.description)
+    }
+
     const effectLabel = normalizeGemEffectLabel(effectTextRaw)
     const badge: SkillGemBadge = {
       key: `${skillName}-${index}`,
@@ -990,6 +1034,7 @@ const gemBadgesBySkill = computed(() => {
       icon: gem.icon || undefined,
       levelLabel: formatLevelLabel(gem.level),
       effectText: sanitizeInline(effectTextRaw),
+      extraEffect: extraEffectRaw ? sanitizeInline(extraEffectRaw) : undefined,
       effectLabel
     }
     if (!map.has(key)) {
@@ -2031,22 +2076,31 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 /* Gem inline row styles */
 .skill-gem-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
   margin-top: 8px;
-  align-items: center;
 }
 
 .skill-gem-item {
   display: flex;
   align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.skill-gem-main {
+  display: flex;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .skill-gem-icon-img {
   width: 32px;
   height: 32px;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .skill-gem-icon-fallback {
@@ -2056,12 +2110,14 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-size: 1.5rem;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
 }
 
 .skill-gem-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .skill-gem-name {
@@ -2069,12 +2125,32 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-weight: 600;
   color: var(--text-primary, #1f2937);
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .skill-gem-level {
   font-size: 0.7rem;
   color: var(--text-muted, #6b7280);
   line-height: 1;
+}
+
+.skill-gem-effect {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #374151);
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.skill-gem-extra {
+  font-size: 0.75rem;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.4;
+  font-style: italic;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
