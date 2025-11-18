@@ -76,6 +76,7 @@
           v-for="item in decoratedCollectibles"
           :key="item.collectibleId || item.type"
           class="collection-card"
+          @click="openDetailModal(item)"
         >
           <div class="collection-card-header">
             <LazyImage
@@ -106,18 +107,29 @@
             <span>포인트 비중 {{ item.share }}%</span>
             <span>다음 보상 {{ item.nextLevelLabel }}</span>
           </p>
+          <div class="card-hover-indicator">
+            <span>상세보기</span>
+          </div>
         </article>
       </div>
+
+      <!-- 상세보기 모달 -->
+      <CollectionDetailModal
+        :show="showDetailModal"
+        :collection="selectedCollection"
+        @close="closeDetailModal"
+      />
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LazyImage from '@/components/common/LazyImage.vue'
+import CollectionDetailModal from '@/components/common/CollectionDetailModal.vue'
 import type { Collectible } from '@/api/types'
 
 const props = defineProps<{
@@ -206,6 +218,19 @@ const emptyMessage = computed(() => {
   if (!props.characterName) return '캐릭터를 검색하면 수집 진행도를 확인할 수 있어요.'
   return `'${props.characterName}'의 수집 데이터가 아직 없습니다. 잠시 후 다시 시도해 주세요.`
 })
+
+// 상세보기 모달 관련
+const showDetailModal = ref(false)
+const selectedCollection = ref<Collectible>({})
+
+const openDetailModal = (collection: Collectible) => {
+  selectedCollection.value = collection
+  showDetailModal.value = true
+}
+
+const closeDetailModal = () => {
+  showDetailModal.value = false
+}
 </script>
 
 <style scoped>
@@ -349,6 +374,38 @@ const emptyMessage = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.collection-card:hover {
+  background: var(--card-bg-hover, rgba(255, 255, 255, 0.06));
+  border-color: var(--border-color-hover, rgba(255, 255, 255, 0.2));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.collection-card:hover .card-hover-indicator {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card-hover-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-primary, #fff);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  pointer-events: none;
 }
 
 .collection-card-header {
