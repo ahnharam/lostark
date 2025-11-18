@@ -578,7 +578,8 @@ const slotCards = computed(() => {
     const tooltipLines: SlotTooltipLine[] = coreTooltipLines.map(line => {
       const { label, body } = splitPointLabel(line)
       const linePoint = extractPointFromLine(line)
-      const highlighted = normalizedPoint !== null && linePoint !== null && linePoint <= normalizedPoint
+      // 포인트 요구사항이 없으면 항상 활성화, 있으면 코어 포인트와 비교
+      const highlighted = linePoint === null || (normalizedPoint !== null && linePoint <= normalizedPoint)
       return {
         text: body,
         pointLabel: label,
