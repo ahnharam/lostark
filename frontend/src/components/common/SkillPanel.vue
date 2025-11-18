@@ -652,7 +652,7 @@
         </div>
       </section>
 
-      <section v-if="gemCards.length" class="skill-section skill-section--gems">
+      <!-- <section v-if="gemCards.length" class="skill-section skill-section--gems">
         <div class="section-heading">
           <div>
             <h4>보석 설정</h4>
@@ -686,7 +686,7 @@
             </p>
           </article>
         </div>
-      </section>
+      </section> -->
     </div>
   </div>
 </template>
@@ -2092,7 +2092,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
+  min-width: 175px;
   flex-shrink: 0;
 }
 
