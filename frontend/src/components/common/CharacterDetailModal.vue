@@ -374,7 +374,43 @@ const equipmentWithIds = computed<EquipmentWithId[]>(() =>
 const equipmentList = computed(() =>
   equipmentWithIds.value.filter(item => !isSpecialEquipment(item))
 )
-const armorItems = computed(() => equipmentList.value.filter(item => !isAccessoryEquipment(item)))
+
+// 장비 타입별 우선순위 정의 (작을수록 앞에 표시)
+const getEquipmentOrderPriority = (item: EquipmentWithId): number => {
+  const target = `${item.type ?? ''} ${item.name ?? ''}`.toLowerCase()
+
+  // 머리장식
+  if (matchesKeyword(target, ['투구', '머리', '머리장식', '머리 방어구', '헬멧', '모자'])) {
+    return 1
+  }
+  // 견갑 (어깨)
+  if (matchesKeyword(target, ['어깨', '견갑'])) {
+    return 2
+  }
+  // 상의
+  if (matchesKeyword(target, ['상의', '갑옷', '가슴'])) {
+    return 3
+  }
+  // 하의
+  if (matchesKeyword(target, ['하의', '바지'])) {
+    return 4
+  }
+  // 장갑
+  if (matchesKeyword(target, ['장갑'])) {
+    return 5
+  }
+  // 무기
+  if (matchesKeyword(target, weaponTypeKeywords)) {
+    return 6
+  }
+  // 기타 (허리, 벨트, 장화, 신발 등)
+  return 7
+}
+
+const armorItems = computed(() => {
+  const items = equipmentList.value.filter(item => !isAccessoryEquipment(item))
+  return items.sort((a, b) => getEquipmentOrderPriority(a) - getEquipmentOrderPriority(b))
+})
 const accessoryItems = computed(() => equipmentList.value.filter(item => isAccessoryEquipment(item)))
 
 const equipmentPanels = computed<EquipmentPanel[]>(() => [
