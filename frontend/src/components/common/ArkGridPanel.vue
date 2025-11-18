@@ -516,7 +516,7 @@ const extractGemEffectLines = (lines: string[]) => {
   return sliced.length ? sliced : normalized
 }
 
-const trimChaosCoreLines = (slotName?: string, lines: string[]) => {
+const trimChaosCoreLines = (lines: string[], slotName?: string) => {
   if (!lines || !lines.length) return []
   if (!CHAOS_CORE_PATTERN.test(slotName ?? '')) {
     return lines
@@ -561,6 +561,51 @@ const splitPointLabel = (line: string) => {
   const body = `${prefix} ${suffix}`.trim()
   return { label, body: body || suffix || line }
 }
+
+const splitLinesByPointPattern = (lines: string[]) => {
+  const result: string[] = []
+
+  lines.forEach(line => {
+    if (!line.trim()) return
+
+    // [nP] 패턴을 모두 찾기
+    const regex = /\[(\d+)\s*P\]/gi
+    const matches: Array<{ index: number; match: string }> = []
+    let match
+
+    while ((match = regex.exec(line)) !== null) {
+      matches.push({ index: match.index, match: match[0] })
+    }
+
+    // [nP] 패턴이 없으면 원본 라인 그대로 추가
+    if (matches.length === 0) {
+      result.push(line)
+      return
+    }
+
+    // 첫 번째 [nP] 이전에 텍스트가 있으면 맨 앞에 추가
+    const firstMatch = matches[0]
+    if (firstMatch && firstMatch.index > 0) {
+      const prefix = line.slice(0, firstMatch.index).trim()
+      if (prefix) {
+        result.push(prefix)
+      }
+    }
+
+    // [nP] 패턴이 있으면 각 패턴을 기준으로 분할
+    matches.forEach((m, idx) => {
+      const start = m.index
+      const nextMatch = matches[idx + 1]
+      const end = nextMatch ? nextMatch.index : line.length
+      const segment = line.slice(start, end).trim()
+      if (segment) {
+        result.push(segment)
+      }
+    })
+  })
+
+  return result
+}
 const slotCards = computed(() => {
   return (arkGrid.value?.slots ?? []).map((slot: ArkGridSlot) => {
     const tooltip = parseTooltip(slot.tooltip)
@@ -573,9 +618,11 @@ const slotCards = computed(() => {
           tooltipLines: extractGemEffectLines(gemTooltip.lines)
         }
       }) ?? []
-    const coreTooltipLines = trimChaosCoreLines(slot.name, extractCoreOptionLines(tooltip.lines))
+    const coreTooltipLines = trimChaosCoreLines(extractCoreOptionLines(tooltip.lines), slot.name)
+    // [nP] 패턴을 기준으로 라인을 추가로 분할
+    const splitLines = splitLinesByPointPattern(coreTooltipLines)
     const normalizedPoint = normalizePointValue(slot.point)
-    const tooltipLines: SlotTooltipLine[] = coreTooltipLines.map(line => {
+    const tooltipLines: SlotTooltipLine[] = splitLines.map(line => {
       const { label, body } = splitPointLabel(line)
       const linePoint = extractPointFromLine(line)
       // 포인트 요구사항이 없으면 항상 활성화, 있으면 코어 포인트와 비교
