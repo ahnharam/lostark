@@ -5,6 +5,7 @@ import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.CombatSkillDto;
 import com.lostark.backend.dto.CollectibleDto;
 import com.lostark.backend.dto.EngravingResponseDto;
+import com.lostark.backend.dto.GemsResponseDto;
 import com.lostark.backend.dto.LeaderboardEntryDto;
 import com.lostark.backend.dto.SkillGemDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
@@ -88,10 +89,10 @@ public class LostArkApiClient {
 
     public Mono<List<SkillGemDto>> getCharacterSkillGems(String characterName) {
         return webClient.get()
-                .uri("/armories/characters/{characterName}/skill-gems", characterName)
+                .uri("/armories/characters/{characterName}/gems", characterName)
                 .retrieve()
-                .bodyToFlux(SkillGemDto.class)
-                .collectList();
+                .bodyToMono(GemsResponseDto.class)
+                .map(response -> response.getGems() != null ? response.getGems() : java.util.Collections.emptyList());
     }
 
     public Mono<EngravingResponseDto> getCharacterEngravings(String characterName) {
