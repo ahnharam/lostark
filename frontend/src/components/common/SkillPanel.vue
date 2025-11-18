@@ -75,9 +75,9 @@
                       errorIcon="🌀"
                       :useProxy="true"
                     />
-                    <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
+                    <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
                       T{{ tripod.tier ?? '?' }}
-                    </span>
+                    </span> -->
                   </div>
                   <div class="tripod-inline-name">
                     <span class="tripod-name">{{ tripod.name }}</span>
@@ -94,8 +94,8 @@
                       v-if="skill.rune.icon"
                       :src="skill.rune.icon"
                       :alt="skill.rune.name"
-                      width="40"
-                      height="40"
+                      width="32"
+                      height="32"
                       imageClass="rune-image"
                       errorIcon="💠"
                       :useProxy="true"
@@ -133,11 +133,11 @@
                         <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
                       </div>
                     </div>
-                    <div v-if="gem.effectText" class="skill-gem-effect">
-                      {{ gem.effectText }}
-                    </div>
-                    <div v-if="gem.extraEffect" class="skill-gem-extra">
-                      {{ gem.extraEffect }}
+                    <div v-if="gem.effectText || gem.extraEffect" class="skill-gem-effect">
+                      <span class="skill-gem-effect-main">{{ gem.effectText || '' }}</span>
+                      <span v-if="gem.extraEffect" class="skill-gem-extra">
+                        {{ gem.extraEffect }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -199,7 +199,13 @@
                       class="skill-affix skill-affix--gem"
                     >
                       <span class="affix-label">{{ gem.effectLabel || gem.name }}</span>
-                      <span class="affix-text">{{ gem.effectText || gem.levelLabel || gem.name }}</span>
+                      <span class="affix-text">
+                        {{
+                          gem.extraEffect
+                            ? [gem.effectText, gem.extraEffect].filter(Boolean).join(' · ')
+                            : gem.effectText || gem.levelLabel || gem.name
+                        }}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -221,9 +227,9 @@
                                 errorIcon="🌀"
                                 :useProxy="true"
                               />
-                              <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
+                              <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
                                 T{{ tripod.tier ?? '?' }}
-                              </span>
+                              </span> -->
                             </div>
                             <div class="tripod-inline-name">
                               <span class="tripod-name">{{ tripod.name }}</span>
@@ -240,8 +246,8 @@
                                 v-if="pair.left.rune.icon"
                                 :src="pair.left.rune.icon"
                                   :alt="pair.left.rune.name"
-                                  width="40"
-                                  height="40"
+                                  width="32"
+                                  height="32"
                                   imageClass="rune-image"
                                   errorIcon="💠"
                                   :useProxy="true"
@@ -283,11 +289,11 @@
                                   <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
                                 </div>
                               </div>
-                              <div v-if="gem.effectText" class="skill-gem-effect">
-                                {{ gem.effectText }}
-                              </div>
-                              <div v-if="gem.extraEffect" class="skill-gem-extra">
-                                {{ gem.extraEffect }}
+                              <div v-if="gem.effectText || gem.extraEffect" class="skill-gem-effect">
+                                <span class="skill-gem-effect-main">{{ gem.effectText || '' }}</span>
+                                <span v-if="gem.extraEffect" class="skill-gem-extra">
+                                  {{ gem.extraEffect }}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -323,15 +329,21 @@
                       <p class="skill-card-name">{{ pair.right.name }}</p>
                       <div v-if="pair.right.gemBadges.length" class="skill-affix-row">
                         <span
-                          v-for="gem in pair.right.gemBadges"
-                          :key="`gem-affix-${pair.right.key}-${gem.key}`"
-                          class="skill-affix skill-affix--gem"
-                        >
-                          <span class="affix-label">{{ gem.effectLabel || gem.name }}</span>
-                          <span class="affix-text">{{ gem.effectText || gem.levelLabel || gem.name }}</span>
+                        v-for="gem in pair.right.gemBadges"
+                        :key="`gem-affix-${pair.right.key}-${gem.key}`"
+                        class="skill-affix skill-affix--gem"
+                      >
+                        <span class="affix-label">{{ gem.effectLabel || gem.name }}</span>
+                        <span class="affix-text">
+                          {{
+                            gem.extraEffect
+                              ? [gem.effectText, gem.extraEffect].filter(Boolean).join(' · ')
+                              : gem.effectText || gem.levelLabel || gem.name
+                          }}
                         </span>
-                      </div>
+                      </span>
                     </div>
+                  </div>
                         </div>
                         <div
                           v-if="pair.right.tripods.length || pair.right.rune || pair.right.gemBadges.length"
@@ -350,9 +362,9 @@
                                 errorIcon="🌀"
                                 :useProxy="true"
                               />
-                              <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
+                              <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
                                 T{{ tripod.tier ?? '?' }}
-                              </span>
+                              </span> -->
                             </div>
                             <div class="tripod-inline-name">
                               <span class="tripod-name">{{ tripod.name }}</span>
@@ -369,8 +381,8 @@
                                 v-if="pair.right.rune.icon"
                                 :src="pair.right.rune.icon"
                                   :alt="pair.right.rune.name"
-                                  width="40"
-                                  height="40"
+                                  width="32"
+                                  height="32"
                                   imageClass="rune-image"
                                   errorIcon="💠"
                                   :useProxy="true"
@@ -412,11 +424,11 @@
                                   <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
                                 </div>
                               </div>
-                              <div v-if="gem.effectText" class="skill-gem-effect">
-                                {{ gem.effectText }}
-                              </div>
-                              <div v-if="gem.extraEffect" class="skill-gem-extra">
-                                {{ gem.extraEffect }}
+                              <div v-if="gem.effectText || gem.extraEffect" class="skill-gem-effect">
+                                <span class="skill-gem-effect-main">{{ gem.effectText || '' }}</span>
+                                <span v-if="gem.extraEffect" class="skill-gem-extra">
+                                  {{ gem.extraEffect }}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -475,9 +487,9 @@
                             errorIcon="🌀"
                             :useProxy="true"
                           />
-                          <span class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
+                          <!-- <span class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
                               T{{ tripod.tier ?? '?' }}
-                            </span>
+                            </span> -->
                         </div>
                         <div class="tripod-detail-body">
                           <div class="tripod-detail-head">
@@ -486,7 +498,7 @@
                           <span v-if="tripod.description" class="tripod-desc">
                             {{ tripod.description }}
                           </span>
-                            <span class="tripod-slot">슬롯 {{ tripod.slotLabel }}</span>
+                            <span class="tripod-slot">{{ tripod.slotLabel }}</span>
                             <span v-if="tripod.levelLabel" class="tripod-level">
                               {{ tripod.levelLabel }}
                             </span>
@@ -499,8 +511,8 @@
                             v-if="skill.rune.icon"
                             :src="skill.rune.icon"
                             :alt="skill.rune.name"
-                            width="40"
-                            height="40"
+                            width="32"
+                            height="32"
                             imageClass="rune-image"
                             errorIcon="💠"
                             :useProxy="true"
@@ -533,14 +545,14 @@
                             <span v-else class="skill-gem-icon-fallback">💎</span>
                             <div class="skill-gem-info">
                               <span class="skill-gem-name">{{ gem.name }}</span>
-                              <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
+                              <!-- <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span> -->
                             </div>
                           </div>
-                          <div v-if="gem.effectText" class="skill-gem-effect">
-                            {{ gem.effectText }}
-                          </div>
-                          <div v-if="gem.extraEffect" class="skill-gem-extra">
-                            {{ gem.extraEffect }}
+                          <div v-if="gem.effectText || gem.extraEffect" class="skill-gem-effect">
+                            <span class="skill-gem-effect-main">{{ gem.effectText || '' }}</span>
+                            <span v-if="gem.extraEffect" class="skill-gem-extra">
+                              {{ gem.extraEffect }}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -607,7 +619,7 @@
                                     <span v-if="tripod.description" class="tripod-desc">
                                       {{ tripod.description }}
                                     </span>
-                                    <span class="tripod-slot">슬롯 {{ tripod.slotLabel }}</span>
+                                    <span class="tripod-slot">{{ tripod.slotLabel }}</span>
                                     <span v-if="tripod.levelLabel" class="tripod-level">
                                       {{ tripod.levelLabel }}
                                     </span>
@@ -927,6 +939,34 @@ const normalizeGemEffectLabel = (effectText?: string | null) => {
   return text
 }
 
+const splitGemEffectText = (effectText?: string | null, extraEffect?: string | null) => {
+  const base = sanitizeInline(effectText)
+  const extra = sanitizeInline(extraEffect)
+  const keyword = '추가 효과'
+
+  if (base && base.includes(keyword)) {
+    const [mainPart, ...rest] = base.split(keyword)
+    const main = mainPart.trim()
+    const tail = rest.join(keyword).trim()
+    return {
+      main: main || base,
+      extra: tail || extra
+    }
+  }
+
+  if (!base && extra) {
+    return {
+      main: '추가 효과',
+      extra
+    }
+  }
+
+  return {
+    main: base,
+    extra
+  }
+}
+
 const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
   if (!rune) return null
   return {
@@ -985,10 +1025,11 @@ const parseGemTooltipMapping = (tooltip?: string | null) => {
           if (after) extraEffect = sanitizeInline(after)
         }
       }
+      const split = splitGemEffectText(effectText, extraEffect)
       return {
         skillName,
-        effectText,
-        extraEffect
+        effectText: split.main,
+        extraEffect: split.extra
       }
     }
   } catch {
@@ -1027,14 +1068,15 @@ const gemBadgesBySkill = computed(() => {
         sanitizeInline(gem.skill?.description)
     }
 
-    const effectLabel = normalizeGemEffectLabel(effectTextRaw)
+    const splitEffect = splitGemEffectText(effectTextRaw, extraEffectRaw)
+    const effectLabel = normalizeGemEffectLabel(effectTextRaw || extraEffectRaw)
     const badge: SkillGemBadge = {
       key: `${skillName}-${index}`,
       name: sanitizeInline(gem.name) || '보석',
       icon: gem.icon || undefined,
       levelLabel: formatLevelLabel(gem.level),
-      effectText: sanitizeInline(effectTextRaw),
-      extraEffect: extraEffectRaw ? sanitizeInline(extraEffectRaw) : undefined,
+      effectText: splitEffect.main,
+      extraEffect: splitEffect.extra || undefined,
       effectLabel
     }
     if (!map.has(key)) {
@@ -1050,12 +1092,14 @@ const gemBadgesBySkill = computed(() => {
     const effectText = sanitizeInline(
       Array.isArray(effect?.Description) ? effect.Description.join(' ') : effect?.Description
     )
+    const splitEffect = splitGemEffectText(effectText)
     const badge: SkillGemBadge = {
       key: `${skillName}-effect-${index}`,
       name: sanitizeInline(effect?.Name) || '보석',
       icon: effect?.Icon || undefined,
       levelLabel: sanitizeInline(effect?.Option),
-      effectText,
+      effectText: splitEffect.main,
+      extraEffect: splitEffect.extra || undefined,
       effectLabel: normalizeGemEffectLabel(effectText)
     }
     if (!map.has(key)) map.set(key, [])
@@ -1067,14 +1111,15 @@ const gemBadgesBySkill = computed(() => {
     const skillName = parsed?.skillName
     const key = normalizeSkillKey(skillName)
     if (!key) return
+    const splitEffect = splitGemEffectText(parsed.effectText, parsed.extraEffect)
     const badge: SkillGemBadge = {
       key: `${skillName}-inv-${index}`,
       name: sanitizeInline(gem?.Name) || '보석',
       icon: gem?.Icon || undefined,
       levelLabel: formatLevelLabel(gem?.Level),
-      effectText: parsed.effectText,
-      extraEffect: parsed.extraEffect,
-      effectLabel: normalizeGemEffectLabel(parsed.effectText)
+      effectText: splitEffect.main,
+      extraEffect: splitEffect.extra || undefined,
+      effectLabel: normalizeGemEffectLabel(parsed.effectText || parsed.extraEffect)
     }
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(badge)
@@ -1525,6 +1570,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   gap: 8px;
   text-align: center;
   width: 55px;
+  padding-top: 5px;
 }
 
 .skill-card-icon {
@@ -1615,7 +1661,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .tripod-name {
   /* flex: 1; */
-  min-width: 120px;
+  min-width: 130px;
   padding:0px 10px;
   font-weight: 600;
 }
@@ -1685,7 +1731,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   grid-template-columns: 40px 1fr;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px;
   border-radius: 12px;
   background: var(--surface-muted, #f3f4f6);
 }
@@ -1911,15 +1957,16 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .skill-rune {
   /* gap: 12px; */
   display: flex;
-  padding: 4px 10px;
+  /* padding: 4px 10px; */
   border-radius: 12px;
-  background: rgba(37, 99, 235, 0.07);
+  /* background: rgba(37, 99, 235, 0.07); */
   text-align: center;
   width: fit-content;
 }
 
 .skill-rune--inline {
   margin-top: 8px;
+  padding: 5px 10px;
 }
 
 .skill-tripod-rail .skill-rune--inline {
@@ -1931,9 +1978,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-tripod-rail .skill-rune--inline .skill-rune-name {
   display: block;
-  width: 80px;
-  min-width: 80px;
-  max-width: 80px;
+  width: 107px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2004,7 +2049,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 }
 
 .skill-rune-grade {
-  padding-left:10px;
   margin: 0;
   font-size: 0.80rem;
   font-weight: 600;
@@ -2078,7 +2122,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 8px;
 }
 
 .skill-gem-item {
@@ -2086,6 +2129,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   align-items: center;
   gap: 12px;
   width: 100%;
+  padding: 5px 10px;
 }
 
 .skill-gem-main {
@@ -2121,7 +2165,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 }
 
 .skill-gem-name {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-primary, #1f2937);
   line-height: 1;
@@ -2138,19 +2182,29 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-gem-effect {
   flex: 1;
-  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
   color: var(--text-secondary, #374151);
   line-height: 1.4;
   min-width: 0;
+}
+
+.skill-gem-effect-main {
+  flex: 1;
+  min-width: 0;
+  word-break: keep-all;
 }
 
 .skill-gem-extra {
   font-size: 0.75rem;
   color: var(--text-muted, #6b7280);
   line-height: 1.4;
-  font-style: italic;
   white-space: nowrap;
   flex-shrink: 0;
+  text-align: right;
 }
 
 @media (max-width: 768px) {
