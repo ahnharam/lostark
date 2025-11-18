@@ -440,7 +440,7 @@
                       </p>
                     </div>
                     <div
-                      v-if="skill.tripods.length || skill.rune"
+                      v-if="skill.tripods.length || skill.rune || skill.gemBadges.length"
                       class="skill-tripod-rail"
                       :class="{ 'skill-tripod-rail--compact': skill.isCompact }"
                     >
@@ -497,6 +497,28 @@
                           >
                             {{ getRuneAffixView(skill.rune, skill.runeEffect)!.text }}
                           </p>
+                      </div>
+                      <div
+                        v-if="skill.gemBadges.length"
+                        class="skill-rune skill-rune--inline skill-gem-line"
+                      >
+                        <div class="skill-rune-icon skill-gem-icon">💎</div>
+                        <div class="skill-gem-list">
+                          <div
+                            v-for="gem in skill.gemBadges"
+                            :key="`gem-line-${skill.key}-${gem.key}`"
+                            class="skill-gem-line"
+                          >
+                            <p class="skill-rune-grade">{{ gem.effectLabel || gem.name }}</p>
+                            <strong class="skill-rune-name">{{ gem.levelLabel || gem.name }}</strong>
+                            <p v-if="gem.effectText" class="skill-rune-description">
+                              {{ gem.effectText }}
+                            </p>
+                            <p v-if="gem.extraEffect" class="skill-rune-description">
+                              추가 효과: {{ gem.extraEffect }}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
