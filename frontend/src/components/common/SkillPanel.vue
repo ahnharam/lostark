@@ -1117,7 +1117,7 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
 // ===== 포맷팅 헬퍼 함수 =====
 
 /**
- * 툴팁 텍스트를 요약 (첫 번째 의미 있는 줄 추출)
+ * 툴팁 텍스트를 요약 (실제 스킬 설명 추출)
  * @param tooltip - 툴팁 문자열
  * @param fallback - 기본값
  * @returns 요약된 텍스트
@@ -1125,9 +1125,25 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
 const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
   const lines = flattenTooltipLines(tooltip)
   if (!lines.length) return fallback
-  if (lines.length === 1) return lines[0]
-  const preferred = lines.find((line, index) => index > 0 && !/레벨|Lv/i.test(line))
-  return preferred ?? lines[0]
+
+  // 실제 스킬 설명을 찾기 위한 필터링
+  // 1. 첫 번째 줄(보통 스킬 이름)은 제외
+  // 2. 메타 정보(레벨, 재사용, 마나 등) 제외
+  // 3. 너무 짧은 줄 제외 (10자 미만)
+  // 4. 실제 설명 텍스트 선택 (보통 가장 길고 의미있는 줄)
+  const description = lines.find((line, index) => {
+    if (index === 0) return false  // 첫 줄(스킬 이름) 제외
+    if (!line || line.trim().length < 10) return false  // 너무 짧은 줄 제외
+
+    // 메타 정보 키워드가 포함된 줄 제외
+    if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머/i.test(line)) {
+      return false
+    }
+
+    return true  // 실제 설명 텍스트로 판단
+  })
+
+  return description ?? fallback
 }
 
 /**
@@ -1347,7 +1363,7 @@ const skillCards = computed<SkillCardView[]>(() => {
             name: sanitizeInline(skill.rune.name),
             grade: sanitizeInline(skill.rune.grade),
             icon: skill.rune.icon || undefined,
-            description: summarizeTooltip(skill.rune.tooltip, sanitizeInline(skill.rune.tooltip)),
+            description: summarizeTooltip(skill.rune.tooltip, ''),
             gradeColor: extractFontColor(skill.rune.tooltip)
           }
         : null
@@ -1363,7 +1379,7 @@ const skillCards = computed<SkillCardView[]>(() => {
             slot: typeof tripod.slot === 'number' ? tripod.slot : undefined,
             slotLabel: typeof tripod.slot === 'number' ? `${tripod.slot}번` : `${tripodIndex + 1}번`,
             levelLabel: formatLevelLabel(tripod.level),
-            description: summarizeTooltip(tripod.tooltip, sanitizeInline(tripod.tooltip))
+            description: summarizeTooltip(tripod.tooltip, '')
           })) ?? []
 
       const gemBadges = resolveGemBadgesForSkill(name, gemBadgesBySkill.value)
@@ -1378,7 +1394,7 @@ const skillCards = computed<SkillCardView[]>(() => {
         levelLabel: formatLevelLabel(skill.level),
         typeLabel: typeParts.join(' · ') || undefined,
         pointLabel: typeof skill.skillPoints === 'number' ? `${skill.skillPoints.toLocaleString()} 포인트` : undefined,
-        description: summarizeTooltip(skill.tooltip, sanitizeInline(skill.tooltip)),
+        description: summarizeTooltip(skill.tooltip, ''),
         tooltipLines,
         tripods,
         rune,
