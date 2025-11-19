@@ -209,7 +209,7 @@
                   <button
                     type="button"
                     class="refresh-button"
-                    :disabled="loading || !characterName"
+                    :disabled="loading || !activeCharacter"
                     @click="handleRefreshClick"
                   >
                     갱신하기
@@ -1339,7 +1339,7 @@ const retrySearch = () => {
 
 const handleRefreshClick = () => {
   if (loading.value) return
-  const target = characterName.value?.trim()
+  const target = activeCharacter.value?.characterName?.trim()
   if (!target) return
   searchCharacter(target, { forceRefresh: true })
 }
