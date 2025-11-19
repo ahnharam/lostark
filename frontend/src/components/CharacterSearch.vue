@@ -209,7 +209,7 @@
                   <button
                     type="button"
                     class="refresh-button"
-                    :disabled="loading || !characterName"
+                    :disabled="loading || !activeCharacter"
                     @click="handleRefreshClick"
                   >
                     갱신하기
@@ -1194,6 +1194,12 @@ onMounted(() => {
   nextTick(() => {
     observeOverviewCard()
   })
+
+  // URL에서 캐릭터 이름 확인 후 자동 로드
+  const urlCharacter = route.query.character
+  if (urlCharacter && typeof urlCharacter === 'string') {
+    searchCharacter(urlCharacter, { updateUrl: false })
+  }
 })
 
 onBeforeUnmount(() => {
@@ -1231,6 +1237,19 @@ watch(
   }
 )
 
+// URL 쿼리 파라미터 변경 감지 (브라우저 뒤로가기/앞으로가기 지원)
+watch(
+  () => route.query.character,
+  (newCharacter, oldCharacter) => {
+    if (newCharacter && typeof newCharacter === 'string' && newCharacter !== oldCharacter) {
+      // 현재 보고 있는 캐릭터와 다른 경우에만 로드
+      if (newCharacter !== activeCharacter.value?.characterName) {
+        searchCharacter(newCharacter, { updateUrl: false })
+      }
+    }
+  }
+)
+
 watch(activeResultTab, async newTab => {
   await nextTick()
   syncOverviewWidth()
@@ -1257,7 +1276,7 @@ const searchCharacterByInput = () => {
   executeSearch(name)
 }
 
-const searchCharacter = async (name: string, options: { forceRefresh?: boolean } = {}) => {
+const searchCharacter = async (name: string, options: { forceRefresh?: boolean; updateUrl?: boolean } = {}) => {
   loading.value = true
   error.value = null
   if (options.forceRefresh) {
@@ -1312,6 +1331,11 @@ const searchCharacter = async (name: string, options: { forceRefresh?: boolean }
       await loadHistory()
     }
     activeResultTab.value = DEFAULT_RESULT_TAB
+
+    // URL 업데이트 (기본값: true)
+    if (options.updateUrl !== false) {
+      router.push({ query: { character: name } })
+    }
   } catch (err: any) {
     const errorData = err.response?.data
     if (err.response?.status === 404) {
@@ -1339,7 +1363,7 @@ const retrySearch = () => {
 
 const handleRefreshClick = () => {
   if (loading.value) return
-  const target = characterName.value?.trim()
+  const target = activeCharacter.value?.characterName?.trim()
   if (!target) return
   searchCharacter(target, { forceRefresh: true })
 }
@@ -1597,6 +1621,9 @@ const viewCharacterDetail = (summary: CharacterProfile | SiblingCharacter) => {
   const isPrimary = character.value?.characterName === summary.characterName
   const profile = isPrimary ? character.value : undefined
   loadCharacterDetails(summary.characterName, { profile })
+
+  // URL 업데이트
+  router.push({ query: { character: summary.characterName } })
 }
 
 const formatItemLevel = (value?: string | number) => {
