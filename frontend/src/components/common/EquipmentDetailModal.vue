@@ -208,7 +208,6 @@ interface Props {
   characterName?: string
   characterClass?: string
   characterLevel?: string | number
-  showRawData?: boolean
 }
 
 interface EngravingEffectItem {
@@ -221,8 +220,7 @@ interface EngravingEffectItem {
 const props = withDefaults(defineProps<Props>(), {
   characterName: '캐릭터명',
   characterClass: '직업',
-  characterLevel: '0',
-  showRawData: false
+  characterLevel: '0'
 })
 
 defineEmits<{
@@ -304,12 +302,20 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   animation: fadeIn 0.3s;
 }
 
+/* 애니메이션 정의 */
 @keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
   from {
     opacity: 0;
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -325,17 +331,6 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   animation: slideUp 0.3s;
   display: flex;
   flex-direction: column;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* 헤더 */
@@ -371,8 +366,8 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   cursor: pointer;
   color: var(--text-tertiary);
   line-height: 1;
-  transition: color 0.2s, transform 0.2s;
   padding: 0 10px;
+  transition: all 0.2s;
 }
 
 .modal-close:hover {
@@ -483,7 +478,7 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   flex-wrap: wrap;
 }
 
- .meta-pill {
+.meta-pill {
   padding: 3px 10px;
   background: var(--card-bg);
   color: var(--text-secondary);
@@ -492,7 +487,7 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   font-weight: 600;
 }
 
-.level-pill {
+.meta-pill.level-pill {
   color: var(--primary-color);
   background: rgba(99, 102, 241, 0.12);
 }
@@ -537,33 +532,10 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* 아이템 레벨 */
-.item-level-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-}
-
-.section-label {
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.item-level-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--primary-color);
-}
-
-/* 섹션 스타일 */
+/* 공통 섹션 스타일 */
 .stats-section,
 .elixir-section,
-.engraving-section,
-.set-section {
+.engraving-section {
   background: var(--bg-secondary);
   padding: 15px;
   border-radius: 10px;
@@ -598,16 +570,19 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   background: var(--bg-hover);
 }
 
+.stat-type,
+.stat-value {
+  font-size: 0.9rem;
+}
+
 .stat-type {
   color: var(--text-secondary);
   font-weight: 500;
-  font-size: 0.9rem;
 }
 
 .stat-value {
   color: var(--text-primary);
   font-weight: 700;
-  font-size: 0.9rem;
 }
 
 /* 효과 리스트 */
@@ -632,15 +607,12 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
 }
 
 .effect-item.engraving {
-  background: var(--primary-soft-bg, rgba(59, 130, 246, 0.1));
-  border-left-color: var(--primary-color, #3b82f6);
-  color: var(--text-primary);
-}
-
-.effect-item.engraving {
   display: flex;
   align-items: center;
   gap: 12px;
+  background: var(--primary-soft-bg, rgba(59, 130, 246, 0.1));
+  border-left-color: var(--primary-color, #3b82f6);
+  color: var(--text-primary);
 }
 
 .engraving-icon-wrapper {
@@ -656,17 +628,18 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
   flex-shrink: 0;
 }
 
-.engraving-icon-img {
-  width: 34px;
-  height: 34px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-
+.engraving-icon-img,
 .engraving-icon-fallback {
   width: 34px;
   height: 34px;
   border-radius: 8px;
+}
+
+.engraving-icon-img {
+  object-fit: cover;
+}
+
+.engraving-icon-fallback {
   background: var(--bg-hover);
   display: flex;
   align-items: center;
@@ -682,11 +655,14 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
 
 /* 세트 효과 */
 .set-item {
-  margin-bottom: 15px;
   padding: 15px;
   background: var(--bg-secondary);
   border-radius: 10px;
   border: 1px solid var(--border-color);
+}
+
+.set-item:not(:last-child) {
+  margin-bottom: 15px;
 }
 
 .set-name {
@@ -720,14 +696,8 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
 }
 
 /* 스크롤바 */
-.modal-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.modal-body::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-
+.modal-body::-webkit-scrollbar { width: 8px; }
+.modal-body::-webkit-scrollbar-track { background: var(--bg-secondary); }
 .modal-body::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 4px;
@@ -739,33 +709,20 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
     width: 95%;
     height: 90vh;
   }
-
   .equipment-layout {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
-  .modal-header {
-    padding: 15px 20px;
-  }
-
-  .character-name {
-    font-size: 1.2rem;
-  }
-
-  .modal-tabs {
-    overflow-x: auto;
-  }
-
+  .modal-header { padding: 15px 20px; }
+  .character-name { font-size: 1.2rem; }
+  .modal-tabs { overflow-x: auto; }
   .tab-button {
     padding: 12px 15px;
     font-size: 0.9rem;
     white-space: nowrap;
   }
-
-  .modal-body {
-    padding: 20px;
-  }
+  .modal-body { padding: 20px; }
 }
 </style>
