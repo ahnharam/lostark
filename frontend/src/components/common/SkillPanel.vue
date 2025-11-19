@@ -705,9 +705,19 @@ const extractSkillMetadata = (tooltip?: string | null) => {
         }
       }
 
-      // 부위파괴: "부위파괴 레벨 2" 또는 "부위 파괴 2" 형식에서 숫자만 추출
+      // 부위파괴: 다양한 형식 지원
+      // "부위파괴 레벨 2", "부위 파괴 2", "부위파괴 : 2레벨", "부위파괴 2레벨"
       if (!metadata.destruction) {
-        const destructionMatch = cleanValue.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
+        // 패턴 1: "부위파괴 레벨 2", "부위 파괴 2"
+        let destructionMatch = cleanValue.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
+        if (!destructionMatch) {
+          // 패턴 2: "부위파괴 : 2", "부위파괴: 2레벨"
+          destructionMatch = cleanValue.match(/부위\s*파괴\s*[:\:]\s*(\d+)/)
+        }
+        if (!destructionMatch) {
+          // 패턴 3: "부위파괴 2레벨"
+          destructionMatch = cleanValue.match(/부위\s*파괴\s*(\d+)\s*레벨/)
+        }
         if (destructionMatch) {
           metadata.destruction = `${destructionMatch[1]}레벨`
         }
@@ -730,8 +740,19 @@ const extractSkillMetadata = (tooltip?: string | null) => {
         if (armorMatch) metadata.superArmor = armorMatch[1].trim()
       }
       if (!metadata.destruction) {
-        const destructionMatch = line.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
-        if (destructionMatch) metadata.destruction = destructionMatch[1].trim() + '레벨'
+        // 패턴 1: "부위파괴 레벨 2", "부위 파괴 2"
+        let destructionMatch = line.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
+        if (!destructionMatch) {
+          // 패턴 2: "부위파괴 : 2", "부위파괴: 2레벨"
+          destructionMatch = line.match(/부위\s*파괴\s*[:\:]\s*(\d+)/)
+        }
+        if (!destructionMatch) {
+          // 패턴 3: "부위파괴 2레벨"
+          destructionMatch = line.match(/부위\s*파괴\s*(\d+)\s*레벨/)
+        }
+        if (destructionMatch) {
+          metadata.destruction = `${destructionMatch[1]}레벨`
+        }
       }
     })
   }
@@ -809,8 +830,8 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
 // ===== 포맷팅 헬퍼 함수 =====
 
 /**
- * 툴팁 텍스트를 요약 (실제 스킬 설명 추출)
- * @param tooltip - 툴팁 문자열
+ * 스킬 툴팁 텍스트를 요약 (실제 스킬 설명 추출)
+ * @param tooltip - 스킬 툴팁 문자열
  * @param fallback - 기본값
  * @returns 요약된 텍스트
  */
@@ -841,17 +862,6 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
         }
       }
     }
-
-    // 3순위: ItemPartBox 타입의 Element 찾기 (트라이포드 등에서 사용)
-    for (const element of Object.values(parsed) as any[]) {
-      if (element?.type === 'ItemPartBox' && element?.value) {
-        let desc = sanitizeInline(element.value)
-        desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
-        if (desc && desc.length >= 10) {
-          return desc
-        }
-      }
-    }
   } catch {
     // JSON 파싱 실패 시 기존 방식으로 폴백
   }
@@ -869,6 +879,63 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
       return false
     }
 
+    return true
+  })
+
+  return description ?? fallback
+}
+
+/**
+ * 트라이포드 툴팁 텍스트를 요약 (트라이포드 설명 추출)
+ * @param tooltip - 트라이포드 툴팁 문자열
+ * @param fallback - 기본값
+ * @returns 요약된 텍스트
+ */
+const summarizeTripodTooltip = (tooltip?: string | null, fallback = '') => {
+  if (!tooltip) return fallback
+
+  try {
+    const parsed = JSON.parse(tooltip)
+
+    // 1순위: ItemPartBox 타입의 Element에서 추출 (트라이포드에서 사용)
+    for (const element of Object.values(parsed) as any[]) {
+      if (element?.type === 'ItemPartBox' && element?.value) {
+        const desc = sanitizeInline(element.value)
+        if (desc && desc.length >= 10) {
+          return desc
+        }
+      }
+    }
+
+    // 2순위: Element_001에서 추출 (트라이포드 설명이 위치)
+    if (parsed.Element_001?.value) {
+      const desc = sanitizeInline(parsed.Element_001.value)
+      if (desc && desc.length >= 10) {
+        return desc
+      }
+    }
+
+    // 3순위: SingleTextBox 타입의 Element 찾기
+    for (const element of Object.values(parsed) as any[]) {
+      if (element?.type === 'SingleTextBox' && element?.value) {
+        const desc = sanitizeInline(element.value)
+        if (desc && desc.length >= 10) {
+          return desc
+        }
+      }
+    }
+  } catch {
+    // JSON 파싱 실패 시 기존 방식으로 폴백
+  }
+
+  // 폴백: 평탄화된 라인에서 찾기
+  const lines = flattenTooltipLines(tooltip)
+  if (!lines.length) return fallback
+
+  // 트라이포드는 첫 번째 의미있는 줄을 사용
+  const description = lines.find((line, index) => {
+    if (index === 0) return false // 첫 줄(이름) 제외
+    if (!line || line.trim().length < 10) return false
     return true
   })
 
@@ -1108,7 +1175,7 @@ const skillCards = computed<SkillCardView[]>(() => {
             slot: typeof tripod.slot === 'number' ? tripod.slot : undefined,
             slotLabel: typeof tripod.slot === 'number' ? `${tripod.slot}번` : `${tripodIndex + 1}번`,
             levelLabel: formatLevelLabel(tripod.level),
-            description: summarizeTooltip(tripod.tooltip, '')
+            description: summarizeTripodTooltip(tripod.tooltip, '')
           })) ?? []
 
       const gemBadges = resolveGemBadgesForSkill(name, gemBadgesBySkill.value)
