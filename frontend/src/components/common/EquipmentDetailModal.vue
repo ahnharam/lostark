@@ -704,25 +704,316 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
 }
 
 /* 모바일 반응형 */
+
+/* 태블릿 (1024px 이하) */
 @media (max-width: 1024px) {
   .modal-content {
     width: 95%;
     height: 90vh;
   }
+
   .equipment-layout {
     grid-template-columns: 1fr;
   }
 }
 
+/* 작은 태블릿 (768px 이하) */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal-header {
+    padding: 15px 20px;
+  }
+
+  .character-name {
+    font-size: 1.3rem;
+  }
+
+  .character-meta {
+    font-size: 0.9rem;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .item-header {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  :deep(.item-icon) {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  .item-name {
+    font-size: 1.1rem;
+  }
+
+  .section-title {
+    font-size: 0.95rem;
+  }
+
+  .quality-bar-container {
+    height: 26px;
+  }
+
+  .quality-value {
+    font-size: 0.85rem;
+  }
+}
+
+/* 모바일 (640px 이하) */
 @media (max-width: 640px) {
-  .modal-header { padding: 15px 20px; }
-  .character-name { font-size: 1.2rem; }
-  .modal-tabs { overflow-x: auto; }
+  .modal-header {
+    padding: 12px 15px;
+  }
+
+  .character-name {
+    font-size: 1.1rem;
+    margin-bottom: 3px;
+  }
+
+  .character-meta {
+    font-size: 0.85rem;
+  }
+
+  .modal-close {
+    font-size: 1.8rem;
+    padding: 0 5px;
+  }
+
+  .modal-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .tab-button {
     padding: 12px 15px;
     font-size: 0.9rem;
     white-space: nowrap;
+    flex: 0 0 auto;
   }
-  .modal-body { padding: 20px; }
+
+  .modal-body {
+    padding: 15px;
+  }
+
+  .item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .item-header :deep(.lazy-image-wrapper) {
+    align-self: center;
+  }
+
+  .item-title-section {
+    width: 100%;
+    text-align: center;
+  }
+
+  .item-name {
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+
+  .item-meta {
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .meta-pill {
+    padding: 2px 8px;
+    font-size: 0.8rem;
+  }
+
+  .section-title {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
+
+  .stats-section,
+  .elixir-section,
+  .engraving-section {
+    padding: 12px;
+  }
+
+  .stat-item {
+    padding: 8px 10px;
+  }
+
+  .stat-type,
+  .stat-value {
+    font-size: 0.85rem;
+  }
+
+  .quality-section {
+    padding: 12px;
+  }
+
+  .quality-bar-container {
+    height: 24px;
+  }
+
+  .quality-value {
+    font-size: 0.8rem;
+    padding: 0 8px;
+  }
+
+  .effect-item {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  .effect-item.engraving {
+    gap: 10px;
+  }
+
+  .engraving-icon-wrapper {
+    width: 32px;
+    height: 32px;
+  }
+
+  .engraving-icon-img,
+  .engraving-icon-fallback {
+    width: 28px;
+    height: 28px;
+  }
+
+  .set-item {
+    padding: 12px;
+  }
+
+  .set-name {
+    font-size: 0.95rem;
+  }
+
+  .set-effect {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  .empty-state {
+    padding: 30px 15px;
+    font-size: 0.9rem;
+  }
+}
+
+/* 작은 모바일 (480px 이하) */
+@media (max-width: 480px) {
+  .modal-header {
+    padding: 10px 12px;
+  }
+
+  .character-name {
+    font-size: 1rem;
+  }
+
+  .character-meta {
+    font-size: 0.8rem;
+  }
+
+  .tab-button {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  .modal-body {
+    padding: 12px;
+  }
+
+  .left-section,
+  .right-section {
+    gap: 15px;
+  }
+
+  :deep(.item-icon) {
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  .item-name {
+    font-size: 0.95rem;
+  }
+
+  .meta-pill {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+  }
+
+  .section-title {
+    font-size: 0.85rem;
+    padding-bottom: 6px;
+  }
+
+  .stats-section,
+  .elixir-section,
+  .engraving-section,
+  .quality-section {
+    padding: 10px;
+  }
+
+  .stat-item {
+    padding: 6px 8px;
+  }
+
+  .stat-type,
+  .stat-value {
+    font-size: 0.8rem;
+  }
+
+  .quality-bar-container {
+    height: 22px;
+  }
+
+  .quality-label {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+
+  .quality-value {
+    font-size: 0.75rem;
+  }
+
+  .effect-item {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .engraving-icon-wrapper {
+    width: 28px;
+    height: 28px;
+  }
+
+  .engraving-icon-img,
+  .engraving-icon-fallback {
+    width: 24px;
+    height: 24px;
+  }
+
+  .engraving-text {
+    line-height: 1.4;
+  }
+
+  .set-item {
+    padding: 10px;
+  }
+
+  .set-name {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+
+  .set-effect {
+    padding: 5px 8px;
+    font-size: 0.8rem;
+  }
 }
 </style>
