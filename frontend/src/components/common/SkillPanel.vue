@@ -204,8 +204,36 @@
                         <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
                       </p>
                     </div>
-                    <div v-if="skill.tripods.length || skill.rune || skill.gemBadges.length" class="skill-tripod-rail"
-                      :class="{ 'skill-tripod-rail--compact': skill.isCompact }">
+
+                    <!-- 스킬 메타 정보 (무력화, 공격 타입 등) -->
+                    <div
+                      v-if="skill.stagger || skill.attackType || skill.superArmor || skill.destruction"
+                      class="skill-metadata"
+                    >
+                      <span v-if="skill.stagger" class="skill-metadata-badge skill-metadata-badge--stagger">
+                        무력화 {{ skill.stagger }}
+                      </span>
+                      <span v-if="skill.attackType" class="skill-metadata-badge skill-metadata-badge--attack">
+                        {{ skill.attackType }}
+                      </span>
+                      <span v-if="skill.superArmor" class="skill-metadata-badge skill-metadata-badge--armor">
+                        {{ skill.superArmor }}
+                      </span>
+                      <span v-if="skill.destruction" class="skill-metadata-badge skill-metadata-badge--destruction">
+                        부위파괴 {{ skill.destruction }}
+                      </span>
+                    </div>
+
+                    <!-- 스킬 설명 -->
+                    <p v-if="skill.description" class="skill-description">
+                      {{ skill.description }}
+                    </p>
+
+                    <div
+                      v-if="skill.tripods.length || skill.rune || skill.gemBadges.length"
+                      class="skill-tripod-rail"
+                      :class="{ 'skill-tripod-rail--compact': skill.isCompact }"
+                    >
                       <div v-for="tripod in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
                         <div class="tripod-detail-icon">
                           <LazyImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="36" height="36"
@@ -372,6 +400,12 @@ interface SkillCardView {
   typeLabel?: string
   pointLabel?: string
   description?: string
+  // 메타 정보
+  stagger?: string          // 무력화 (예: "중", "상")
+  attackType?: string       // 공격 타입 (예: "백 어택", "헤드 어택")
+  superArmor?: string       // 슈퍼아머 (예: "경직 면역")
+  destruction?: string      // 부위파괴 (예: "1레벨")
+  // 기존 필드
   tripods: SkillTripodView[]
   rune: SkillRuneView | null
   gemBadges: SkillGemBadge[]
@@ -607,6 +641,64 @@ const extractNextLineAfterKeyword = (tooltip?: string | null, keyword?: string) 
   if (idx === -1) return ''
   const next = lines.slice(idx + 1).find(Boolean)
   return next || ''
+}
+
+/**
+ * 툴팁에서 특정 키워드가 포함된 줄 추출
+ * @param tooltip - 툴팁 문자열
+ * @param keyword - 검색할 키워드
+ * @returns 키워드가 포함된 줄의 텍스트
+ */
+const extractLineWithKeyword = (tooltip?: string | null, keyword?: string) => {
+  if (!tooltip || !keyword) return ''
+  const lines = flattenTooltipLines(tooltip)
+  const line = lines.find(line => line.includes(keyword))
+  return line || ''
+}
+
+/**
+ * 스킬 메타 정보 추출 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
+ * @param tooltip - 스킬 툴팁 문자열
+ * @returns 메타 정보 객체
+ */
+const extractSkillMetadata = (tooltip?: string | null) => {
+  if (!tooltip) return {}
+
+  const lines = flattenTooltipLines(tooltip)
+  const metadata: {
+    stagger?: string
+    attackType?: string
+    superArmor?: string
+    destruction?: string
+  } = {}
+
+  lines.forEach(line => {
+    // 무력화: "무력화 : 중", "무력화: 상"
+    const staggerMatch = line.match(/무력화\s*[:\:]\s*([^\s]+)/)
+    if (staggerMatch) {
+      metadata.stagger = staggerMatch[1]
+    }
+
+    // 공격 타입: "공격 타입 : 백 어택", "공격타입: 헤드 어택"
+    const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*(.+)/)
+    if (attackMatch) {
+      metadata.attackType = attackMatch[1].trim()
+    }
+
+    // 슈퍼아머: "슈퍼아머 : 경직 면역"
+    const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*(.+)/)
+    if (armorMatch) {
+      metadata.superArmor = armorMatch[1].trim()
+    }
+
+    // 부위파괴: "부위파괴 1레벨", "부위 파괴 2레벨"
+    const destructionMatch = line.match(/부위\s*파괴\s*(\d+)\s*레벨/)
+    if (destructionMatch) {
+      metadata.destruction = `${destructionMatch[1]}레벨`
+    }
+  })
+
+  return metadata
 }
 
 // ===== 보석 효과 파싱 함수 =====
@@ -949,6 +1041,9 @@ const skillCards = computed<SkillCardView[]>(() => {
 
       const tooltipLines = flattenTooltipLines(skill.tooltip)
 
+      // 메타 정보 추출 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
+      const metadata = extractSkillMetadata(skill.tooltip)
+
       return {
         key: `${name}-${skill.level ?? index}`,
         name,
@@ -957,6 +1052,12 @@ const skillCards = computed<SkillCardView[]>(() => {
         typeLabel: typeParts.join(' · ') || undefined,
         pointLabel: typeof skill.skillPoints === 'number' ? `${skill.skillPoints.toLocaleString()} 포인트` : undefined,
         description: summarizeTooltip(skill.tooltip, ''),
+        // 메타 정보
+        stagger: metadata.stagger,
+        attackType: metadata.attackType,
+        superArmor: metadata.superArmor,
+        destruction: metadata.destruction,
+        // 기존 필드
         tooltipLines,
         tripods,
         rune,
@@ -1385,9 +1486,9 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-card-hero {
   display: flex;
+  flex-direction: column;
   width: 100%;
-  gap: 16px;
-  /* min-width: fit-content; */
+  gap: 12px;
 }
 
 .skill-card-icon-block {
@@ -1398,6 +1499,63 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   text-align: center;
   width: 55px;
   padding-top: 5px;
+}
+
+/* ===== 스킬 메타 정보 스타일 ===== */
+.skill-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 71px;
+  margin-top: -4px;
+}
+
+.skill-metadata-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.skill-metadata-badge--stagger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.skill-metadata-badge--attack {
+  background: rgba(251, 146, 60, 0.1);
+  color: #ea580c;
+  border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.skill-metadata-badge--armor {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.skill-metadata-badge--destruction {
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+/* ===== 스킬 설명 스타일 ===== */
+.skill-description {
+  margin: 0;
+  padding: 10px 12px;
+  margin-left: 71px;
+  background: var(--surface-muted, #f9fafb);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  color: var(--text-secondary, #4b5563);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  word-break: keep-all;
 }
 
 .skill-card-icon {
