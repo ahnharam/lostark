@@ -193,6 +193,8 @@
             <template v-for="skill in getEnhancedSkills(row.cards)" :key="`${skill.key}-enhanced`">
               <article class="skill-card skill-card--enhanced-row" :class="{ 'skill-card--compact': skill.isCompact }">
                 <div class="skill-card-main">
+                  <div>
+
                   <div class="skill-card-hero">
                     <div class="skill-card-icon-block">
                       <div class="skill-icon-wrapper" tabindex="0">
@@ -228,13 +230,14 @@
                     <p v-if="skill.description" class="skill-description">
                       {{ skill.description }}
                     </p>
+                  </div>
 
                     <div
                       v-if="skill.tripods.length || skill.rune || skill.gemBadges.length"
                       class="skill-tripod-rail"
                       :class="{ 'skill-tripod-rail--compact': skill.isCompact }"
                     >
-                      <div v-for="tripod in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
+                      <div v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
                         <div class="tripod-detail-icon">
                           <LazyImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="36" height="36"
                             imageClass="tripod-image" errorIcon="🌀" :useProxy="true" />
@@ -246,7 +249,7 @@
                             <span v-if="tripod.description" class="tripod-desc">
                               {{ tripod.description }}
                             </span>
-                            <span class="tripod-slot">{{ tripod.slotLabel }}</span>
+                            <span class="tripod-slot" :class="`tripod-color-${index + 1}`">{{ tripod.slotLabel }}</span>
                             <span v-if="tripod.levelLabel" class="tripod-level">
                               {{ tripod.levelLabel }}
                             </span>
@@ -1129,7 +1132,7 @@ const skillCards = computed<SkillCardView[]>(() => {
             icon: tripod.icon || undefined,
             tier: tripod.tier + 1 ?? undefined,
             slot: typeof tripod.slot === 'number' ? tripod.slot : undefined,
-            slotLabel: typeof tripod.slot === 'number' ? `${tripod.slot}번` : `${tripodIndex + 1}번`,
+            slotLabel: typeof tripod.slot === 'number' ? `${tripod.slot}` : `${tripodIndex + 1}`,
             levelLabel: formatLevelLabel(tripod.level),
             description: summarizeTripodTooltip(tripod.tooltip, '')
           })) ?? []
@@ -1584,9 +1587,9 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-card-hero {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   width: 100%;
-  gap: 12px;
+  /* gap: 12px; */
 }
 
 .skill-card-icon-block {
@@ -1602,26 +1605,33 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 /* ===== 스킬 메타 정보 스타일 ===== */
 .skill-metadata {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
-  padding-left: 71px;
-  margin-top: -4px;
+  padding-left: 10px;
+  height: fit-content;
+  /* margin-top: -4px; */
 }
 
 .skill-metadata-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
-  white-space: nowrap;
+  /* word-break: keep-all;
+  white-space: pre-wrap; */
+  height: 22px;
+  /* max-width: 70px;
+  min-width: 70px; */
 }
 
 .skill-metadata-badge--stagger {
   background: rgba(239, 68, 68, 0.1);
   color: #dc2626;
   border: 1px solid rgba(239, 68, 68, 0.3);
+  text-align: center;
 }
 
 .skill-metadata-badge--attack {
@@ -1646,7 +1656,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .skill-description {
   margin: 0;
   padding: 10px 12px;
-  margin-left: 71px;
   background: var(--surface-muted, #f9fafb);
   border-radius: 8px;
   border: 1px solid var(--border-color, #e5e7eb);
@@ -1654,6 +1663,9 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-size: 0.85rem;
   line-height: 1.5;
   word-break: keep-all;
+  white-space: pre-wrap;
+  flex: 1 1 auto;
+  height: fit-content;
 }
 
 .skill-card-icon {
@@ -1751,12 +1763,25 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .tripod-slot {
   font-weight: 600;
-  color: #a5b4fc;
+  color: white;
+  border-radius:999px;
 }
 
 .tripod-level {
   font-weight: 600;
   color: #c7d2fe;
+}
+
+.tripod-color-1 {
+  background-color: #00a1e0
+}
+
+.tripod-color-2 {
+  background-color: #7cca15
+}
+
+.tripod-color-3 {
+  background-color: #ff9500
 }
 
 .tripod-inline-name {
@@ -1786,11 +1811,16 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 }
 
 .tripod-detail-inline .tripod-slot {
-  min-width: 70px;
-  max-width: 70px;
+  display: flex;
+  flex-direction: column;
   text-align: center;
-  white-space: nowrap;
+  align-items: center;
+  min-height: 25px;
+  max-height: 25px;
+  min-width: 25px;
+  max-width: 25px;
   margin-left: auto;
+  padding-top: 2px;
 }
 
 .tripod-desc {
