@@ -705,19 +705,10 @@ const extractSkillMetadata = (tooltip?: string | null) => {
         }
       }
 
-      // 부위파괴: 다양한 형식 지원
-      // "부위파괴 레벨 2", "부위 파괴 2", "부위파괴 : 2레벨", "부위파괴 2레벨"
+      // 부위파괴: 실제 데이터 형식 "부위 파괴 : 레벨 1"
       if (!metadata.destruction) {
-        // 패턴 1: "부위파괴 레벨 2", "부위 파괴 2"
-        let destructionMatch = cleanValue.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
-        if (!destructionMatch) {
-          // 패턴 2: "부위파괴 : 2", "부위파괴: 2레벨"
-          destructionMatch = cleanValue.match(/부위\s*파괴\s*[:\:]\s*(\d+)/)
-        }
-        if (!destructionMatch) {
-          // 패턴 3: "부위파괴 2레벨"
-          destructionMatch = cleanValue.match(/부위\s*파괴\s*(\d+)\s*레벨/)
-        }
+        // 실제 형식: "부위 파괴 : 레벨 1"
+        const destructionMatch = cleanValue.match(/부위\s*파괴\s*[:\:]\s*레벨\s*(\d+)/)
         if (destructionMatch) {
           metadata.destruction = `${destructionMatch[1]}레벨`
         }
@@ -740,16 +731,8 @@ const extractSkillMetadata = (tooltip?: string | null) => {
         if (armorMatch) metadata.superArmor = armorMatch[1].trim()
       }
       if (!metadata.destruction) {
-        // 패턴 1: "부위파괴 레벨 2", "부위 파괴 2"
-        let destructionMatch = line.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
-        if (!destructionMatch) {
-          // 패턴 2: "부위파괴 : 2", "부위파괴: 2레벨"
-          destructionMatch = line.match(/부위\s*파괴\s*[:\:]\s*(\d+)/)
-        }
-        if (!destructionMatch) {
-          // 패턴 3: "부위파괴 2레벨"
-          destructionMatch = line.match(/부위\s*파괴\s*(\d+)\s*레벨/)
-        }
+        // 실제 형식: "부위 파괴 : 레벨 1"
+        const destructionMatch = line.match(/부위\s*파괴\s*[:\:]\s*레벨\s*(\d+)/)
         if (destructionMatch) {
           metadata.destruction = `${destructionMatch[1]}레벨`
         }
@@ -887,6 +870,7 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
 
 /**
  * 트라이포드 툴팁 텍스트를 요약 (트라이포드 설명 추출)
+ * 트라이포드 툴팁은 JSON이 아닌 평문 HTML 문자열 형식임
  * @param tooltip - 트라이포드 툴팁 문자열
  * @param fallback - 기본값
  * @returns 요약된 텍스트
@@ -894,38 +878,10 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
 const summarizeTripodTooltip = (tooltip?: string | null, fallback = '') => {
   if (!tooltip) return fallback
 
-  try {
-    const parsed = JSON.parse(tooltip)
-
-    // 1순위: ItemPartBox 타입의 Element에서 추출 (트라이포드에서 사용)
-    for (const element of Object.values(parsed) as any[]) {
-      if (element?.type === 'ItemPartBox' && element?.value) {
-        const desc = sanitizeInline(element.value)
-        if (desc && desc.length >= 10) {
-          return desc
-        }
-      }
-    }
-
-    // 2순위: Element_001에서 추출 (트라이포드 설명이 위치)
-    if (parsed.Element_001?.value) {
-      const desc = sanitizeInline(parsed.Element_001.value)
-      if (desc && desc.length >= 10) {
-        return desc
-      }
-    }
-
-    // 3순위: SingleTextBox 타입의 Element 찾기
-    for (const element of Object.values(parsed) as any[]) {
-      if (element?.type === 'SingleTextBox' && element?.value) {
-        const desc = sanitizeInline(element.value)
-        if (desc && desc.length >= 10) {
-          return desc
-        }
-      }
-    }
-  } catch {
-    // JSON 파싱 실패 시 기존 방식으로 폴백
+  // 트라이포드 툴팁은 평문 HTML 문자열이므로 직접 처리
+  const cleaned = sanitizeInline(tooltip)
+  if (cleaned && cleaned.length >= 10) {
+    return cleaned
   }
 
   // 폴백: 평탄화된 라인에서 찾기
