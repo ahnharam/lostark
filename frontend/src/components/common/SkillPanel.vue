@@ -828,17 +828,9 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
       }
     }
 
-    // 2순위: Element_006에서 추출 (추가 설명)
-    if (parsed.Element_006?.value) {
-      const desc = sanitizeInline(parsed.Element_006.value)
-      if (desc && desc.length >= 10) {
-        return desc
-      }
-    }
-
-    // 3순위: ItemPartBox 타입의 Element 찾기
+    // 2순위: SingleTextBox 타입의 Element 찾기
     for (const element of Object.values(parsed) as any[]) {
-      if (element?.type === 'ItemPartBox' && element?.value) {
+      if (element?.type === 'SingleTextBox' && element?.value) {
         const desc = sanitizeInline(element.value)
         if (desc && desc.length >= 10) {
           return desc
@@ -857,8 +849,8 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
     if (index === 0) return false
     if (!line || line.trim().length < 10) return false
 
-    // 아이콘 경로나 메타 정보 제외
-    if (/https?:\/\/|iconPath|iconGrade|레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머|CommonSkillTitle|부위\s*파괴/i.test(line)) {
+    // 메타 정보 제외
+    if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머|부위\s*파괴/i.test(line)) {
       return false
     }
 
