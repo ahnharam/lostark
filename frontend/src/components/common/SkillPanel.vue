@@ -8,22 +8,13 @@
 
     <!-- 에러 상태 표시 -->
     <div v-else-if="errorMessage" class="skill-panel-placeholder">
-      <ErrorMessage
-        title="스킬 정보를 불러올 수 없어요"
-        :message="errorMessage"
-        :retry="true"
-        :dismissible="false"
-        @retry="$emit('retry')"
-      />
+      <ErrorMessage title="스킬 정보를 불러올 수 없어요" :message="errorMessage" :retry="true" :dismissible="false"
+        @retry="$emit('retry')" />
     </div>
 
     <!-- 데이터 없음 상태 표시 -->
     <div v-else-if="!hasRenderableContent" class="skill-panel-placeholder">
-      <EmptyState
-        icon="🎯"
-        title="스킬 데이터가 감지되지 않았어요"
-        :description="emptyStateDescription"
-      >
+      <EmptyState icon="🎯" title="스킬 데이터가 감지되지 않았어요" :description="emptyStateDescription">
         <button v-if="characterName" type="button" class="skill-panel-retry" @click="$emit('retry')">
           다시 불러오기
         </button>
@@ -33,10 +24,7 @@
     <!-- 스킬 정보 메인 레이아웃 -->
     <div v-else class="skill-panel-layout">
       <!-- 초각성 스킬 섹션 (skillTypeCode: 1) -->
-      <section
-        v-if="superSkillHighlights.length"
-        class="skill-section skill-section--highlight"
-      >
+      <section v-if="superSkillHighlights.length" class="skill-section skill-section--highlight">
         <div class="section-heading">
           <div>
             <h4>초각성 스킬</h4>
@@ -45,120 +33,17 @@
 
         <!-- 초각성 스킬 카드 그리드 -->
         <div class="skill-card-grid super-skill-grid">
-          <article
-            v-for="skill in superSkillHighlights"
-            :key="`super-${skill.key}`"
-            class="skill-card"
-            :class="{ 'skill-card--compact': skill.isCompact }"
-          >
+          <article v-for="skill in superSkillHighlights" :key="`super-${skill.key}`" class="skill-card"
+            :class="{ 'skill-card--compact': skill.isCompact }">
             <div class="skill-card-main">
               <div class="skill-card-hero">
                 <!-- 스킬 아이콘 및 이름 블록 -->
                 <div class="skill-card-icon-block">
                   <div class="skill-icon-wrapper" tabindex="0">
-                    <LazyImage
-                      v-if="skill.icon"
-                      :src="skill.icon"
-                      :alt="skill.name"
-                      width="40"
-                      height="40"
-                      imageClass="skill-card-icon"
-                      errorIcon="✨"
-                      :useProxy="true"
-                    />
+                    <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
+                      imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                   </div>
                   <p class="skill-card-name">{{ skill.name }}</p>
-                </div>
-              </div>
-
-              <!-- 트라이포드, 룬, 보석 정보 레일 -->
-              <div
-                v-if="skill.tripods.length || skill.rune || skill.gemBadges.length"
-                class="skill-tripod-rail"
-                :class="{ 'skill-tripod-rail--compact': skill.isCompact }"
-              >
-                <!-- 트라이포드 상세 정보 -->
-                <div v-for="tripod in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
-                  <div class="tripod-inline-icon">
-                    <LazyImage
-                      v-if="tripod.icon"
-                      :src="tripod.icon"
-                      :alt="tripod.name"
-                      width="40"
-                      height="40"
-                      imageClass="tripod-image"
-                      errorIcon="🌀"
-                      :useProxy="true"
-                    />
-                    <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
-                      T{{ tripod.tier ?? '?' }}
-                    </span> -->
-                  </div>
-                  <div class="tripod-inline-name">
-                    <span class="tripod-name">{{ tripod.name }}</span>
-                    <span v-if="tripod.levelLabel" class="tripod-level">{{ tripod.levelLabel }}</span>
-                  </div>
-                  <span class="tripod-desc" :class="{ 'tripod-desc--empty': !tripod.description }">
-                    {{ tripod.description || '' }}
-                  </span>
-                  <span class="tripod-slot">슬롯 {{ tripod.slotLabel }}</span>
-                </div>
-
-                <!-- 룬 정보 표시 -->
-                <div v-if="skill.rune" class="skill-rune skill-rune--inline">
-                  <div class="skill-rune-icon">
-                    <LazyImage
-                      v-if="skill.rune.icon"
-                      :src="skill.rune.icon"
-                      :alt="skill.rune.name"
-                      width="32"
-                      height="32"
-                      imageClass="rune-image"
-                      errorIcon="💠"
-                      :useProxy="true"
-                    />
-                  </div>
-                  <div>
-                    <p class="skill-rune-grade" :style="{ color: skill.rune.gradeColor || undefined }">
-                      {{ skill.rune.grade || '룬' }}
-                    </p>
-                    <strong class="skill-rune-name">{{ skill.rune.name }}</strong>
-                    <p
-                      v-if="getRuneAffixView(skill.rune, skill.runeEffect)?.text"
-                      class="skill-rune-description"
-                    >
-                      {{ getRuneAffixView(skill.rune, skill.runeEffect)!.text }}
-                    </p>
-                  </div>
-                </div>
-
-                <!-- 보석 정보 표시 -->
-                <div v-if="skill.gemBadges.length" class="skill-gem-row">
-                  <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
-                    <div class="skill-gem-main">
-                      <LazyImage
-                        v-if="gem.icon"
-                        :src="gem.icon"
-                        :alt="gem.name"
-                        width="32"
-                        height="32"
-                        imageClass="skill-gem-icon-img"
-                        errorIcon="💎"
-                        :useProxy="true"
-                      />
-                      <span v-else class="skill-gem-icon-fallback">💎</span>
-                      <div class="skill-gem-info">
-                        <span class="skill-gem-name">{{ gem.name }}</span>
-                        <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
-                      </div>
-                    </div>
-                    <div v-if="gem.effectText || gem.extraEffect" class="skill-gem-effect">
-                      <span class="skill-gem-effect-main">{{ gem.effectText || '' }}</span>
-                      <span v-if="gem.extraEffect" class="skill-gem-extra">
-                        {{ gem.extraEffect }}
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -167,146 +52,91 @@
       </section>
 
       <!-- 스킬 섹션 반복 (각성기, 전투 스킬 등) -->
-      <section
-        v-for="section in skillSections"
-        :key="section.key"
-        class="skill-section"
-        :class="section.modifier"
-      >
+      <section v-for="section in skillSections" :key="section.key" class="skill-section" :class="section.modifier">
         <div class="section-heading">
           <div>
             <h4>{{ section.title }}</h4>
           </div>
         </div>
-        <div
-          v-for="row in getSectionRows(section)"
-          :key="row.key"
-          :class="['skill-card-group', row.layout === 'pair' ? 'skill-card-group--pairs' : null]"
-        >
+        <div v-for="row in getSectionRows(section)" :key="row.key"
+          :class="['skill-card-group', row.layout === 'pair' ? 'skill-card-group--pairs' : null]">
           <!-- 각성기·초각성기 페어 레이아웃 (좌우 2열 배치) -->
           <template v-if="row.layout === 'pair' && row.pairs?.length">
-            <div
-              v-for="(pairRow, rowIndex) in getPairChunks(row.pairs)"
-              :key="`pair-row-${row.key}-${rowIndex}`"
-              class="skill-card-pair-row"
-            >
+            <div v-for="(pairRow, rowIndex) in getPairChunks(row.pairs)" :key="`pair-row-${row.key}-${rowIndex}`"
+              class="skill-card-pair-row">
               <!-- 각성기 페어 -->
               <div v-for="pair in pairRow" :key="pair.key" class="skill-card-pair">
                 <div class="skill-card-pair-columns">
                   <!-- 좌측 컬럼: 각성기 (skillTypeCode: 100) -->
                   <div class="skill-card-pair-column">
                     <template v-if="pair.left">
-                      <article
-                      class="skill-card"
-                      :class="{ 'skill-card--compact': pair.left.isCompact }"
-                    >
-                      <div class="skill-card-main">
-                        <div class="skill-card-hero">
-                <div class="skill-card-icon-block">
-                  <div class="skill-icon-wrapper" tabindex="0">
-                    <LazyImage
-                      v-if="pair.left.icon"
-                      :src="pair.left.icon"
-                      :alt="pair.left.name"
-                      width="40"
-                      height="40"
-                      imageClass="skill-card-icon"
-                      errorIcon="✨"
-                      :useProxy="true"
-                    />
-                  </div>
-                  <p class="skill-card-name">{{ pair.left.name }}</p>
-                  <div v-if="pair.left.gemBadges.length" class="skill-affix-row">
-                    <span
-                      v-for="gem in pair.left.gemBadges"
-                      :key="`gem-affix-${pair.left.key}-${gem.key}`"
-                      class="skill-affix skill-affix--gem"
-                    >
-                      <span class="affix-label">{{ gem.effectLabel || gem.name }}</span>
-                      <span class="affix-text">
-                        {{
-                          gem.extraEffect
-                            ? [gem.effectText, gem.extraEffect].filter(Boolean).join(' · ')
-                            : gem.effectText || gem.levelLabel || gem.name
-                        }}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-                        </div>
-                          <div
-                          v-if="pair.left.tripods.length || pair.left.rune || pair.left.gemBadges.length"
-                          class="skill-tripod-rail"
-                          :class="{ 'skill-tripod-rail--compact': pair.left.isCompact }"
-                        >
-                          <div v-for="tripod in pair.left.tripods" :key="tripod.key" class="tripod-detail-inline">
-                            <div class="tripod-inline-icon">
-                              <LazyImage
-                                v-if="tripod.icon"
-                                :src="tripod.icon"
-                                :alt="tripod.name"
-                                width="40"
-                                height="40"
-                                imageClass="tripod-image"
-                                errorIcon="🌀"
-                                :useProxy="true"
-                              />
-                              <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
+                      <article class="skill-card" :class="{ 'skill-card--compact': pair.left.isCompact }">
+                        <div class="skill-card-main">
+                          <div class="skill-card-hero">
+                            <div class="skill-card-icon-block">
+                              <div class="skill-icon-wrapper" tabindex="0">
+                                <LazyImage v-if="pair.left.icon" :src="pair.left.icon" :alt="pair.left.name" width="40"
+                                  height="40" imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
+                              </div>
+                              <p class="skill-card-name">{{ pair.left.name }}</p>
+                              <div v-if="pair.left.gemBadges.length" class="skill-affix-row">
+                                <span v-for="gem in pair.left.gemBadges" :key="`gem-affix-${pair.left.key}-${gem.key}`"
+                                  class="skill-affix skill-affix--gem">
+                                  <span class="affix-label">{{ gem.effectLabel || gem.name }}</span>
+                                  <span class="affix-text">
+                                    {{
+                                      gem.extraEffect
+                                        ? [gem.effectText, gem.extraEffect].filter(Boolean).join(' · ')
+                                        : gem.effectText || gem.levelLabel || gem.name
+                                    }}
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div v-if="pair.left.tripods.length || pair.left.rune || pair.left.gemBadges.length"
+                            class="skill-tripod-rail" :class="{ 'skill-tripod-rail--compact': pair.left.isCompact }">
+                            <div v-for="tripod in pair.left.tripods" :key="tripod.key" class="tripod-detail-inline">
+                              <div class="tripod-inline-icon">
+                                <LazyImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="40"
+                                  height="40" imageClass="tripod-image" errorIcon="🌀" :useProxy="true" />
+                                <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
                                 T{{ tripod.tier ?? '?' }}
                               </span> -->
+                              </div>
+                              <div class="tripod-inline-name">
+                                <span class="tripod-name">{{ tripod.name }}</span>
+                                <span v-if="tripod.levelLabel" class="tripod-level">{{ tripod.levelLabel }}</span>
+                              </div>
+                              <span class="tripod-desc" :class="{ 'tripod-desc--empty': !tripod.description }">
+                                {{ tripod.description || '' }}
+                              </span>
+                              <span class="tripod-slot">슬롯 {{ tripod.slotLabel }}</span>
                             </div>
-                            <div class="tripod-inline-name">
-                              <span class="tripod-name">{{ tripod.name }}</span>
-                              <span v-if="tripod.levelLabel" class="tripod-level">{{ tripod.levelLabel }}</span>
-                            </div>
-                            <span class="tripod-desc" :class="{ 'tripod-desc--empty': !tripod.description }">
-                              {{ tripod.description || '' }}
-                            </span>
-                            <span class="tripod-slot">슬롯 {{ tripod.slotLabel }}</span>
-                          </div>
-                          <div v-if="pair.left.rune" class="skill-rune skill-rune--inline">
-                            <div class="skill-rune-icon">
-                              <LazyImage
-                                v-if="pair.left.rune.icon"
-                                :src="pair.left.rune.icon"
-                                  :alt="pair.left.rune.name"
-                                  width="32"
-                                  height="32"
-                                  imageClass="rune-image"
-                                  errorIcon="💠"
-                                  :useProxy="true"
-                                />
+                            <div v-if="pair.left.rune" class="skill-rune skill-rune--inline">
+                              <div class="skill-rune-icon">
+                                <LazyImage v-if="pair.left.rune.icon" :src="pair.left.rune.icon"
+                                  :alt="pair.left.rune.name" width="32" height="32" imageClass="rune-image"
+                                  errorIcon="💠" :useProxy="true" />
                               </div>
                               <div>
-                                <p
-                                  class="skill-rune-grade"
-                                  :style="{ color: pair.left.rune.gradeColor || undefined }"
-                                >
+                                <p class="skill-rune-grade" :style="{ color: pair.left.rune.gradeColor || undefined }">
                                   {{ pair.left.rune.grade || '룬' }}
                                 </p>
                                 <strong class="skill-rune-name">{{ pair.left.rune.name }}</strong>
-                                <p
-                                  v-if="getRuneAffixView(pair.left.rune, pair.left.runeEffect)?.text"
-                                  class="skill-rune-description"
-                                >
+                                <p v-if="getRuneAffixView(pair.left.rune, pair.left.runeEffect)?.text"
+                                  class="skill-rune-description">
                                   {{ getRuneAffixView(pair.left.rune, pair.left.runeEffect)!.text }}
                                 </p>
                               </div>
                             </div>
                           </div>
                           <div v-if="pair.left.gemBadges.length" class="skill-gem-row">
-                            <div v-for="gem in pair.left.gemBadges" :key="`gem-${pair.left.key}-${gem.key}`" class="skill-gem-item">
+                            <div v-for="gem in pair.left.gemBadges" :key="`gem-${pair.left.key}-${gem.key}`"
+                              class="skill-gem-item">
                               <div class="skill-gem-main">
-                                <LazyImage
-                                  v-if="gem.icon"
-                                  :src="gem.icon"
-                                  :alt="gem.name"
-                                  width="32"
-                                  height="32"
-                                  imageClass="skill-gem-icon-img"
-                                  errorIcon="💎"
-                                  :useProxy="true"
-                                />
+                                <LazyImage v-if="gem.icon" :src="gem.icon" :alt="gem.name" width="32" height="32"
+                                  imageClass="skill-gem-icon-img" errorIcon="💎" :useProxy="true" />
                                 <span v-else class="skill-gem-icon-fallback">💎</span>
                                 <div class="skill-gem-info">
                                   <span class="skill-gem-name">{{ gem.name }}</span>
@@ -333,129 +163,15 @@
                   <!-- 우측 컬럼: 초각성기 (skillTypeCode: 101) -->
                   <div class="skill-card-pair-column">
                     <template v-if="pair.right">
-                      <article
-                      class="skill-card"
-                      :class="{ 'skill-card--compact': pair.right.isCompact }"
-                    >
-                      <div class="skill-card-main">
-                        <div class="skill-card-hero">
-                <div class="skill-card-icon-block">
-                  <div class="skill-icon-wrapper" tabindex="0">
-                    <LazyImage
-                      v-if="pair.right.icon"
-                      :src="pair.right.icon"
-                      :alt="pair.right.name"
-                      width="40"
-                      height="40"
-                      imageClass="skill-card-icon"
-                      errorIcon="✨"
-                      :useProxy="true"
-                    />
-                  </div>
-                      <p class="skill-card-name">{{ pair.right.name }}</p>
-                      <div v-if="pair.right.gemBadges.length" class="skill-affix-row">
-                        <span
-                        v-for="gem in pair.right.gemBadges"
-                        :key="`gem-affix-${pair.right.key}-${gem.key}`"
-                        class="skill-affix skill-affix--gem"
-                      >
-                        <span class="affix-label">{{ gem.effectLabel || gem.name }}</span>
-                        <span class="affix-text">
-                          {{
-                            gem.extraEffect
-                              ? [gem.effectText, gem.extraEffect].filter(Boolean).join(' · ')
-                              : gem.effectText || gem.levelLabel || gem.name
-                          }}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                        </div>
-                        <div
-                          v-if="pair.right.tripods.length || pair.right.rune || pair.right.gemBadges.length"
-                          class="skill-tripod-rail"
-                          :class="{ 'skill-tripod-rail--compact': pair.right.isCompact }"
-                        >
-                          <div v-for="tripod in pair.right.tripods" :key="tripod.key" class="tripod-detail-inline">
-                            <div class="tripod-inline-icon">
-                              <LazyImage
-                                v-if="tripod.icon"
-                                :src="tripod.icon"
-                                :alt="tripod.name"
-                                width="40"
-                                height="40"
-                                imageClass="tripod-image"
-                                errorIcon="🌀"
-                                :useProxy="true"
-                              />
-                              <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
-                                T{{ tripod.tier ?? '?' }}
-                              </span> -->
-                            </div>
-                            <div class="tripod-inline-name">
-                              <span class="tripod-name">{{ tripod.name }}</span>
-                              <span v-if="tripod.levelLabel" class="tripod-level">{{ tripod.levelLabel }}</span>
-                            </div>
-                            <span class="tripod-desc" :class="{ 'tripod-desc--empty': !tripod.description }">
-                              {{ tripod.description || '' }}
-                            </span>
-                            <span class="tripod-slot">슬롯 {{ tripod.slotLabel }}</span>
-                          </div>
-                          <div v-if="pair.right.rune" class="skill-rune skill-rune--inline">
-                            <div class="skill-rune-icon">
-                              <LazyImage
-                                v-if="pair.right.rune.icon"
-                                :src="pair.right.rune.icon"
-                                  :alt="pair.right.rune.name"
-                                  width="32"
-                                  height="32"
-                                  imageClass="rune-image"
-                                  errorIcon="💠"
-                                  :useProxy="true"
-                                />
+                      <article class="skill-card" :class="{ 'skill-card--compact': pair.right.isCompact }">
+                        <div class="skill-card-main">
+                          <div class="skill-card-hero">
+                            <div class="skill-card-icon-block">
+                              <div class="skill-icon-wrapper" tabindex="0">
+                                <LazyImage v-if="pair.right.icon" :src="pair.right.icon" :alt="pair.right.name"
+                                  width="40" height="40" imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                               </div>
-                              <div>
-                                <p
-                                  class="skill-rune-grade"
-                                  :style="{ color: pair.right.rune.gradeColor || undefined }"
-                                >
-                                  {{ pair.right.rune.grade || '룬' }}
-                                </p>
-                                <strong class="skill-rune-name">{{ pair.right.rune.name }}</strong>
-                                <p
-                                  v-if="getRuneAffixView(pair.right.rune, pair.right.runeEffect)?.text"
-                                  class="skill-rune-description"
-                                >
-                                  {{ getRuneAffixView(pair.right.rune, pair.right.runeEffect)!.text }}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          <div v-if="pair.right.gemBadges.length" class="skill-gem-row">
-                            <div v-for="gem in pair.right.gemBadges" :key="`gem-${pair.right.key}-${gem.key}`" class="skill-gem-item">
-                              <div class="skill-gem-main">
-                                <LazyImage
-                                  v-if="gem.icon"
-                                  :src="gem.icon"
-                                  :alt="gem.name"
-                                  width="32"
-                                  height="32"
-                                  imageClass="skill-gem-icon-img"
-                                  errorIcon="💎"
-                                  :useProxy="true"
-                                />
-                                <span v-else class="skill-gem-icon-fallback">💎</span>
-                                <div class="skill-gem-info">
-                                  <span class="skill-gem-name">{{ gem.name }}</span>
-                                  <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span>
-                                </div>
-                              </div>
-                              <div v-if="gem.effectText || gem.extraEffect" class="skill-gem-effect">
-                                <span class="skill-gem-effect-main">{{ gem.effectText || '' }}</span>
-                                <span v-if="gem.extraEffect" class="skill-gem-extra">
-                                  {{ gem.extraEffect }}
-                                </span>
-                              </div>
+                              <p class="skill-card-name">{{ pair.right.name }}</p>
                             </div>
                           </div>
                         </div>
@@ -475,58 +191,33 @@
           <div v-else class="skill-card-grid skill-card-grid--limited">
             <!-- 강화된 스킬 (트라이포드/룬/보석이 있는 스킬) -->
             <template v-for="skill in getEnhancedSkills(row.cards)" :key="`${skill.key}-enhanced`">
-              <article
-                class="skill-card skill-card--enhanced-row"
-                :class="{ 'skill-card--compact': skill.isCompact }"
-              >
+              <article class="skill-card skill-card--enhanced-row" :class="{ 'skill-card--compact': skill.isCompact }">
                 <div class="skill-card-main">
                   <div class="skill-card-hero">
                     <div class="skill-card-icon-block">
                       <div class="skill-icon-wrapper" tabindex="0">
-                        <LazyImage
-                          v-if="skill.icon"
-                          :src="skill.icon"
-                          :alt="skill.name"
-                          width="40"
-                          height="40"
-                          imageClass="skill-card-icon"
-                          errorIcon="✨"
-                          :useProxy="true"
-                    />
+                        <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
+                          imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                       </div>
                       <p class="skill-card-name">{{ skill.name }}</p>
                       <p class="skill-card-meta">
                         <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
                       </p>
                     </div>
-                    <div
-                      v-if="skill.tripods.length || skill.rune || skill.gemBadges.length"
-                      class="skill-tripod-rail"
-                      :class="{ 'skill-tripod-rail--compact': skill.isCompact }"
-                    >
+                    <div v-if="skill.tripods.length || skill.rune || skill.gemBadges.length" class="skill-tripod-rail"
+                      :class="{ 'skill-tripod-rail--compact': skill.isCompact }">
                       <div v-for="tripod in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
                         <div class="tripod-detail-icon">
-                          <LazyImage
-                            v-if="tripod.icon"
-                            :src="tripod.icon"
-                            :alt="tripod.name"
-                            width="36"
-                            height="36"
-                            imageClass="tripod-image"
-                            errorIcon="🌀"
-                            :useProxy="true"
-                          />
-                          <!-- <span class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
-                              T{{ tripod.tier ?? '?' }}
-                            </span> -->
+                          <LazyImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="36" height="36"
+                            imageClass="tripod-image" errorIcon="🌀" :useProxy="true" />
                         </div>
                         <div class="tripod-detail-body">
                           <div class="tripod-detail-head">
 
                             <span class="tripod-name">{{ tripod.name }}</span>
-                          <span v-if="tripod.description" class="tripod-desc">
-                            {{ tripod.description }}
-                          </span>
+                            <span v-if="tripod.description" class="tripod-desc">
+                              {{ tripod.description }}
+                            </span>
                             <span class="tripod-slot">{{ tripod.slotLabel }}</span>
                             <span v-if="tripod.levelLabel" class="tripod-level">
                               {{ tripod.levelLabel }}
@@ -536,45 +227,25 @@
                       </div>
                       <div v-if="skill.rune" class="skill-rune skill-rune--inline">
                         <div class="skill-rune-icon">
-                          <LazyImage
-                            v-if="skill.rune.icon"
-                            :src="skill.rune.icon"
-                            :alt="skill.rune.name"
-                            width="32"
-                            height="32"
-                            imageClass="rune-image"
-                            errorIcon="💠"
-                            :useProxy="true"
-                          />
+                          <LazyImage v-if="skill.rune.icon" :src="skill.rune.icon" :alt="skill.rune.name" width="32"
+                            height="32" imageClass="rune-image" errorIcon="💠" :useProxy="true" />
                         </div>
-                          <p class="skill-rune-grade" :style="{ color: skill.rune.gradeColor || undefined }">
-                            {{ skill.rune.grade || '룬' }}
-                          </p>
-                          <strong class="skill-rune-name">{{ skill.rune.name }}</strong>
-                          <p
-                            v-if="getRuneAffixView(skill.rune, skill.runeEffect)?.text"
-                            class="skill-rune-description"
-                          >
-                            {{ getRuneAffixView(skill.rune, skill.runeEffect)!.text }}
-                          </p>
+                        <p class="skill-rune-grade" :style="{ color: skill.rune.gradeColor || undefined }">
+                          {{ skill.rune.grade || '룬' }}
+                        </p>
+                        <strong class="skill-rune-name">{{ skill.rune.name }}</strong>
+                        <p v-if="getRuneAffixView(skill.rune, skill.runeEffect)?.text" class="skill-rune-description">
+                          {{ getRuneAffixView(skill.rune, skill.runeEffect)!.text }}
+                        </p>
                       </div>
                       <div v-if="skill.gemBadges.length" class="skill-gem-row">
                         <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
                           <div class="skill-gem-main">
-                            <LazyImage
-                              v-if="gem.icon"
-                              :src="gem.icon"
-                              :alt="gem.name"
-                              width="32"
-                              height="32"
-                              imageClass="skill-gem-icon-img"
-                              errorIcon="💎"
-                              :useProxy="true"
-                            />
+                            <LazyImage v-if="gem.icon" :src="gem.icon" :alt="gem.name" width="32" height="32"
+                              imageClass="skill-gem-icon-img" errorIcon="💎" :useProxy="true" />
                             <span v-else class="skill-gem-icon-fallback">💎</span>
                             <div class="skill-gem-info">
                               <span class="skill-gem-name">{{ gem.name }}</span>
-                              <!-- <span v-if="gem.levelLabel" class="skill-gem-level">{{ gem.levelLabel }}</span> -->
                             </div>
                           </div>
                           <div v-if="gem.effectText || gem.extraEffect" class="skill-gem-effect">
@@ -593,93 +264,20 @@
 
             <!-- 일반 스킬 (트라이포드/룬/보석이 없는 스킬) - 인라인 행 배치 -->
             <div v-if="getPlainSkills(row.cards).length" class="skill-card-inline-row">
-              <article
-                v-for="skill in getPlainSkills(row.cards)"
-                :key="`${skill.key}-plain`"
-                class="skill-card skill-card--inline"
-                :class="{ 'skill-card--compact': skill.isCompact }"
-              >
+              <article v-for="skill in getPlainSkills(row.cards)" :key="`${skill.key}-plain`"
+                class="skill-card skill-card--inline" :class="{ 'skill-card--compact': skill.isCompact }">
                 <div class="skill-card-main">
                   <div class="skill-card-hero">
                     <div class="skill-card-icon-block">
                       <div class="skill-icon-wrapper" tabindex="0">
-                        <LazyImage
-                          v-if="skill.icon"
-                          :src="skill.icon"
-                          :alt="skill.name"
-                          width="40"
-                          height="40"
-                          imageClass="skill-card-icon"
-                          errorIcon="✨"
-                          :useProxy="true"
-                        />
+                        <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
+                          imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                         <!-- 스킬 아이콘 호버 시 표시되는 툴팁 -->
-                        <div
-                          v-if="skill.description || skill.tripods.length"
-                          class="skill-icon-tooltip"
-                        >
+                        <div v-if="skill.description || skill.tripods.length" class="skill-icon-tooltip">
                           <p class="skill-tooltip-title">{{ skill.name }}</p>
                           <p v-if="skill.description" class="skill-tooltip-desc">
                             {{ skill.description }}
                           </p>
-                          <div v-if="skill.tripods.length" class="skill-tooltip-tripods">
-                            <p class="skill-tooltip-sub">트라이포드</p>
-                            <ul>
-                              <li v-for="tripod in skill.tripods" :key="tripod.key" class="tripod-detail">
-                                <div class="tripod-detail-icon">
-                                  <LazyImage
-                                    v-if="tripod.icon"
-                                    :src="tripod.icon"
-                                    :alt="tripod.name"
-                                    width="32"
-                                    height="32"
-                                    imageClass="tripod-image"
-                                    errorIcon="🌀"
-                                    :useProxy="true"
-                                  />
-                                  <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
-                                    T{{ tripod.tier ?? '?' }}
-                                  </span>
-                                </div>
-                                <div class="tripod-detail-body">
-                                  <div class="tripod-detail-head">
-                                    <span class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
-                                      T{{ tripod.tier ?? '?' }}
-                                    </span>
-                                    <span class="tripod-name">{{ tripod.name }}</span>
-                                    <span v-if="tripod.description" class="tripod-desc">
-                                      {{ tripod.description }}
-                                    </span>
-                                    <span class="tripod-slot">{{ tripod.slotLabel }}</span>
-                                    <span v-if="tripod.levelLabel" class="tripod-level">
-                                      {{ tripod.levelLabel }}
-                                    </span>
-                                  </div>
-                                </div>
-                              </li>
-                            </ul>
-                          </div>
-                          <div v-if="skill.rune" class="skill-tooltip-rune">
-                            <p class="skill-tooltip-sub">룬</p>
-                            <div class="skill-tooltip-rune-body">
-                              <LazyImage
-                                v-if="skill.rune.icon"
-                                :src="skill.rune.icon"
-                                :alt="skill.rune.name"
-                                width="32"
-                                height="32"
-                                imageClass="rune-image"
-                                errorIcon="💠"
-                                :useProxy="true"
-                              />
-                              <div>
-                                <p class="skill-tooltip-rune-name">{{ skill.rune.name }}</p>
-                                <p v-if="skill.rune.description" class="skill-tooltip-rune-desc">
-                                  {{ skill.rune.description }}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
                       <p class="skill-card-name">{{ skill.name }}</p>
@@ -694,42 +292,6 @@
           </div>
         </div>
       </section>
-
-      <!-- <section v-if="gemCards.length" class="skill-section skill-section--gems">
-        <div class="section-heading">
-          <div>
-            <h4>보석 설정</h4>
-            <p>슬롯별 보석 레벨과 연결된 스킬을 확인하세요.</p>
-          </div>
-        </div>
-        <div class="gem-card-grid">
-          <article v-for="gem in gemCards" :key="gem.key" class="gem-card">
-            <header class="gem-card-head">
-              <LazyImage
-                v-if="gem.icon"
-                :src="gem.icon"
-                :alt="gem.name"
-                width="48"
-                height="48"
-                imageClass="gem-card-icon"
-                errorIcon="💎"
-                :useProxy="true"
-              />
-              <div>
-                <p class="gem-card-grade">{{ gem.grade || '보석' }}</p>
-                <strong class="gem-card-name">{{ gem.name }}</strong>
-                <span v-if="gem.levelLabel" class="gem-card-level">{{ gem.levelLabel }}</span>
-              </div>
-            </header>
-            <p v-if="gem.skillName" class="gem-card-skill">
-              적용 스킬: <strong>{{ gem.skillName }}</strong>
-            </p>
-            <p v-if="gem.skillDescription" class="gem-card-description">
-              {{ gem.skillDescription }}
-            </p>
-          </article>
-        </div>
-      </section> -->
     </div>
   </div>
 </template>
@@ -1344,12 +906,12 @@ const skillCards = computed<SkillCardView[]>(() => {
 
       const rune = skill.rune?.name
         ? {
-            name: sanitizeInline(skill.rune.name),
-            grade: sanitizeInline(skill.rune.grade),
-            icon: skill.rune.icon || undefined,
-            description: summarizeTooltip(skill.rune.tooltip, sanitizeInline(skill.rune.tooltip)),
-            gradeColor: extractFontColor(skill.rune.tooltip)
-          }
+          name: sanitizeInline(skill.rune.name),
+          grade: sanitizeInline(skill.rune.grade),
+          icon: skill.rune.icon || undefined,
+          description: summarizeTooltip(skill.rune.tooltip, sanitizeInline(skill.rune.tooltip)),
+          gradeColor: extractFontColor(skill.rune.tooltip)
+        }
         : null
 
       const tripods =
@@ -1708,7 +1270,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   gap: 12px;
 }
 
-.super-skill-grid > .skill-card {
+.super-skill-grid>.skill-card {
   /* flex: 1 1 320px; */
   max-width: 420px;
 }
@@ -1827,7 +1389,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   height: calc(64px - 15px);
 }
 
-.skill-rune-icon{
+.skill-rune-icon {
   width: fit-content;
   height: fit-content;
 }
@@ -1904,14 +1466,14 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-weight: 700;
   font-size: 0.75rem;
   position: absolute;
-  z-index:100;
+  z-index: 100;
   text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
 }
 
 .tripod-name {
   /* flex: 1; */
   min-width: 130px;
-  padding:0px 10px;
+  padding: 0px 10px;
   font-weight: 600;
 }
 
@@ -2038,6 +1600,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-size: 0.82rem;
   color: #e5e7eb;
 }
+
 .tripod-desc {
   display: block;
   /* color: #e5e7eb; */
@@ -2314,7 +1877,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   color: var(--text-primary, #1f2937);
 }
 
-.skill-rune-description{
+.skill-rune-description {
   font-size: 0.8rem;
 }
 
