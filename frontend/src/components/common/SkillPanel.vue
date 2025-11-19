@@ -681,35 +681,35 @@ const extractSkillMetadata = (tooltip?: string | null) => {
       const value = typeof element.value === 'string' ? element.value : ''
       const cleanValue = sanitizeInline(value)
 
-      // 무력화: "무력화 : 중", "무력화: 상"
+      // 무력화: "무력화 : 중", "무력화: 상" - 한 글자만 추출
       if (!metadata.stagger) {
-        const staggerMatch = cleanValue.match(/무력화\s*[:\:]\s*([^\s<]+)/)
+        const staggerMatch = cleanValue.match(/무력화\s*[:\:]\s*([가-힣]+)/)
         if (staggerMatch) {
           metadata.stagger = staggerMatch[1].trim()
         }
       }
 
-      // 공격 타입: "공격 타입 : 백 어택", "공격타입: 헤드 어택"
+      // 공격 타입: "백 어택" 또는 "헤드 어택"만 정확히 추출
       if (!metadata.attackType) {
-        const attackMatch = cleanValue.match(/공격\s*타입\s*[:\:]\s*([^<\n]+)/)
+        const attackMatch = cleanValue.match(/공격\s*타입\s*[:\:]\s*(백\s*어택|헤드\s*어택)/)
         if (attackMatch) {
           metadata.attackType = attackMatch[1].trim()
         }
       }
 
-      // 슈퍼아머: "슈퍼아머 : 경직 면역"
+      // 슈퍼아머: "경직 면역" 등의 값만 추출 (다음 키워드 전까지)
       if (!metadata.superArmor) {
-        const armorMatch = cleanValue.match(/슈퍼아머\s*[:\:]\s*([^<\n]+)/)
+        const armorMatch = cleanValue.match(/슈퍼아머\s*[:\:]\s*([가-힣\s]+?)(?=\s*무력화|\s*공격|\s*부위|$)/)
         if (armorMatch) {
           metadata.superArmor = armorMatch[1].trim()
         }
       }
 
-      // 부위파괴: "부위파괴 1레벨", "부위 파괴 2레벨"
+      // 부위파괴: "부위파괴 레벨 2" 또는 "부위 파괴 2" 형식에서 숫자만 추출
       if (!metadata.destruction) {
-        const destructionMatch = cleanValue.match(/부위\s*파괴\s*[:\:]?\s*([^<\n]+)/)
+        const destructionMatch = cleanValue.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
         if (destructionMatch) {
-          metadata.destruction = destructionMatch[1].trim()
+          metadata.destruction = `${destructionMatch[1]}레벨`
         }
       }
     })
@@ -718,20 +718,20 @@ const extractSkillMetadata = (tooltip?: string | null) => {
     const lines = flattenTooltipLines(tooltip)
     lines.forEach(line => {
       if (!metadata.stagger) {
-        const staggerMatch = line.match(/무력화\s*[:\:]\s*([^\s<]+)/)
+        const staggerMatch = line.match(/무력화\s*[:\:]\s*([가-힣]+)/)
         if (staggerMatch) metadata.stagger = staggerMatch[1].trim()
       }
       if (!metadata.attackType) {
-        const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*([^<\n]+)/)
+        const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*(백\s*어택|헤드\s*어택)/)
         if (attackMatch) metadata.attackType = attackMatch[1].trim()
       }
       if (!metadata.superArmor) {
-        const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*([^<\n]+)/)
+        const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*([가-힣\s]+?)(?=\s*무력화|\s*공격|\s*부위|$)/)
         if (armorMatch) metadata.superArmor = armorMatch[1].trim()
       }
       if (!metadata.destruction) {
-        const destructionMatch = line.match(/부위\s*파괴\s*[:\:]?\s*([^<\n]+)/)
-        if (destructionMatch) metadata.destruction = destructionMatch[1].trim()
+        const destructionMatch = line.match(/부위\s*파괴\s*(?:레벨\s*)?(\d+)/)
+        if (destructionMatch) metadata.destruction = destructionMatch[1].trim() + '레벨'
       }
     })
   }
@@ -822,7 +822,9 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
 
     // 1순위: Element_005에서 추출 (일반적으로 스킬 설명이 위치)
     if (parsed.Element_005?.value) {
-      const desc = sanitizeInline(parsed.Element_005.value)
+      let desc = sanitizeInline(parsed.Element_005.value)
+      // 메타 정보가 포함된 부분 제거 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
+      desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
       if (desc && desc.length >= 10) {
         return desc
       }
@@ -831,7 +833,20 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
     // 2순위: SingleTextBox 타입의 Element 찾기
     for (const element of Object.values(parsed) as any[]) {
       if (element?.type === 'SingleTextBox' && element?.value) {
-        const desc = sanitizeInline(element.value)
+        let desc = sanitizeInline(element.value)
+        // 메타 정보 제거
+        desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
+        if (desc && desc.length >= 10) {
+          return desc
+        }
+      }
+    }
+
+    // 3순위: ItemPartBox 타입의 Element 찾기 (트라이포드 등에서 사용)
+    for (const element of Object.values(parsed) as any[]) {
+      if (element?.type === 'ItemPartBox' && element?.value) {
+        let desc = sanitizeInline(element.value)
+        desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
         if (desc && desc.length >= 10) {
           return desc
         }
