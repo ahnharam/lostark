@@ -664,7 +664,6 @@ const extractLineWithKeyword = (tooltip?: string | null, keyword?: string) => {
 const extractSkillMetadata = (tooltip?: string | null) => {
   if (!tooltip) return {}
 
-  const lines = flattenTooltipLines(tooltip)
   const metadata: {
     stagger?: string
     attackType?: string
@@ -672,33 +671,70 @@ const extractSkillMetadata = (tooltip?: string | null) => {
     destruction?: string
   } = {}
 
-  lines.forEach(line => {
-    // 무력화: "무력화 : 중", "무력화: 상"
-    const staggerMatch = line.match(/무력화\s*[:\:]\s*([^\s·,|]+)/)
-    if (staggerMatch) {
-      metadata.stagger = staggerMatch[1].trim()
-    }
+  try {
+    const parsed = JSON.parse(tooltip)
 
-    // 공격 타입: "공격 타입 : 백 어택", "공격타입: 헤드 어택"
-    // 구분자(·, ,, |) 전까지만 캡처하여 슈퍼아머와 분리
-    const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*([^·,|\n]+)/)
-    if (attackMatch) {
-      metadata.attackType = attackMatch[1].trim()
-    }
+    // 모든 Element를 순회하면서 메타 정보 추출
+    Object.values(parsed).forEach((element: any) => {
+      if (!element?.value) return
 
-    // 슈퍼아머: "슈퍼아머 : 경직 면역"
-    // 구분자(·, ,, |) 전까지만 캡처하여 공격 타입과 분리
-    const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*([^·,|\n]+)/)
-    if (armorMatch) {
-      metadata.superArmor = armorMatch[1].trim()
-    }
+      const value = typeof element.value === 'string' ? element.value : ''
+      const cleanValue = sanitizeInline(value)
 
-    // 부위파괴: "부위파괴 1레벨", "부위 파괴 2레벨"
-    const destructionMatch = line.match(/부위\s*파괴\s*(\d+)\s*레벨/)
-    if (destructionMatch) {
-      metadata.destruction = `${destructionMatch[1]}레벨`
-    }
-  })
+      // 무력화: "무력화 : 중", "무력화: 상"
+      if (!metadata.stagger) {
+        const staggerMatch = cleanValue.match(/무력화\s*[:\:]\s*([^\s<]+)/)
+        if (staggerMatch) {
+          metadata.stagger = staggerMatch[1].trim()
+        }
+      }
+
+      // 공격 타입: "공격 타입 : 백 어택", "공격타입: 헤드 어택"
+      if (!metadata.attackType) {
+        const attackMatch = cleanValue.match(/공격\s*타입\s*[:\:]\s*([^<\n]+)/)
+        if (attackMatch) {
+          metadata.attackType = attackMatch[1].trim()
+        }
+      }
+
+      // 슈퍼아머: "슈퍼아머 : 경직 면역"
+      if (!metadata.superArmor) {
+        const armorMatch = cleanValue.match(/슈퍼아머\s*[:\:]\s*([^<\n]+)/)
+        if (armorMatch) {
+          metadata.superArmor = armorMatch[1].trim()
+        }
+      }
+
+      // 부위파괴: "부위파괴 1레벨", "부위 파괴 2레벨"
+      if (!metadata.destruction) {
+        const destructionMatch = cleanValue.match(/부위\s*파괴\s*[:\:]?\s*([^<\n]+)/)
+        if (destructionMatch) {
+          metadata.destruction = destructionMatch[1].trim()
+        }
+      }
+    })
+  } catch {
+    // JSON 파싱 실패 시 기존 방식으로 폴백
+    const lines = flattenTooltipLines(tooltip)
+    lines.forEach(line => {
+      if (!metadata.stagger) {
+        const staggerMatch = line.match(/무력화\s*[:\:]\s*([^\s<]+)/)
+        if (staggerMatch) metadata.stagger = staggerMatch[1].trim()
+      }
+      if (!metadata.attackType) {
+        const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*([^<\n]+)/)
+        if (attackMatch) metadata.attackType = attackMatch[1].trim()
+      }
+      if (!metadata.superArmor) {
+        const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*([^<\n]+)/)
+        if (armorMatch) metadata.superArmor = armorMatch[1].trim()
+      }
+      if (!metadata.destruction) {
+        const destructionMatch = line.match(/부위\s*파괴\s*[:\:]?\s*([^<\n]+)/)
+        if (destructionMatch) metadata.destruction = destructionMatch[1].trim()
+      }
+    })
+  }
 
   return metadata
 }
@@ -779,24 +815,46 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
  * @returns 요약된 텍스트
  */
 const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
+  if (!tooltip) return fallback
+
+  try {
+    const parsed = JSON.parse(tooltip)
+
+    // 1순위: Element_005에서 추출 (일반적으로 스킬 설명이 위치)
+    if (parsed.Element_005?.value) {
+      const desc = sanitizeInline(parsed.Element_005.value)
+      if (desc && desc.length >= 10) {
+        return desc
+      }
+    }
+
+    // 2순위: SingleTextBox 타입의 Element 찾기
+    for (const element of Object.values(parsed) as any[]) {
+      if (element?.type === 'SingleTextBox' && element?.value) {
+        const desc = sanitizeInline(element.value)
+        if (desc && desc.length >= 10) {
+          return desc
+        }
+      }
+    }
+  } catch {
+    // JSON 파싱 실패 시 기존 방식으로 폴백
+  }
+
+  // 폴백: 평탄화된 라인에서 찾기
   const lines = flattenTooltipLines(tooltip)
   if (!lines.length) return fallback
 
-  // 실제 스킬 설명을 찾기 위한 필터링
-  // 1. 첫 번째 줄(보통 스킬 이름)은 제외
-  // 2. 메타 정보(레벨, 재사용, 마나 등) 제외
-  // 3. 너무 짧은 줄 제외 (10자 미만)
-  // 4. 실제 설명 텍스트 선택 (보통 가장 길고 의미있는 줄)
   const description = lines.find((line, index) => {
-    if (index === 0) return false  // 첫 줄(스킬 이름) 제외
-    if (!line || line.trim().length < 10) return false  // 너무 짧은 줄 제외
+    if (index === 0) return false
+    if (!line || line.trim().length < 10) return false
 
-    // 메타 정보 키워드가 포함된 줄 제외
-    if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머|CommonSkillTitle|부위\s*파괴/i.test(line)) {
+    // 메타 정보 제외
+    if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머|부위\s*파괴/i.test(line)) {
       return false
     }
 
-    return true  // 실제 설명 텍스트로 판단
+    return true
   })
 
   return description ?? fallback
