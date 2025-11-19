@@ -674,19 +674,21 @@ const extractSkillMetadata = (tooltip?: string | null) => {
 
   lines.forEach(line => {
     // 무력화: "무력화 : 중", "무력화: 상"
-    const staggerMatch = line.match(/무력화\s*[:\:]\s*([^\s]+)/)
+    const staggerMatch = line.match(/무력화\s*[:\:]\s*([^\s·,|]+)/)
     if (staggerMatch) {
-      metadata.stagger = staggerMatch[1]
+      metadata.stagger = staggerMatch[1].trim()
     }
 
     // 공격 타입: "공격 타입 : 백 어택", "공격타입: 헤드 어택"
-    const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*(.+)/)
+    // 구분자(·, ,, |) 전까지만 캡처하여 슈퍼아머와 분리
+    const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*([^·,|\n]+)/)
     if (attackMatch) {
       metadata.attackType = attackMatch[1].trim()
     }
 
     // 슈퍼아머: "슈퍼아머 : 경직 면역"
-    const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*(.+)/)
+    // 구분자(·, ,, |) 전까지만 캡처하여 공격 타입과 분리
+    const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*([^·,|\n]+)/)
     if (armorMatch) {
       metadata.superArmor = armorMatch[1].trim()
     }
@@ -790,7 +792,7 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
     if (!line || line.trim().length < 10) return false  // 너무 짧은 줄 제외
 
     // 메타 정보 키워드가 포함된 줄 제외
-    if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머/i.test(line)) {
+    if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머|CommonSkillTitle|부위\s*파괴/i.test(line)) {
       return false
     }
 
