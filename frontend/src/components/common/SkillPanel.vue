@@ -1,8 +1,12 @@
 <template>
+  <!-- 스킬 패널 메인 컨테이너 -->
   <div class="skill-panel-shell">
+    <!-- 로딩 상태 표시 -->
     <div v-if="loading" class="skill-panel-placeholder">
       <LoadingSpinner message="스킬 정보를 불러오는 중입니다..." />
     </div>
+
+    <!-- 에러 상태 표시 -->
     <div v-else-if="errorMessage" class="skill-panel-placeholder">
       <ErrorMessage
         title="스킬 정보를 불러올 수 없어요"
@@ -12,6 +16,8 @@
         @retry="$emit('retry')"
       />
     </div>
+
+    <!-- 데이터 없음 상태 표시 -->
     <div v-else-if="!hasRenderableContent" class="skill-panel-placeholder">
       <EmptyState
         icon="🎯"
@@ -23,7 +29,10 @@
         </button>
       </EmptyState>
     </div>
+
+    <!-- 스킬 정보 메인 레이아웃 -->
     <div v-else class="skill-panel-layout">
+      <!-- 초각성 스킬 섹션 (skillTypeCode: 1) -->
       <section
         v-if="superSkillHighlights.length"
         class="skill-section skill-section--highlight"
@@ -33,6 +42,8 @@
             <h4>초각성 스킬</h4>
           </div>
         </div>
+
+        <!-- 초각성 스킬 카드 그리드 -->
         <div class="skill-card-grid super-skill-grid">
           <article
             v-for="skill in superSkillHighlights"
@@ -42,6 +53,7 @@
           >
             <div class="skill-card-main">
               <div class="skill-card-hero">
+                <!-- 스킬 아이콘 및 이름 블록 -->
                 <div class="skill-card-icon-block">
                   <div class="skill-icon-wrapper" tabindex="0">
                     <LazyImage
@@ -58,11 +70,14 @@
                   <p class="skill-card-name">{{ skill.name }}</p>
                 </div>
               </div>
+
+              <!-- 트라이포드, 룬, 보석 정보 레일 -->
               <div
                 v-if="skill.tripods.length || skill.rune || skill.gemBadges.length"
                 class="skill-tripod-rail"
                 :class="{ 'skill-tripod-rail--compact': skill.isCompact }"
               >
+                <!-- 트라이포드 상세 정보 -->
                 <div v-for="tripod in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
                   <div class="tripod-inline-icon">
                     <LazyImage
@@ -88,6 +103,8 @@
                   </span>
                   <span class="tripod-slot">슬롯 {{ tripod.slotLabel }}</span>
                 </div>
+
+                <!-- 룬 정보 표시 -->
                 <div v-if="skill.rune" class="skill-rune skill-rune--inline">
                   <div class="skill-rune-icon">
                     <LazyImage
@@ -114,6 +131,8 @@
                     </p>
                   </div>
                 </div>
+
+                <!-- 보석 정보 표시 -->
                 <div v-if="skill.gemBadges.length" class="skill-gem-row">
                   <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
                     <div class="skill-gem-main">
@@ -146,6 +165,8 @@
           </article>
         </div>
       </section>
+
+      <!-- 스킬 섹션 반복 (각성기, 전투 스킬 등) -->
       <section
         v-for="section in skillSections"
         :key="section.key"
@@ -162,14 +183,17 @@
           :key="row.key"
           :class="['skill-card-group', row.layout === 'pair' ? 'skill-card-group--pairs' : null]"
         >
+          <!-- 각성기·초각성기 페어 레이아웃 (좌우 2열 배치) -->
           <template v-if="row.layout === 'pair' && row.pairs?.length">
             <div
               v-for="(pairRow, rowIndex) in getPairChunks(row.pairs)"
               :key="`pair-row-${row.key}-${rowIndex}`"
               class="skill-card-pair-row"
             >
+              <!-- 각성기 페어 -->
               <div v-for="pair in pairRow" :key="pair.key" class="skill-card-pair">
                 <div class="skill-card-pair-columns">
+                  <!-- 좌측 컬럼: 각성기 (skillTypeCode: 100) -->
                   <div class="skill-card-pair-column">
                     <template v-if="pair.left">
                       <article
@@ -305,6 +329,8 @@
                       <p>연결된 스킬이 없습니다.</p>
                     </article>
                   </div>
+
+                  <!-- 우측 컬럼: 초각성기 (skillTypeCode: 101) -->
                   <div class="skill-card-pair-column">
                     <template v-if="pair.right">
                       <article
@@ -444,7 +470,10 @@
               </div>
             </div>
           </template>
+
+          <!-- 전투 스킬 그리드 레이아웃 (skillTypeCode: 0) -->
           <div v-else class="skill-card-grid skill-card-grid--limited">
+            <!-- 강화된 스킬 (트라이포드/룬/보석이 있는 스킬) -->
             <template v-for="skill in getEnhancedSkills(row.cards)" :key="`${skill.key}-enhanced`">
               <article
                 class="skill-card skill-card--enhanced-row"
@@ -562,6 +591,7 @@
               </article>
             </template>
 
+            <!-- 일반 스킬 (트라이포드/룬/보석이 없는 스킬) - 인라인 행 배치 -->
             <div v-if="getPlainSkills(row.cards).length" class="skill-card-inline-row">
               <article
                 v-for="skill in getPlainSkills(row.cards)"
@@ -583,6 +613,7 @@
                           errorIcon="✨"
                           :useProxy="true"
                         />
+                        <!-- 스킬 아이콘 호버 시 표시되는 툴팁 -->
                         <div
                           v-if="skill.description || skill.tripods.length"
                           class="skill-icon-tooltip"
@@ -704,6 +735,16 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * SkillPanel 컴포넌트
+ *
+ * 로스트아크 캐릭터의 스킬 정보를 표시하는 메인 패널 컴포넌트
+ * - 초각성 스킬 (skillTypeCode: 1)
+ * - 각성기/초각성기 페어 (skillTypeCode: 100, 101)
+ * - 전투 스킬 (skillTypeCode: 0)
+ * - 트라이포드, 룬, 보석 정보 포함
+ */
+
 import { computed } from 'vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import EmptyState from './EmptyState.vue'
@@ -712,17 +753,22 @@ import LazyImage from './LazyImage.vue'
 import { stripHtml } from '@/utils/tooltipParser'
 import type { CombatSkill, SkillMenuResponse } from '@/api/types'
 
+// ===== Props 정의 =====
 const props = defineProps<{
-  response: SkillMenuResponse | null
-  loading: boolean
-  errorMessage: string | null
-  characterName: string
+  response: SkillMenuResponse | null  // API 응답 데이터
+  loading: boolean                     // 로딩 상태
+  errorMessage: string | null          // 에러 메시지
+  characterName: string                // 캐릭터 이름
 }>()
 
+// ===== Emits 정의 =====
 defineEmits<{
-  (e: 'retry'): void
+  (e: 'retry'): void  // 재시도 이벤트
 }>()
 
+// ===== Interface 정의 =====
+
+/** 트라이포드 뷰 인터페이스 */
 interface SkillTripodView {
   key: string
   name: string
@@ -732,6 +778,7 @@ interface SkillTripodView {
   description?: string
 }
 
+/** 룬 뷰 인터페이스 */
 interface SkillRuneView {
   name: string
   grade?: string
@@ -740,18 +787,21 @@ interface SkillRuneView {
   gradeColor?: string
 }
 
+/** 보석 뱃지 인터페이스 */
 interface SkillGemBadge {
   key: string
   name: string
   icon?: string
   levelLabel?: string
-  effectText?: string
-  effectLabel?: string
-  extraEffect?: string
+  effectText?: string      // 메인 효과 텍스트 (예: "쿨타임 -20%")
+  effectLabel?: string     // 효과 레이블 (예: "작열", "겁화")
+  extraEffect?: string     // 추가 효과 텍스트
 }
 
+/** 각성기 종류 타입 */
 type AwakeningSkillKind = 'superSkill' | 'awakening'
 
+/** 스킬 카드 뷰 인터페이스 */
 interface SkillCardView {
   key: string
   name: string
@@ -771,30 +821,34 @@ interface SkillCardView {
   runeEffect?: string
 }
 
+/** 스킬 섹션 행 인터페이스 */
 interface SkillSectionRow {
   key: string
   title?: string
   cards: SkillCardView[]
-  layout?: 'grid' | 'pair'
+  layout?: 'grid' | 'pair'  // 레이아웃 타입: 그리드 또는 페어
   pairs?: AwakeningPairGroup[]
 }
 
+/** 스킬 섹션 뷰 인터페이스 */
 interface SkillSectionView {
   key: string
   title: string
   subtitle: string
   cards: SkillCardView[]
-  modifier?: string
+  modifier?: string           // CSS 클래스 수정자
   rows?: SkillSectionRow[]
 }
 
+/** 각성기 페어 그룹 인터페이스 (좌우 2열 배치) */
 interface AwakeningPairGroup {
   key: string
   title: string
-  left?: SkillCardView
-  right?: SkillCardView
+  left?: SkillCardView   // 왼쪽: 각성기 (skillTypeCode: 100)
+  right?: SkillCardView  // 오른쪽: 초각성기 (skillTypeCode: 101)
 }
 
+/** 보석 카드 뷰 인터페이스 (사용 안함 - 주석 처리됨) */
 interface GemCardView {
   key: string
   name: string
@@ -805,20 +859,43 @@ interface GemCardView {
   skillDescription?: string
 }
 
+// ===== Computed Properties =====
+
+/** 전투 스킬 목록 */
 const combatSkills = computed(() => props.response?.combatSkills ?? [])
+
+/** 스킬 보석 목록 */
 const skillGems = computed(() => props.response?.skillGems ?? [])
 
+// ===== 유틸리티 함수 =====
+
+/**
+ * HTML 태그를 제거하고 인라인 텍스트로 정리
+ * @param value - 정리할 값 (문자열 또는 숫자)
+ * @returns 정리된 문자열
+ */
 const sanitizeInline = (value?: string | number | null) => {
   if (value === undefined || value === null) return ''
   const source = typeof value === 'number' ? String(value) : value
   return stripHtml(source).replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * 스킬 이름을 정규화된 키로 변환 (공백 및 특수문자 제거, 소문자 변환)
+ * @param value - 스킬 이름
+ * @returns 정규화된 키
+ */
 const normalizeSkillKey = (value?: string | null) =>
   sanitizeInline(value)
     .replace(/[\s\[\]\(\)<>{}]/g, '')
     .toLowerCase()
 
+/**
+ * 스킬 이름으로 보석 뱃지 조회 (완전 일치 또는 부분 일치)
+ * @param skillName - 스킬 이름
+ * @param map - 보석 뱃지 맵
+ * @returns 해당 스킬의 보석 뱃지 배열
+ */
 const resolveGemBadgesForSkill = (skillName: string, map: Map<string, SkillGemBadge[]>) => {
   const key = normalizeSkillKey(skillName)
   if (map.has(key)) return [...map.get(key)!]
@@ -830,6 +907,11 @@ const resolveGemBadgesForSkill = (skillName: string, map: Map<string, SkillGemBa
   return []
 }
 
+/**
+ * HTML 문자열에서 폰트 색상 추출
+ * @param value - HTML 문자열
+ * @returns HEX 색상 코드 (예: "#FF0000")
+ */
 const extractFontColor = (value?: string | null) => {
   if (!value) return ''
   const match = value.match(/color=['"]?#?([0-9a-fA-F]{6,8})['"]?/i)
@@ -840,6 +922,11 @@ const extractFontColor = (value?: string | null) => {
   return ''
 }
 
+/**
+ * 각성기 페어 제목 추출 (콜론 앞부분 또는 "(클론" 앞부분)
+ * @param value - 스킬 이름
+ * @returns 추출된 제목
+ */
 const extractPairTitle = (value?: string | null) => {
   const sanitized = sanitizeInline(value)
   if (!sanitized) return ''
@@ -854,14 +941,25 @@ const extractPairTitle = (value?: string | null) => {
   return sanitized
 }
 
+// ===== 상수 정의 =====
+
+/** 초각성기 스킬 타입 코드 */
 const SUPER_SKILL_CODES = new Set([101])
+
+/** 각성기 스킬 타입 코드 */
 const AWAKENING_SKILL_CODES = new Set([100])
 
+/** 각성기 종류별 라벨 */
 const AWAKENING_KIND_LABELS: Record<AwakeningSkillKind, string> = {
   superSkill: '초각성기',
   awakening: '각성기'
 }
 
+/**
+ * 스킬 타입 코드 파싱 (문자열 또는 숫자를 숫자로 변환)
+ * @param value - 스킬 타입 값
+ * @returns 파싱된 숫자 또는 null
+ */
 const parseSkillTypeCode = (value?: string | number | null) => {
   if (value === undefined || value === null) return null
   if (typeof value === 'number') {
@@ -872,6 +970,12 @@ const parseSkillTypeCode = (value?: string | number | null) => {
   return numeric
 }
 
+/**
+ * 스킬이 각성기인지 초각성기인지 감지
+ * @param skill - 전투 스킬 객체
+ * @param parsedSkillType - 파싱된 스킬 타입 코드
+ * @returns 각성기 종류 또는 null
+ */
 const detectAwakeningKind = (
   skill: CombatSkill,
   parsedSkillType: number | null = parseSkillTypeCode(skill.skillType)
@@ -894,6 +998,13 @@ const detectAwakeningKind = (
   return null
 }
 
+// ===== 툴팁 파싱 함수 =====
+
+/**
+ * JSON 형태의 툴팁을 평면 문자열 배열로 변환
+ * @param tooltip - 툴팁 문자열 (JSON 또는 일반 문자열)
+ * @returns 평면화된 문자열 배열
+ */
 const flattenTooltipLines = (tooltip?: string | null): string[] => {
   if (!tooltip) return []
   const bucket: string[] = []
@@ -921,6 +1032,12 @@ const flattenTooltipLines = (tooltip?: string | null): string[] => {
     .filter(Boolean)
 }
 
+/**
+ * 툴팁에서 특정 키워드 다음 줄 추출
+ * @param tooltip - 툴팁 문자열
+ * @param keyword - 검색할 키워드
+ * @returns 키워드 다음 줄의 텍스트
+ */
 const extractNextLineAfterKeyword = (tooltip?: string | null, keyword?: string) => {
   if (!tooltip || !keyword) return ''
   const lines = flattenTooltipLines(tooltip)
@@ -930,6 +1047,13 @@ const extractNextLineAfterKeyword = (tooltip?: string | null, keyword?: string) 
   return next || ''
 }
 
+// ===== 보석 효과 파싱 함수 =====
+
+/**
+ * 보석 효과 텍스트로부터 레이블 추출 (작열/겁화)
+ * @param effectText - 보석 효과 텍스트
+ * @returns 보석 효과 레이블 (작열/겁화 등)
+ */
 const normalizeGemEffectLabel = (effectText?: string | null) => {
   const text = sanitizeInline(effectText)
   if (!text) return ''
@@ -939,6 +1063,12 @@ const normalizeGemEffectLabel = (effectText?: string | null) => {
   return text
 }
 
+/**
+ * 보석 효과 텍스트를 메인 효과와 추가 효과로 분리
+ * @param effectText - 메인 효과 텍스트
+ * @param extraEffect - 추가 효과 텍스트
+ * @returns 분리된 메인/추가 효과 객체
+ */
 const splitGemEffectText = (effectText?: string | null, extraEffect?: string | null) => {
   const base = sanitizeInline(effectText)
   const extra = sanitizeInline(extraEffect)
@@ -967,6 +1097,14 @@ const splitGemEffectText = (effectText?: string | null, extraEffect?: string | n
   }
 }
 
+// ===== 룬 헬퍼 함수 =====
+
+/**
+ * 룬 정보를 표시용 뷰 객체로 변환
+ * @param rune - 룬 뷰 객체
+ * @param effect - 룬 효과 텍스트
+ * @returns 룬 표시용 뷰 객체
+ */
 const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
   if (!rune) return null
   return {
@@ -976,6 +1114,14 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
   }
 }
 
+// ===== 포맷팅 헬퍼 함수 =====
+
+/**
+ * 툴팁 텍스트를 요약 (첫 번째 의미 있는 줄 추출)
+ * @param tooltip - 툴팁 문자열
+ * @param fallback - 기본값
+ * @returns 요약된 텍스트
+ */
 const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
   const lines = flattenTooltipLines(tooltip)
   if (!lines.length) return fallback
@@ -984,11 +1130,23 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
   return preferred ?? lines[0]
 }
 
+/**
+ * 레벨 숫자를 레이블로 포맷팅
+ * @param level - 레벨 숫자
+ * @param prefix - 접두사 (기본: "Lv.")
+ * @returns 포맷팅된 레벨 문자열
+ */
 const formatLevelLabel = (level?: number | null, prefix = 'Lv.') => {
   if (typeof level !== 'number' || Number.isNaN(level)) return ''
   return `${prefix} ${level}`
 }
 
+/**
+ * 보석 툴팁에서 효과 텍스트 추출
+ * @param tooltip - 보석 툴팁 문자열
+ * @param fallback - 기본값
+ * @returns 추출된 효과 텍스트
+ */
 const pickGemEffectText = (tooltip?: string | null, fallback?: string) => {
   const lines = flattenTooltipLines(tooltip)
   const idx = lines.findIndex(line => /보석\s*효과/.test(line))
@@ -1001,6 +1159,11 @@ const pickGemEffectText = (tooltip?: string | null, fallback?: string) => {
   return sanitizeInline(fallback)
 }
 
+/**
+ * 보석 툴팁 JSON 파싱하여 스킬명과 효과 추출
+ * @param tooltip - 보석 툴팁 JSON 문자열
+ * @returns 파싱된 스킬명, 효과 텍스트, 추가 효과 객체 또는 null
+ */
 const parseGemTooltipMapping = (tooltip?: string | null) => {
   if (!tooltip) return null
   try {
@@ -1038,6 +1201,15 @@ const parseGemTooltipMapping = (tooltip?: string | null) => {
   return null
 }
 
+// ===== 메인 Computed 속성 =====
+
+/**
+ * 스킬별 보석 뱃지 맵 생성
+ * - skillGems (API 응답의 보석 데이터)
+ * - effects.skills (효과 스킬 데이터)
+ * - gems (인벤토리 보석 데이터)
+ * 세 가지 소스에서 보석 정보를 수집하여 스킬 이름을 키로 하는 맵 생성
+ */
 const gemBadgesBySkill = computed(() => {
   const map = new Map<string, SkillGemBadge[]>()
   const effectSkills = ((props.response as any)?.effects?.skills ??
@@ -1128,6 +1300,13 @@ const gemBadgesBySkill = computed(() => {
   return map
 })
 
+/**
+ * 전투 스킬을 UI 표시용 스킬 카드 뷰로 변환
+ * - 레벨 기준 내림차순 정렬
+ * - 각 스킬의 트라이포드, 룬, 보석 정보 포함
+ * - 각성기/초각성기 여부 판별
+ * - 컴팩트 모드 여부 결정 (레벨 4 미만 && 강화 요소 없음)
+ */
 const skillCards = computed<SkillCardView[]>(() => {
   if (!combatSkills.value.length) return []
   const annotated = combatSkills.value.map((skill, originalIndex) => ({ skill, originalIndex }))
@@ -1214,12 +1393,22 @@ const skillCards = computed<SkillCardView[]>(() => {
     })
 })
 
+/**
+ * 각성기 페어 후보 목록 (skillTypeCode: 100, 101)
+ * 원본 인덱스 기준 오름차순 정렬
+ */
 const awakeningPairCandidates = computed(() =>
   [...skillCards.value]
     .filter(card => card.skillTypeCode === 100 || card.skillTypeCode === 101)
     .sort((a, b) => a.originalIndex - b.originalIndex)
 )
 
+/**
+ * 각성기·초각성기 페어 그룹 생성
+ * - 각성기(100)를 좌측에 배치
+ * - 초각성기(101)를 우측에 배치
+ * - 페어가 없는 경우 단독으로 표시
+ */
 const classicAwakeningPairs = computed<AwakeningPairGroup[]>(() => {
   const ordered: AwakeningPairGroup[] = []
   const pendingLeft: AwakeningPairGroup[] = []
@@ -1252,13 +1441,26 @@ const classicAwakeningPairs = computed<AwakeningPairGroup[]>(() => {
 
   return ordered
 })
+
+/**
+ * 일반 전투 스킬 목록 (각성기 제외, skillTypeCode: 0)
+ */
 const regularSkillCards = computed(() =>
   skillCards.value.filter(card => !card.isAwakening && card.skillTypeCode === 0)
 )
+
+/**
+ * 초각성 스킬 하이라이트 목록 (skillTypeCode: 1)
+ */
 const superSkillHighlights = computed(() =>
   skillCards.value.filter(card => card.skillTypeCode === 1)
 )
 
+/**
+ * 스킬 섹션 구성
+ * - 각성·초각성기 섹션: 페어 레이아웃
+ * - 전투 스킬 섹션: 그리드 레이아웃
+ */
 const skillSections = computed<SkillSectionView[]>(() => {
   const sections: SkillSectionView[] = []
   const awakeningRows: SkillSectionRow[] = []
@@ -1299,6 +1501,9 @@ const skillSections = computed<SkillSectionView[]>(() => {
   return sections
 })
 
+/**
+ * 보석 카드 뷰 목록 (현재 템플릿에서 주석 처리되어 미사용)
+ */
 const gemCards = computed<GemCardView[]>(() => {
   if (!skillGems.value.length) return []
   return skillGems.value
@@ -1314,8 +1519,14 @@ const gemCards = computed<GemCardView[]>(() => {
     }))
 })
 
+/**
+ * 렌더링 가능한 컨텐츠 존재 여부
+ */
 const hasRenderableContent = computed(() => skillCards.value.length > 0 || gemCards.value.length > 0)
 
+/**
+ * 빈 상태 설명 메시지
+ */
 const emptyStateDescription = computed(() => {
   if (!props.characterName) {
     return '캐릭터를 검색하면 전투 스킬 프리셋을 불러옵니다.'
@@ -1323,6 +1534,11 @@ const emptyStateDescription = computed(() => {
   return `'${props.characterName}' 캐릭터의 스킬 프리셋이 감지되지 않았어요. 인게임에서 스킬을 저장했는지 확인해 주세요.`
 })
 
+// ===== 렌더링 헬퍼 함수 =====
+
+/**
+ * 섹션의 행 목록 반환 (없으면 기본 그리드 행 생성)
+ */
 const getSectionRows = (section: SkillSectionView): SkillSectionRow[] => {
   if (section.rows?.length) {
     return section.rows
@@ -1336,12 +1552,28 @@ const getSectionRows = (section: SkillSectionView): SkillSectionRow[] => {
   ]
 }
 
+/**
+ * 강화된 스킬인지 판별 (트라이포드/룬/보석이 있는 스킬)
+ */
 const isEnhancedSkill = (skill: SkillCardView) =>
   Boolean(skill.pointLabel || skill.rune || skill.tripods.length || (skill.gemBadges && skill.gemBadges.length))
 
+/**
+ * 강화된 스킬 목록 필터링
+ */
 const getEnhancedSkills = (cards: SkillCardView[]) => cards.filter(isEnhancedSkill)
+
+/**
+ * 일반 스킬 목록 필터링 (강화 요소가 없는 스킬)
+ */
 const getPlainSkills = (cards: SkillCardView[]) => cards.filter(card => !isEnhancedSkill(card))
 
+/**
+ * 각성기 페어 배열을 청크로 분할 (기본 2개씩 그룹화)
+ * @param pairs - 각성기 페어 배열
+ * @param chunkSize - 청크 크기 (기본: 2)
+ * @returns 청크로 분할된 2차원 배열
+ */
 const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): AwakeningPairGroup[][] => {
   if (!pairs || !pairs.length || chunkSize <= 0) return []
   const chunks: AwakeningPairGroup[][] = []
@@ -1353,12 +1585,20 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 </script>
 
 <style scoped>
+/**
+ * ========================================
+ * SkillPanel 스타일 정의
+ * ========================================
+ */
+
+/* ===== 메인 컨테이너 ===== */
 .skill-panel-shell {
   width: 100%;
   --icon-scale: 0.8;
   font-size: 0.92rem;
 }
 
+/* ===== 플레이스홀더 (로딩, 에러, 빈 상태) ===== */
 .skill-panel-placeholder {
   padding: 32px;
   border-radius: 16px;
@@ -1376,12 +1616,14 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-weight: 500;
 }
 
+/* ===== 스킬 패널 레이아웃 ===== */
 .skill-panel-layout {
   display: flex;
   flex-wrap: wrap;
   gap: 32px;
 }
 
+/* ===== 섹션 헤딩 ===== */
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -1401,6 +1643,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-size: 0.85rem;
 }
 
+/* ===== 스킬 섹션 ===== */
 .skill-section {
   padding: 15px;
   border-radius: 16px;
@@ -1409,17 +1652,20 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   width: fit-content;
 }
 
+/* 각성기 섹션 스타일 */
 .skill-section--awakening {
   border-color: rgba(251, 146, 60, 0.5);
   background: rgba(251, 191, 36, 0.08);
 }
 
+/* 초각성 스킬 하이라이트 섹션 */
 .skill-section--highlight {
   border-color: rgba(59, 130, 246, 0.4);
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(191, 219, 254, 0.15));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
+/* ===== 스킬 카드 그룹 ===== */
 .skill-card-group {
   display: flex;
   flex-direction: column;
@@ -1430,6 +1676,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   gap: 16px;
 }
 
+/* 각성기 페어 행 (2열 그리드) */
 .skill-card-pair-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1447,12 +1694,14 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   color: var(--text-secondary, #374151);
 }
 
+/* ===== 스킬 카드 그리드 ===== */
 .skill-card-grid {
   display: flex;
   flex-direction: column;
   /* gap: 12px; */
 }
 
+/* 초각성 스킬 그리드 */
 .super-skill-grid {
   margin-top: 5px;
   flex-direction: row;
@@ -1726,6 +1975,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   background: var(--surface-muted, #f3f4f6);
 }
 
+/* 트라이포드 상세 인라인 레이아웃 */
 .tripod-detail-inline {
   display: grid;
   grid-template-columns: 40px 1fr;
@@ -1765,6 +2015,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   width: 100%;
 }
 
+/* ===== 룬 툴팁 스타일 ===== */
 .skill-tooltip-rune {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 8px;
@@ -1954,6 +2205,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   color: #b45309;
 }
 
+/* ===== 룬 표시 스타일 ===== */
 .skill-rune {
   /* gap: 12px; */
   display: flex;
@@ -1991,6 +2243,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   margin: 0;
 }
 
+/* ===== 보석 표시 스타일 ===== */
 .skill-gem-line {
   background: rgba(16, 185, 129, 0.08);
 }
@@ -2065,6 +2318,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-size: 0.8rem;
 }
 
+/* ===== 보석 카드 그리드 (미사용) ===== */
 .gem-card-grid {
   margin-top: 16px;
   display: grid;
@@ -2117,7 +2371,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   color: var(--text-secondary, #374151);
 }
 
-/* Gem inline row styles */
+/* ===== 보석 인라인 행 스타일 ===== */
 .skill-gem-row {
   display: flex;
   flex-direction: column;
@@ -2207,6 +2461,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   text-align: right;
 }
 
+/* ===== 반응형 미디어 쿼리 (모바일) ===== */
 @media (max-width: 768px) {
   .skill-card-main {
     flex-direction: column;
