@@ -162,20 +162,14 @@
 
       <section v-if="gridEffects.length" class="ark-grid-effects">
         <div class="section-heading">
-          <div>
-            <h4>추가 효과</h4>
-            <p>아크 그리드 전체에 적용되는 보너스를 요약했습니다.</p>
+          <h4>추가 효과</h4>
+        </div>
+        <div class="effect-list">
+          <div v-for="effect in gridEffects" :key="`${effect.name}-${effect.level}`" class="effect-item">
+            <span v-if="effect.level" class="effect-level">Lv. {{ effect.level }}</span>
+            <strong>{{ sanitizeInline(effect.tooltip) }}</strong>
           </div>
         </div>
-        <ul class="effect-list">
-          <li v-for="effect in gridEffects" :key="`${effect.name}-${effect.level}`" class="effect-item">
-            <span v-if="effect.level" class="effect-level">Lv. {{ effect.level }}</span>
-            <div>
-              <strong>{{ effect.name }}</strong>
-              <p v-if="effect.tooltip" class="effect-description">{{ sanitizeInline(effect.tooltip) }}</p>
-            </div>
-          </li>
-        </ul>
       </section>
     </div>
   </div>
@@ -702,12 +696,10 @@ const emptyStateDescription = computed(() => {
 
 .ark-grid-overview {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  border-radius: 16px;
-  background: var(--card-bg, #f9fafb);
-  border: 1px solid var(--border-color, #e5e7eb);
+  flex-wrap: wrap;
+  flex-direction: row;
+  width: 100%;
+  gap: 100px;
 }
 
 .ark-grid-label {
@@ -730,19 +722,14 @@ const emptyStateDescription = computed(() => {
 }
 
 .ark-grid-point-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  display: inline-flex;
+  gap: 70px;
+  width:fit-content;
+  text-align: center;
 }
 
 .ark-grid-point {
-  padding: 12px 16px;
   border-radius: 12px;
-  /* background: var(--surface-color, #fff); */
-  /* border: 1px solid var(--border-color, #e5e7eb); */
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -785,13 +772,12 @@ const emptyStateDescription = computed(() => {
 .ark-grid-passives,
 .ark-grid-slots,
 .ark-grid-effects {
-  border-radius: 16px;
   background: var(--card-bg, #fbfbfb);
 }
 
 .passive-matrix {
   margin-top: 16px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  /* border: 1px solid var(--border-color, #e5e7eb); */
   border-radius: 16px;
   overflow: hidden;
 }
@@ -799,7 +785,7 @@ const emptyStateDescription = computed(() => {
 .matrix-header,
 .matrix-row {
   display: grid;
-  grid-template-columns: 120px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 60px repeat(3, minmax(0, 1fr));
 }
 
 .matrix-header {
@@ -828,7 +814,8 @@ const emptyStateDescription = computed(() => {
 
 .matrix-cell--section {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(60px, auto));
+  justify-content: center;
   gap: 12px;
 }
 
@@ -839,17 +826,12 @@ const emptyStateDescription = computed(() => {
 .matrix-cell--tier {
   justify-content: center;
   align-items: center;
-  /* background: var(--surface-color, #fff); */
   font-weight: 600;
   color: var(--text-muted, #6b7280);
   text-align: center;
 }
 
 .passive-card {
-  /* border: 1px solid var(--border-color, #e5e7eb); */
-  /* border-radius: 16px; */
-  /* padding: 16px; */
-  /* background: var(--surface-color, #fff); */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1048,21 +1030,14 @@ const emptyStateDescription = computed(() => {
 }
 
 .ark-grid-effects .effect-list {
-  margin: 16px 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 12px;
 }
 
 .effect-item {
   display: flex;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  background: var(--surface-color, #fff);
+  font-size: 0.85rem;
 }
 
 .effect-item strong {
@@ -1070,6 +1045,7 @@ const emptyStateDescription = computed(() => {
 }
 
 .effect-level {
+  min-width: 50px;
   font-weight: 600;
   color: var(--primary-color, #2563eb);
 }
@@ -1081,7 +1057,7 @@ const emptyStateDescription = computed(() => {
 
 @media (max-width: 768px) {
   .ark-grid-overview {
-    padding: 16px;
+    gap: 0;
   }
 
   .section-heading {
