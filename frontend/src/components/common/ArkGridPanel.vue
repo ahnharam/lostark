@@ -110,7 +110,7 @@
               />
               <div class="slot-card-head-title">
                 <div class="slot-card-type">
-                  <p class="slot-card-grade">{{ slot.grade || '등급 미상' }}</p>
+                  <p class="slot-card-grade" :style="{ color: slot.gradeColor || undefined }">{{ slot.grade || '등급 미상' }}</p>
                   <span v-if="slot.point !== undefined" class="slot-card-point">{{ slot.point }}P</span>
                 </div>
                 <strong class="slot-card-name">{{ slot.name }}</strong>
@@ -145,13 +145,17 @@
                     :useProxy="true"
                   />
                   <div>
-                    <p class="gem-card-grade">{{ gem.grade || '젬' }}</p>
+                    <p class="gem-card-grade" :style="{ color: gem.gradeColor || undefined }">{{ gem.grade || '젬' }}</p>
                     <!-- <strong class="gem-card-name">{{ gem.title || `젬 ${gem.index ?? ''}` }}</strong> -->
                   </div>
                 </div>
-                <div v-if="gem.tooltipLines.length" class="gem-tooltip-list">
-                  <span v-for="(line, idx) in gem.tooltipLines" :key="`gem-line-${slot.index}-${gem.index}-${idx}`">
-                    {{ line }}
+                <div v-if="gem.badges.length" class="gem-badge-grid">
+                  <span
+                    v-for="(badge, idx) in gem.badges"
+                    :key="`gem-badge-${slot.index}-${gem.index}-${idx}`"
+                    class="gem-badge"
+                  >
+                    {{ badge.text }}
                   </span>
                 </div>
               </div>
@@ -327,6 +331,72 @@ const parseTooltip = (tooltip?: string | null): ParsedTooltip => {
   return {
     title: title || '',
     lines: rest
+  }
+}
+
+interface GemBadge {
+  text: string
+}
+
+const parseGemDescriptionToBadges = (lines: string[]): GemBadge[] => {
+  if (!lines || !lines.length) return []
+
+  const badges: GemBadge[] = []
+  const fullText = lines.join(' ').trim()
+
+  // 1. 의지력 패턴: "필요 의지력 : 4 (기본 값 8 – 의지력 효율 4)"
+  const willpowerMatch = fullText.match(/필요\s*의지력\s*:\s*(\d+)/i)
+  if (willpowerMatch) {
+    badges.push({ text: `의지력 ${willpowerMatch[1]}` })
+  }
+
+  // 2. 질서 포인트 패턴: "질서 포인트 : 5"
+  const orderPointMatch = fullText.match(/질서\s*포인트\s*:\s*(\d+)/i)
+  if (orderPointMatch) {
+    badges.push({ text: `질서 포인트 ${orderPointMatch[1]}` })
+  }
+
+  // 3. 효과 패턴: "[추가 피해] Lv.1 추가 피해 +0.08%"
+  const effectPattern = /\[([^\]]+)\]\s*(Lv\.\d+).*?([\+\-]\d+(?:\.\d+)?%)/g
+  let effectMatch
+  while ((effectMatch = effectPattern.exec(fullText)) !== null) {
+    const effectName = effectMatch[1].trim()
+    const level = effectMatch[2]
+    const value = effectMatch[3]
+    badges.push({ text: `${effectName} ${level} ${value}` })
+  }
+
+  return badges
+}
+
+const extractColorFromTooltip = (tooltip?: string | null): string | null => {
+  if (!tooltip) return null
+
+  try {
+    const parsed = JSON.parse(tooltip)
+    const extractColorFromObject = (obj: any): string | null => {
+      if (typeof obj === 'string') {
+        // <FONT color='#COLOR'> 패턴 찾기
+        const colorMatch = obj.match(/<FONT[^>]*color=['"]?([#\w]+)['"]?[^>]*>/i)
+        if (colorMatch) return colorMatch[1]
+      } else if (Array.isArray(obj)) {
+        for (const item of obj) {
+          const color = extractColorFromObject(item)
+          if (color) return color
+        }
+      } else if (typeof obj === 'object' && obj !== null) {
+        for (const value of Object.values(obj)) {
+          const color = extractColorFromObject(value)
+          if (color) return color
+        }
+      }
+      return null
+    }
+    return extractColorFromObject(parsed)
+  } catch {
+    // JSON 파싱 실패 시 직접 문자열에서 찾기
+    const colorMatch = tooltip.match(/<FONT[^>]*color=['"]?([#\w]+)['"]?[^>]*>/i)
+    return colorMatch ? colorMatch[1] : null
   }
 }
 
@@ -605,13 +675,18 @@ const splitLinesByPointPattern = (lines: string[]) => {
 const slotCards = computed(() => {
   return (arkGrid.value?.slots ?? []).map((slot: ArkGridSlot) => {
     const tooltip = parseTooltip(slot.tooltip)
+    const slotColor = extractColorFromTooltip(slot.tooltip)
     const gemCards =
       slot.gems?.map(gem => {
         const gemTooltip = parseTooltip(gem.tooltip)
+        const gemColor = extractColorFromTooltip(gem.tooltip)
+        const badges = parseGemDescriptionToBadges(extractGemEffectLines(gemTooltip.lines))
         return {
           ...gem,
           title: gemTooltip.title,
-          tooltipLines: extractGemEffectLines(gemTooltip.lines)
+          tooltipLines: extractGemEffectLines(gemTooltip.lines),
+          badges,
+          gradeColor: gemColor
         }
       }) ?? []
     const coreTooltipLines = trimChaosCoreLines(extractCoreOptionLines(tooltip.lines), slot.name)
@@ -634,7 +709,8 @@ const slotCards = computed(() => {
       ...slot,
       tooltipTitle: tooltip.title,
       tooltipLines,
-      gemCards
+      gemCards,
+      gradeColor: slotColor
     }
   })
 })
@@ -968,6 +1044,28 @@ const emptyStateDescription = computed(() => {
   color: var(--text-primary, #1f2937);
 }
 
+.gem-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin: 0;
+}
+
+.gem-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary, #1f2937);
+  background: var(--surface-muted, #f3f4f6);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .slot-tooltip-point {
   font-weight: 600;
   color: var(--text-primary, #1f2937);
@@ -1062,6 +1160,10 @@ const emptyStateDescription = computed(() => {
 
   .section-heading {
     flex-direction: column;
+  }
+
+  .gem-badge-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
