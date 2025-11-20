@@ -93,7 +93,6 @@
         <div class="section-heading">
           <div>
             <h4>코어 & 젬 네트워크</h4>
-            <p>각 코어가 제공하는 옵션과 연결된 젬 효과를 나란히 보여줍니다.</p>
           </div>
         </div>
         <div class="slot-card-grid">
@@ -103,23 +102,26 @@
                 v-if="slot.icon"
                 :src="slot.icon"
                 :alt="slot.name || '아크 코어'"
-                width="56"
-                height="56"
+                width="45"
+                height="45"
                 imageClass="slot-card-icon"
                 errorIcon="🧱"
                 :useProxy="true"
               />
-              <div>
-                <p class="slot-card-grade">{{ slot.grade || '등급 미상' }}</p>
+              <div class="slot-card-head-title">
+                <div class="slot-card-type">
+                  <p class="slot-card-grade">{{ slot.grade || '등급 미상' }}</p>
+                  <span v-if="slot.point !== undefined" class="slot-card-point">{{ slot.point }}P</span>
+                </div>
                 <strong class="slot-card-name">{{ slot.name }}</strong>
-                <span v-if="slot.point !== undefined" class="slot-card-point">{{ slot.point }}P</span>
               </div>
             </header>
             <!-- <p v-if="slot.tooltipTitle" class="slot-card-title">{{ slot.tooltipTitle }}</p> -->
-            <ul v-if="slot.tooltipLines.length" class="slot-tooltip-list">
-              <li
+            <div v-if="slot.tooltipLines.length" class="slot-tooltip-list">
+              <div
                 v-for="(line, idx) in slot.tooltipLines"
                 :key="`slot-line-${slot.index}-${idx}`"
+                class="slot-tooltip-line"
                 :class="{
                   'slot-tooltip-line--highlighted': line.highlighted,
                   'slot-tooltip-line--locked': line.hasThreshold && !line.highlighted
@@ -127,8 +129,8 @@
               >
                 <span v-if="line.pointLabel" class="slot-tooltip-point">{{ line.pointLabel }}</span>
                 <span class="slot-tooltip-body">{{ line.text }}</span>
-              </li>
-            </ul>
+              </div>
+            </div>
             <div v-if="slot.gemCards.length" class="slot-gem-stack">
               <div v-for="gem in slot.gemCards" :key="`gem-${slot.index}-${gem.index}`" class="gem-card">
                 <div class="gem-card-head">
@@ -136,8 +138,8 @@
                     v-if="gem.icon"
                     :src="gem.icon"
                     :alt="gem.title || '젬'"
-                    width="38"
-                    height="38"
+                    width="30"
+                    height="30"
                     imageClass="gem-card-icon"
                     errorIcon="💠"
                     :useProxy="true"
@@ -147,11 +149,11 @@
                     <!-- <strong class="gem-card-name">{{ gem.title || `젬 ${gem.index ?? ''}` }}</strong> -->
                   </div>
                 </div>
-                <ul v-if="gem.tooltipLines.length" class="gem-tooltip-list">
-                  <li v-for="(line, idx) in gem.tooltipLines" :key="`gem-line-${slot.index}-${gem.index}-${idx}`">
+                <div v-if="gem.tooltipLines.length" class="gem-tooltip-list">
+                  <span v-for="(line, idx) in gem.tooltipLines" :key="`gem-line-${slot.index}-${gem.index}-${idx}`">
                     {{ line }}
-                  </li>
-                </ul>
+                  </span>
+                </div>
               </div>
             </div>
           </article>
@@ -695,7 +697,7 @@ const emptyStateDescription = computed(() => {
 .ark-grid-layout {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 30px;
 }
 
 .ark-grid-overview {
@@ -783,9 +785,7 @@ const emptyStateDescription = computed(() => {
 .ark-grid-passives,
 .ark-grid-slots,
 .ark-grid-effects {
-  padding: 24px;
   border-radius: 16px;
-  border: 1px solid var(--border-color, #e5e7eb);
   background: var(--card-bg, #fbfbfb);
 }
 
@@ -912,16 +912,13 @@ const emptyStateDescription = computed(() => {
 
 .slot-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 18px;
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .slot-card {
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--surface-color, #fff);
-  border: 1px solid var(--border-color, #e5e7eb);
+  /* background: var(--surface-color, #fff); */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -929,6 +926,7 @@ const emptyStateDescription = computed(() => {
 
 .slot-card-head {
   display: flex;
+  align-items: center;
   gap: 12px;
 }
 
@@ -936,15 +934,31 @@ const emptyStateDescription = computed(() => {
   border-radius: 12px;
 }
 
+.slot-card-head-title{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.slot-card-type{
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
 .slot-card-grade {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   color: var(--text-muted, #6b7280);
+  background: var(--primary-soft-bg, rgba(59, 130, 246, 0.12));
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
 .slot-card-name {
   display: block;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   color: var(--text-primary, #1f2937);
 }
 
@@ -955,7 +969,7 @@ const emptyStateDescription = computed(() => {
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 0.8rem;
-  margin-top: 4px;
+  font-weight: 600;
 }
 
 .slot-card-title {
@@ -966,26 +980,26 @@ const emptyStateDescription = computed(() => {
 
 .slot-tooltip-list,
 .gem-tooltip-list {
+  display: grid;
   margin: 0;
-  padding-left: 18px;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text-primary, #1f2937);
 }
 
-.slot-tooltip-list, .gem-tooltip-list li{
-  white-space: pre-line;
-  word-break: keep-all;  
-}
-
 .slot-tooltip-point {
-  display: inline-block;
-  min-width: 52px;
   font-weight: 600;
   color: var(--text-primary, #1f2937);
 }
 
 .slot-tooltip-body {
-  display: inline;
+  white-space: pre-line;
+  word-break: keep-all;
+}
+
+.slot-tooltip-line{
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  font-size: 0.8rem;
 }
 
 .slot-tooltip-line--highlighted {
@@ -1009,22 +1023,22 @@ const emptyStateDescription = computed(() => {
 .slot-gem-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 5px;
 }
 
 .gem-card {
-  border: 1px dashed var(--border-color, #d1d5db);
-  border-radius: 12px;
-  padding: 12px;
-  background: var(--surface-muted, #f9fafb);
+  /* border-radius: 12px; */
+  /* border: 2px dashed #F99200; */
+  /* background: #f9910046; */
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
 }
 
 .gem-card-head {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  /* gap: 10px; */
   align-items: center;
 }
 
