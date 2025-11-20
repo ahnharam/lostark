@@ -734,7 +734,7 @@ const DEFAULT_SITE_MENU: SiteMenuKey = 'character-search'
 const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
   { key: 'summary', label: '내 정보 간소화' },
   { key: 'skills', label: '스킬' },
-  { key: 'detail', label: '장비 상세 보기' },
+  { key: 'detail', label: '장비' },
   { key: 'collection', label: '수집' },
   { key: 'ranking', label: '랭킹' },
   { key: 'arkGrid', label: '아크 그리드' },

@@ -40,10 +40,7 @@
 
       <section v-if="passiveMatrix.length" class="ark-grid-passives">
         <div class="section-heading">
-          <div>
-            <h4>아크 패시브 계층</h4>
-            <p>진화 · 깨달음 · 도약 단계를 각각 분리하여 핵심 효과만 보여줍니다.</p>
-          </div>
+          <h4>아크 패시브 계층</h4>
         </div>
         <div class="passive-matrix">
           <div class="matrix-header">
@@ -933,7 +930,7 @@ const emptyStateDescription = computed(() => {
 }
 
 .passive-matrix {
-  margin-top: 16px;
+  margin-top: 10px;
   /* border: 1px solid var(--border-color, #e5e7eb); */
   border-radius: 16px;
   overflow: hidden;
@@ -1126,25 +1123,30 @@ const emptyStateDescription = computed(() => {
 }
 
 .gem-badge-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* display: grid;
+  grid-template-columns: repeat(2, 90px); */
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 0;
+  width: 200px;
 }
 
 .gem-badge {
   display: inline-block;
-  padding: 4px 10px;
-  font-size: 0.75rem;
+  padding: 3px 5px;
+  font-size: 0.7rem;
   font-weight: 500;
   color: var(--text-primary, #1f2937);
-  background: var(--surface-muted, #f3f4f6);
-  border: 1px solid var(--border-color, #e5e7eb);
+  /* background: var(--surface-muted, #f3f4f6); */
+  border: 1px dashed var(--border-color, #e5e7eb);
   border-radius: 12px;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: fit-content;
+  height: fit-content;
 }
 
 .slot-tooltip-point {
@@ -1184,17 +1186,19 @@ const emptyStateDescription = computed(() => {
 .slot-gem-stack {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 10px;
 }
 
 .gem-card {
-  /* border-radius: 12px; */
-  /* border: 2px dashed #F99200; */
-  /* background: #f9910046; */
   display: flex;
   flex-direction: row;
   gap: 8px;
   position: relative;
+}
+
+.gem-card-grade{
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .gem-card:hover .gem-tooltip-hover {
