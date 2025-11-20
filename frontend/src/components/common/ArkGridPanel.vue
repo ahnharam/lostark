@@ -338,62 +338,84 @@ interface GemBadge {
   text: string
 }
 
-const parseGemDescriptionToBadges = (lines: string[]): GemBadge[] => {
-  if (!lines || !lines.length) return []
+const parseGemDescriptionToBadges = (tooltip?: string | null): GemBadge[] => {
+  if (!tooltip) return []
 
   const badges: GemBadge[] = []
-  const fullText = lines.join(' ').trim()
 
-  // <br> 태그로 분리하여 각 라인 처리
-  const segments = fullText.split(/<br\s*\/?>/i).map(segment =>
-    stripHtml(segment).trim()
-  ).filter(Boolean)
+  try {
+    const parsed = JSON.parse(tooltip)
 
-  let i = 0
-  while (i < segments.length) {
-    const segment = segments[i]
-
-    // 1. 필요 의지력 패턴
-    const willpowerMatch = segment.match(/필요\s*의지력\s*:\s*(\d+)/i)
-    if (willpowerMatch) {
-      badges.push({ text: `의지력 ${willpowerMatch[1]}` })
-      i++
-      continue
-    }
-
-    // 2. 질서/혼돈 포인트 패턴
-    const pointMatch = segment.match(/(질서|혼돈)\s*포인트\s*:\s*(\d+)/i)
-    if (pointMatch) {
-      badges.push({ text: `${pointMatch[1]} 포인트 ${pointMatch[2]}` })
-      i++
-      continue
-    }
-
-    // 3. 효과 이름과 레벨 패턴 (예: [추가 피해] Lv.1)
-    const effectNameMatch = segment.match(/\[([^\]]+)\]\s*(Lv\.\d+)/i)
-    if (effectNameMatch) {
-      const effectName = effectNameMatch[1].trim()
-      const level = effectNameMatch[2]
-
-      // 다음 라인에서 효과 값 찾기
-      if (i + 1 < segments.length) {
-        const nextSegment = segments[i + 1]
-        // 값 패턴 찾기 (예: +0.08%, +0.11%)
-        const valueMatch = nextSegment.match(/([\+\-]\d+(?:\.\d+)?%)/i)
-        if (valueMatch) {
-          badges.push({ text: `${effectName} ${level} ${valueMatch[1]}` })
-          i += 2 // 다음 라인도 건너뜀
-          continue
+    // "젬 효과" Element 찾기
+    let gemEffectText = ''
+    for (const key in parsed) {
+      const element = parsed[key]
+      if (element?.type === 'ItemPartBox' && element?.value) {
+        const headerText = typeof element.value.Element_000 === 'string'
+          ? stripHtml(element.value.Element_000)
+          : ''
+        if (headerText.includes('젬 효과')) {
+          gemEffectText = element.value.Element_001 || ''
+          break
         }
       }
-
-      // 값이 없으면 레벨만 표시
-      badges.push({ text: `${effectName} ${level}` })
-      i++
-      continue
     }
 
-    i++
+    if (!gemEffectText) return []
+
+    // <br> 태그로 분리하여 각 라인 처리
+    const segments = gemEffectText.split(/<br\s*\/?>/i).map(segment =>
+      stripHtml(segment).trim()
+    ).filter(Boolean)
+
+    let i = 0
+    while (i < segments.length) {
+      const segment = segments[i]
+
+      // 1. 필요 의지력 패턴
+      const willpowerMatch = segment.match(/필요\s*의지력\s*:\s*(\d+)/i)
+      if (willpowerMatch) {
+        badges.push({ text: `의지력 ${willpowerMatch[1]}` })
+        i++
+        continue
+      }
+
+      // 2. 질서/혼돈 포인트 패턴
+      const pointMatch = segment.match(/(질서|혼돈)\s*포인트\s*:\s*(\d+)/i)
+      if (pointMatch) {
+        badges.push({ text: `${pointMatch[1]} 포인트 ${pointMatch[2]}` })
+        i++
+        continue
+      }
+
+      // 3. 효과 이름과 레벨 패턴 (예: [추가 피해] Lv.1)
+      const effectNameMatch = segment.match(/\[([^\]]+)\]\s*(Lv\.\d+)/i)
+      if (effectNameMatch) {
+        const effectName = effectNameMatch[1].trim()
+        const level = effectNameMatch[2]
+
+        // 다음 라인에서 효과 값 찾기
+        if (i + 1 < segments.length) {
+          const nextSegment = segments[i + 1]
+          // 값 패턴 찾기 (예: +0.08%, +0.11%)
+          const valueMatch = nextSegment.match(/([\+\-]\d+(?:\.\d+)?%)/i)
+          if (valueMatch) {
+            badges.push({ text: `${effectName} ${level} ${valueMatch[1]}` })
+            i += 2 // 다음 라인도 건너뜀
+            continue
+          }
+        }
+
+        // 값이 없으면 레벨만 표시
+        badges.push({ text: `${effectName} ${level}` })
+        i++
+        continue
+      }
+
+      i++
+    }
+  } catch (error) {
+    console.error('Failed to parse gem tooltip:', error)
   }
 
   return badges
@@ -710,7 +732,7 @@ const slotCards = computed(() => {
       slot.gems?.map(gem => {
         const gemTooltip = parseTooltip(gem.tooltip)
         const gemColor = extractColorFromTooltip(gem.tooltip)
-        const badges = parseGemDescriptionToBadges(extractGemEffectLines(gemTooltip.lines))
+        const badges = parseGemDescriptionToBadges(gem.tooltip)
         return {
           ...gem,
           title: gemTooltip.title,
