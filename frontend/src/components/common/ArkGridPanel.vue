@@ -154,9 +154,13 @@
                     v-for="(badge, idx) in gem.badges"
                     :key="`gem-badge-${slot.index}-${gem.index}-${idx}`"
                     class="gem-badge"
+                    :title="badge.fullText"
                   >
                     {{ badge.text }}
                   </span>
+                </div>
+                <div v-if="gem.gemTooltipText" class="gem-tooltip-hover">
+                  {{ gem.gemTooltipText }}
                 </div>
               </div>
             </div>
@@ -336,12 +340,24 @@ const parseTooltip = (tooltip?: string | null): ParsedTooltip => {
 
 interface GemBadge {
   text: string
+  fullText: string
 }
 
-const parseGemDescriptionToBadges = (tooltip?: string | null): GemBadge[] => {
-  if (!tooltip) return []
+interface GemTooltipData {
+  badges: GemBadge[]
+  tooltipText: string
+}
+
+const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData => {
+  const result: GemTooltipData = {
+    badges: [],
+    tooltipText: ''
+  }
+
+  if (!tooltip) return result
 
   const badges: GemBadge[] = []
+  const tooltipLines: string[] = []
 
   try {
     const parsed = JSON.parse(tooltip)
@@ -361,7 +377,7 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemBadge[] => {
       }
     }
 
-    if (!gemEffectText) return []
+    if (!gemEffectText) return result
 
     // <br> 태그로 분리하여 각 라인 처리
     const segments = gemEffectText.split(/<br\s*\/?>/i).map(segment =>
@@ -375,7 +391,9 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemBadge[] => {
       // 1. 필요 의지력 패턴
       const willpowerMatch = segment.match(/필요\s*의지력\s*:\s*(\d+)/i)
       if (willpowerMatch) {
-        badges.push({ text: `의지력 ${willpowerMatch[1]}` })
+        const text = `의지력 ${willpowerMatch[1]}`
+        badges.push({ text, fullText: text })
+        tooltipLines.push(text)
         i++
         continue
       }
@@ -383,16 +401,18 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemBadge[] => {
       // 2. 질서/혼돈 포인트 패턴
       const pointMatch = segment.match(/(질서|혼돈)\s*포인트\s*:\s*(\d+)/i)
       if (pointMatch) {
-        badges.push({ text: `${pointMatch[1]} 포인트 ${pointMatch[2]}` })
+        const text = `${pointMatch[1]} 포인트 ${pointMatch[2]}`
+        badges.push({ text, fullText: text })
+        tooltipLines.push(text)
         i++
         continue
       }
 
       // 3. 효과 이름과 레벨 패턴 (예: [추가 피해] Lv.1)
-      const effectNameMatch = segment.match(/\[([^\]]+)\]\s*(Lv\.\d+)/i)
+      const effectNameMatch = segment.match(/\[([^\]]+)\]\s*Lv\.(\d+)/i)
       if (effectNameMatch) {
         const effectName = effectNameMatch[1].trim()
-        const level = effectNameMatch[2]
+        const levelNum = effectNameMatch[2]
 
         // 다음 라인에서 효과 값 찾기
         if (i + 1 < segments.length) {
@@ -400,25 +420,33 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemBadge[] => {
           // 값 패턴 찾기 (예: +0.08%, +0.11%)
           const valueMatch = nextSegment.match(/([\+\-]\d+(?:\.\d+)?%)/i)
           if (valueMatch) {
-            badges.push({ text: `${effectName} ${level} ${valueMatch[1]}` })
+            const badgeText = `${effectName} ${levelNum}`
+            const fullText = `${effectName} Lv.${levelNum} ${valueMatch[1]}`
+            badges.push({ text: badgeText, fullText })
+            tooltipLines.push(fullText)
             i += 2 // 다음 라인도 건너뜀
             continue
           }
         }
 
         // 값이 없으면 레벨만 표시
-        badges.push({ text: `${effectName} ${level}` })
+        const text = `${effectName} ${levelNum}`
+        badges.push({ text, fullText: text })
+        tooltipLines.push(text)
         i++
         continue
       }
 
       i++
     }
+
+    result.badges = badges
+    result.tooltipText = tooltipLines.join('\n')
   } catch (error) {
     console.error('Failed to parse gem tooltip:', error)
   }
 
-  return badges
+  return result
 }
 
 const extractColorFromTooltip = (tooltip?: string | null): string | null => {
@@ -732,12 +760,13 @@ const slotCards = computed(() => {
       slot.gems?.map(gem => {
         const gemTooltip = parseTooltip(gem.tooltip)
         const gemColor = extractColorFromTooltip(gem.tooltip)
-        const badges = parseGemDescriptionToBadges(gem.tooltip)
+        const gemData = parseGemDescriptionToBadges(gem.tooltip)
         return {
           ...gem,
           title: gemTooltip.title,
           tooltipLines: extractGemEffectLines(gemTooltip.lines),
-          badges,
+          badges: gemData.badges,
+          gemTooltipText: gemData.tooltipText,
           gradeColor: gemColor
         }
       }) ?? []
@@ -1165,6 +1194,33 @@ const emptyStateDescription = computed(() => {
   display: flex;
   flex-direction: row;
   gap: 8px;
+  position: relative;
+}
+
+.gem-card:hover .gem-tooltip-hover {
+  visibility: visible;
+  opacity: 1;
+}
+
+.gem-tooltip-hover {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  white-space: pre-line;
+  left: 0;
+  top: 100%;
+  margin-top: 8px;
+  min-width: 250px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
 }
 
 .gem-card-head {
