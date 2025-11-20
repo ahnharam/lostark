@@ -2155,8 +2155,8 @@ const cleanText = (text: string) =>
 
 .summary-meta {
   display: flex;
-  gap: 8px;
-  font-size: calc(0.8rem - 1px);
+  gap: var(--space-sm);
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   flex-wrap: wrap;
 }
@@ -2164,13 +2164,13 @@ const cleanText = (text: string) =>
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: calc(0.75rem - 1px);
-  font-weight: 600;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  gap: 4px;
+  gap: var(--space-xs);
 }
 
 .pill--stage {
@@ -2184,25 +2184,25 @@ const cleanText = (text: string) =>
 }
 
 .pill--value-only {
-  padding: 2px 6px;
+  padding: 2px var(--space-sm);
 }
 
 .summary-effects {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: calc(0.85rem - 1px);
+  gap: var(--space-xs);
+  font-size: var(--font-sm);
   color: var(--text-secondary);
 }
 
 .summary-quality {
   min-width: 36px;
   text-align: center;
-  padding: 4px 6px;
-  border-radius: 8px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
-  font-size: calc(0.75rem - 1px);
-  font-weight: 600;
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
 }
 
 @media (max-width: 1080px) {
