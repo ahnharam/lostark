@@ -193,50 +193,47 @@
             <template v-for="skill in getEnhancedSkills(row.cards)" :key="`${skill.key}-enhanced`">
               <article class="skill-card skill-card--enhanced-row" :class="{ 'skill-card--compact': skill.isCompact }">
                 <div class="skill-card-main">
-                  <div>
+                  <div class="skill-card-area">
 
-                  <div class="skill-card-hero">
-                    <div class="skill-card-icon-block">
-                      <div class="skill-icon-wrapper" tabindex="0">
-                        <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
-                          imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
+                    <div class="skill-card-hero">
+                      <div class="skill-card-icon-block">
+                        <div class="skill-icon-wrapper" tabindex="0">
+                          <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="50" height="50"
+                            imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
+                        </div>
+                        <p class="skill-card-name">{{ skill.name }}</p>
+                        <p class="skill-card-meta">
+                          <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
+                        </p>
                       </div>
-                      <p class="skill-card-name">{{ skill.name }}</p>
-                      <p class="skill-card-meta">
-                        <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
-                      </p>
+
+                      <div class="skill-main-destruction">
+                        <!-- 스킬 메타 정보 (무력화, 공격 타입 등) -->
+                        <div v-if="skill.stagger || skill.attackType || skill.superArmor || skill.destruction"
+                          class="skill-metadata">
+                          <span v-if="skill.stagger" class="skill-metadata-badge skill-metadata-badge--stagger">
+                            무력화 {{ skill.stagger }}
+                          </span>
+                          <span v-if="skill.attackType" class="skill-metadata-badge skill-metadata-badge--attack">
+                            {{ skill.attackType }}
+                          </span>
+                          <span v-if="skill.superArmor" class="skill-metadata-badge skill-metadata-badge--armor">
+                            {{ skill.superArmor }}
+                          </span>
+                          <span v-if="skill.destruction" class="skill-metadata-badge skill-metadata-badge--destruction">
+                            부위파괴 {{ skill.destruction }}
+                          </span>
+                        </div>
+
+                        <!-- 스킬 설명 -->
+                        <p v-if="skill.description" class="skill-description">
+                          {{ skill.description }}
+                        </p>
+                      </div>
                     </div>
 
-                    <!-- 스킬 메타 정보 (무력화, 공격 타입 등) -->
-                    <div
-                      v-if="skill.stagger || skill.attackType || skill.superArmor || skill.destruction"
-                      class="skill-metadata"
-                    >
-                      <span v-if="skill.stagger" class="skill-metadata-badge skill-metadata-badge--stagger">
-                        무력화 {{ skill.stagger }}
-                      </span>
-                      <span v-if="skill.attackType" class="skill-metadata-badge skill-metadata-badge--attack">
-                        {{ skill.attackType }}
-                      </span>
-                      <span v-if="skill.superArmor" class="skill-metadata-badge skill-metadata-badge--armor">
-                        {{ skill.superArmor }}
-                      </span>
-                      <span v-if="skill.destruction" class="skill-metadata-badge skill-metadata-badge--destruction">
-                        부위파괴 {{ skill.destruction }}
-                      </span>
-                    </div>
-
-                    <!-- 스킬 설명 -->
-                    <p v-if="skill.description" class="skill-description">
-                      {{ skill.description }}
-                    </p>
-                  </div>
-
-                    <div
-                      v-if="skill.tripods.length || skill.rune || skill.gemBadges.length"
-                      class="skill-tripod-rail"
-                      :class="{ 'skill-tripod-rail--compact': skill.isCompact }"
-                    >
+                    <div v-if="skill.tripods.length || skill.rune || skill.gemBadges.length" class="skill-tripod-rail"
+                      :class="{ 'skill-tripod-rail--compact': skill.isCompact }">
                       <div v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
                         <div class="tripod-detail-icon">
                           <LazyImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="36" height="36"
@@ -1115,12 +1112,12 @@ const skillCards = computed<SkillCardView[]>(() => {
 
       const rune = skill.rune?.name
         ? {
-            name: sanitizeInline(skill.rune.name),
-            grade: sanitizeInline(skill.rune.grade),
-            icon: skill.rune.icon || undefined,
-            description: summarizeTooltip(skill.rune.tooltip, ''),
-            gradeColor: extractFontColor(skill.rune.tooltip)
-          }
+          name: sanitizeInline(skill.rune.name),
+          grade: sanitizeInline(skill.rune.grade),
+          icon: skill.rune.icon || undefined,
+          description: summarizeTooltip(skill.rune.tooltip, ''),
+          gradeColor: extractFontColor(skill.rune.tooltip)
+        }
         : null
 
       const tripods =
@@ -1585,31 +1582,44 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   width: 100%;
 }
 
+.skill-card-area{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
 .skill-card-hero {
   display: flex;
   flex-direction: row;
   width: 100%;
-  /* gap: 12px; */
+  gap: 10px;
+}
+
+.skill-main-destruction{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
 }
 
 .skill-card-icon-block {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   text-align: center;
   width: 55px;
-  padding-top: 5px;
 }
 
 /* ===== 스킬 메타 정보 스타일 ===== */
 .skill-metadata {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 6px;
-  padding-left: 10px;
   height: fit-content;
-  /* margin-top: -4px; */
+  min-width: fit-content;
+  /* min-width: 110px; */
 }
 
 .skill-metadata-badge {
@@ -1620,11 +1630,8 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
-  /* word-break: keep-all;
-  white-space: pre-wrap; */
   height: 22px;
-  /* max-width: 70px;
-  min-width: 70px; */
+  width:fit-content;
 }
 
 .skill-metadata-badge--stagger {
@@ -1654,6 +1661,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 /* ===== 스킬 설명 스타일 ===== */
 .skill-description {
+  display: inline-flex;
   margin: 0;
   padding: 10px 12px;
   background: var(--surface-muted, #f9fafb);
@@ -1662,6 +1670,8 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   color: var(--text-secondary, #4b5563);
   font-size: 0.85rem;
   line-height: 1.5;
+  text-align: left;
+  align-items: center;
   word-break: keep-all;
   white-space: pre-wrap;
   flex: 1 1 auto;
@@ -1764,7 +1774,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .tripod-slot {
   font-weight: 600;
   color: white;
-  border-radius:999px;
+  border-radius: 999px;
 }
 
 .tripod-level {
