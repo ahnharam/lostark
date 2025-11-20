@@ -344,26 +344,56 @@ const parseGemDescriptionToBadges = (lines: string[]): GemBadge[] => {
   const badges: GemBadge[] = []
   const fullText = lines.join(' ').trim()
 
-  // 1. 의지력 패턴: "필요 의지력 : 4 (기본 값 8 – 의지력 효율 4)"
-  const willpowerMatch = fullText.match(/필요\s*의지력\s*:\s*(\d+)/i)
-  if (willpowerMatch) {
-    badges.push({ text: `의지력 ${willpowerMatch[1]}` })
-  }
+  // <br> 태그로 분리하여 각 라인 처리
+  const segments = fullText.split(/<br\s*\/?>/i).map(segment =>
+    stripHtml(segment).trim()
+  ).filter(Boolean)
 
-  // 2. 질서 포인트 패턴: "질서 포인트 : 5"
-  const orderPointMatch = fullText.match(/질서\s*포인트\s*:\s*(\d+)/i)
-  if (orderPointMatch) {
-    badges.push({ text: `질서 포인트 ${orderPointMatch[1]}` })
-  }
+  let i = 0
+  while (i < segments.length) {
+    const segment = segments[i]
 
-  // 3. 효과 패턴: "[추가 피해] Lv.1 추가 피해 +0.08%"
-  const effectPattern = /\[([^\]]+)\]\s*(Lv\.\d+).*?([\+\-]\d+(?:\.\d+)?%)/g
-  let effectMatch
-  while ((effectMatch = effectPattern.exec(fullText)) !== null) {
-    const effectName = effectMatch[1].trim()
-    const level = effectMatch[2]
-    const value = effectMatch[3]
-    badges.push({ text: `${effectName} ${level} ${value}` })
+    // 1. 필요 의지력 패턴
+    const willpowerMatch = segment.match(/필요\s*의지력\s*:\s*(\d+)/i)
+    if (willpowerMatch) {
+      badges.push({ text: `의지력 ${willpowerMatch[1]}` })
+      i++
+      continue
+    }
+
+    // 2. 질서/혼돈 포인트 패턴
+    const pointMatch = segment.match(/(질서|혼돈)\s*포인트\s*:\s*(\d+)/i)
+    if (pointMatch) {
+      badges.push({ text: `${pointMatch[1]} 포인트 ${pointMatch[2]}` })
+      i++
+      continue
+    }
+
+    // 3. 효과 이름과 레벨 패턴 (예: [추가 피해] Lv.1)
+    const effectNameMatch = segment.match(/\[([^\]]+)\]\s*(Lv\.\d+)/i)
+    if (effectNameMatch) {
+      const effectName = effectNameMatch[1].trim()
+      const level = effectNameMatch[2]
+
+      // 다음 라인에서 효과 값 찾기
+      if (i + 1 < segments.length) {
+        const nextSegment = segments[i + 1]
+        // 값 패턴 찾기 (예: +0.08%, +0.11%)
+        const valueMatch = nextSegment.match(/([\+\-]\d+(?:\.\d+)?%)/i)
+        if (valueMatch) {
+          badges.push({ text: `${effectName} ${level} ${valueMatch[1]}` })
+          i += 2 // 다음 라인도 건너뜀
+          continue
+        }
+      }
+
+      // 값이 없으면 레벨만 표시
+      badges.push({ text: `${effectName} ${level}` })
+      i++
+      continue
+    }
+
+    i++
   }
 
   return badges
