@@ -383,36 +383,29 @@
                         <span class="special-label">
                           {{ special.label }}
                         </span>
-                        <span
+                        <div
                           v-if="hoveredSpecialName === special.item.name"
-                          class="special-hover-indicator"
-                          aria-hidden="true"
-                        ></span>
+                          class="special-tooltip popup-surface popup-surface--tooltip"
+                          :style="tooltipWidthStyle"
+                          role="tooltip"
+                          @mouseenter="cancelSpecialHoverTimeout"
+                          @mouseleave="scheduleSpecialHoverClear"
+                        >
+                          <p class="popup-surface__title special-tooltip-title">
+                            {{ special.item.name }}
+                          </p>
+                          <div v-if="special.highlights.length" class="special-highlights">
+                            <span
+                              v-for="(line, idx) in special.highlights"
+                              :key="`${special.item.name}-${idx}`"
+                            >
+                              {{ line }}
+                            </span>
+                          </div>
+                          <p v-else class="special-tooltip-empty">추가 설명이 없습니다.</p>
+                        </div>
                       </div>
                     </div>
-                  <div
-                    v-if="hoveredSpecial"
-                    class="special-tooltip-layer"
-                    aria-live="polite"
-                    @mouseenter="cancelSpecialHoverTimeout"
-                    @mouseleave="scheduleSpecialHoverClear"
-                  >
-                    <div
-                      v-if="hoveredSpecial"
-                      class="special-tooltip special-tooltip--global"
-                      :style="tooltipWidthStyle"
-                      role="tooltip"
-                    >
-                      <strong>{{ hoveredSpecial.item.name }}</strong>
-                      <!-- <span class="special-type">{{ hoveredSpecial.item.type }}</span> -->
-                      <div v-if="hoveredSpecial.highlights.length" class="special-highlights">
-                        <span v-for="(line, idx) in hoveredSpecial.highlights" :key="`${hoveredSpecial.item.name}-${idx}`">
-                          {{ line }}
-                        </span>
-                      </div>
-                      <p v-else class="special-tooltip-empty">추가 설명이 없습니다.</p>
-                    </div>
-                  </div>
                 </div>
 
               </div>
@@ -1023,10 +1016,6 @@ const scheduleSpecialHoverClear = () => {
   }, 120)
 }
 
-const hoveredSpecial = computed(() => {
-  if (!hoveredSpecialName.value) return null
-  return specialEquipmentsDetailed.value.find(special => special.item.name === hoveredSpecialName.value) ?? null
-})
 interface ParadiseInfo {
   season?: string
   power?: string
@@ -2671,60 +2660,35 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .special-tooltip {
-  position: relative;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg);
-  box-shadow: var(--shadow-md);
-  width: 100%;
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.15s ease, transform 0.2s ease;
-  pointer-events: auto;
-  z-index: 15;
-}
-
-.special-tooltip::after {
-  display: none;
-}
-
-.special-tooltip-layer {
-  position: relative;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-  margin-top: 20px;
-}
-
-.special-tooltip--global {
-  text-align: left;
-  pointer-events: auto;
-}
-
-.special-hover-indicator {
   position: absolute;
+  bottom: calc(100% + 10px);
   left: 50%;
-  bottom: -2px;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
+  transform: translate(-50%, -10px);
+  width: min(var(--tooltip-width, 360px), 85vw);
+  opacity: 0;
   pointer-events: none;
+  box-sizing: border-box;
+  z-index: 7;
+  text-align: left;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.special-hover-indicator::before {
+.special-icon-wrapper.is-hovered .special-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -2px);
+}
+
+.special-tooltip::before {
   content: '';
   position: absolute;
-  top: 100%;
+  bottom: -8px;
   left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
+  transform: translateX(-50%) rotate(180deg);
   border-left: 9px solid transparent;
   border-right: 9px solid transparent;
-  border-top: 10px solid rgba(99, 102, 241, 0.55);
-  filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.25));
+  border-bottom: 9px solid var(--popover-bg);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
 
 .special-type {
@@ -2735,8 +2699,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .special-highlights {
   margin: 0;
   /* padding-left: 18px; */
-  color: var(--text-secondary);
-  font-size: calc(0.85rem - 2px);
+  color: inherit;
+  font-size: 0.9rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2749,8 +2713,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .special-tooltip-empty {
   margin: 0;
-  font-size: calc(0.85rem - 2px);
-  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  color: var(--popover-muted);
 }
 
 .profile-stats-grid {

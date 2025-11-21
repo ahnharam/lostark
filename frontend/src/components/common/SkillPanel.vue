@@ -301,9 +301,12 @@
                         <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
                           imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                         <!-- 스킬 아이콘 호버 시 표시되는 툴팁 -->
-                        <div v-if="skill.description || skill.tripods.length" class="skill-icon-tooltip">
-                          <p class="skill-tooltip-title">{{ skill.name }}</p>
-                          <p v-if="skill.description" class="skill-tooltip-desc">
+                        <div
+                          v-if="skill.description || skill.tripods.length"
+                          class="skill-icon-tooltip popup-surface popup-surface--tooltip"
+                        >
+                          <p class="popup-surface__title skill-tooltip-title">{{ skill.name }}</p>
+                          <p v-if="skill.description" class="popup-surface__body skill-tooltip-desc">
                             {{ skill.description }}
                           </p>
                         </div>
@@ -1699,35 +1702,30 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .skill-icon-wrapper:hover .skill-icon-tooltip {
   opacity: 1;
   pointer-events: auto;
+  transform: translate(-50%, -4px);
 }
 
 .skill-icon-tooltip {
   position: absolute;
-  top: 100%;
+  bottom: calc(100% + 10px);
   left: 50%;
-  transform: translate(-50%, 10px);
-  width: min(320px, 80vw);
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(17, 24, 39, 0.95);
-  color: #fff;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -10px);
+  width: min(340px, 80vw);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease;
   z-index: 10;
 }
 
 .skill-tooltip-title {
   margin: 0 0 6px;
-  font-weight: 700;
   font-size: 0.95rem;
 }
 
 .skill-tooltip-desc {
   margin: 0 0 10px;
-  font-size: 0.85rem;
-  line-height: 1.4;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .skill-tooltip-tripods {

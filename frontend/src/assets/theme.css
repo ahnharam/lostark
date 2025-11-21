@@ -70,6 +70,14 @@
   --modal-overlay: rgba(0, 0, 0, 0.7);
   --modal-bg: #ffffff;
 
+  /* 팝업/툴팁 */
+  --popover-bg: #ffffff;
+  --popover-border: rgba(15, 23, 42, 0.08);
+  --popover-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+  --popover-text: #0f172a;
+  --popover-muted: #475569;
+  --popover-title: #0b1220;
+
   /* ===== 디자인 토큰 시스템 ===== */
 
   /* 간격 (Spacing) - 4px 단위 */
@@ -181,6 +189,14 @@
   /* 모달 */
   --modal-overlay: rgba(0, 0, 0, 0.85);
   --modal-bg: #2d2d2d;
+
+  /* 팝업/툴팁 */
+  --popover-bg: #0b0f1a;
+  --popover-border: rgba(255, 255, 255, 0.14);
+  --popover-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  --popover-text: #e5e7eb;
+  --popover-muted: #9ca3af;
+  --popover-title: #f8fafc;
 }
 
 /* 부드러운 전환 효과 */
@@ -218,4 +234,42 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
+}
+
+/* 공통 팝업/툴팁 스타일 */
+.popup-surface {
+  background: var(--popover-bg);
+  color: var(--popover-text);
+  border: 1px solid var(--popover-border);
+  box-shadow: var(--popover-shadow);
+  border-radius: 14px;
+  padding: 12px 14px;
+  line-height: 1.5;
+  backdrop-filter: blur(2px);
+  white-space: pre-line;
+  word-break: keep-all;
+  transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.popup-surface__title {
+  margin: 0 0 8px;
+  font-weight: var(--font-semibold, 700);
+  color: var(--popover-title);
+  line-height: 1.4;
+}
+
+.popup-surface__body {
+  margin: 0;
+  color: var(--popover-text);
+  font-size: 0.92rem;
+}
+
+.popup-surface__meta {
+  margin: 6px 0 0;
+  color: var(--popover-muted);
+  font-size: 0.85rem;
+}
+
+.popup-surface--tooltip {
+  max-width: min(360px, 82vw);
 }

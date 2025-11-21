@@ -66,7 +66,7 @@
                 class="passive-card passive-table-card"
               >
                 <div class="passive-card-head">
-                  <div class="passive-card-visual" :title="effect.tooltipText">
+                  <div class="passive-card-visual">
                     <LazyImage
                       v-if="effect.icon"
                       :src="effect.icon"
@@ -78,6 +78,15 @@
                       :useProxy="true"
                     />
                     <span v-if="effect.levelDisplay" class="passive-card-level">{{ effect.levelDisplay }}</span>
+                    <div class="passive-tooltip popup-surface popup-surface--tooltip">
+                      <p class="popup-surface__title passive-tooltip-title">{{ effect.name }}</p>
+                      <p v-if="effect.levelLine" class="popup-surface__meta passive-tooltip-meta">
+                        {{ effect.levelLine }}
+                      </p>
+                      <p class="popup-surface__body passive-tooltip-body">
+                        {{ effect.summaryLine || effect.tooltipText }}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -156,8 +165,13 @@
                     {{ badge.text }}
                   </span>
                 </div>
-                <div v-if="gem.gemTooltipText" class="gem-tooltip-hover">
-                  {{ gem.gemTooltipText }}
+                <div
+                  v-if="gem.gemTooltipText"
+                  class="gem-tooltip-hover popup-surface popup-surface--tooltip"
+                >
+                  <p class="popup-surface__body gem-tooltip-text">
+                    {{ gem.gemTooltipText }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -933,7 +947,7 @@ const emptyStateDescription = computed(() => {
   margin-top: 10px;
   /* border: 1px solid var(--border-color, #e5e7eb); */
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .matrix-header,
@@ -960,6 +974,7 @@ const emptyStateDescription = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: visible;
 }
 
 .matrix-cell:last-child {
@@ -968,7 +983,7 @@ const emptyStateDescription = computed(() => {
 
 .matrix-cell--section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60px, auto));
+  grid-template-columns: repeat(auto-fit, minmax(50px, auto));
   justify-content: center;
   gap: 12px;
 }
@@ -995,6 +1010,12 @@ const emptyStateDescription = computed(() => {
 .passive-table-card {
   margin: 0;
   border-radius: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.passive-table-card:hover {
+  z-index: 80;
 }
 
 .passive-card-head {
@@ -1010,6 +1031,8 @@ const emptyStateDescription = computed(() => {
   gap: 6px;
   min-width: 48px;
   cursor: help;
+  position: relative;
+  z-index: 2;
 }
 
 .passive-card-icon {
@@ -1204,6 +1227,7 @@ const emptyStateDescription = computed(() => {
 .gem-card:hover .gem-tooltip-hover {
   visibility: visible;
   opacity: 1;
+  transform: translate(-50%, 2px);
 }
 
 .gem-tooltip-hover {
@@ -1211,20 +1235,47 @@ const emptyStateDescription = computed(() => {
   opacity: 0;
   position: absolute;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.9);
-  color: #ffffff;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  line-height: 1.6;
-  white-space: pre-line;
-  left: 0;
-  top: 100%;
-  margin-top: 8px;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translate(-50%, 8px);
   min-width: 250px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: opacity 0.2s ease-in-out;
+  font-size: 0.8rem;
+  transition: opacity 0.15s ease, transform 0.15s ease;
   pointer-events: none;
+}
+
+.gem-tooltip-text {
+  margin: 0;
+}
+
+.passive-card-visual:hover .passive-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 8px);
+  z-index: 100;
+}
+
+.passive-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, 6px);
+  width: min(320px, 80vw);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.passive-tooltip-title {
+  margin: 0 0 6px;
+}
+
+.passive-tooltip-meta {
+  margin: 0 0 8px;
+}
+
+.passive-tooltip-body {
+  margin: 0;
 }
 
 .gem-card-head {
