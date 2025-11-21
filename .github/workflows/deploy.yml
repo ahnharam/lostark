@@ -1,0 +1,36 @@
+name: Deploy to Oracle VM
+
+on:
+  push:
+    branches: [ "main" ]   # main에 push될 때마다 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # SSH로 Oracle VM에 접속해서 배포 스크립트 실행
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+
+            # 1) 프로젝트 폴더로 이동
+            cd ~/lostark
+
+            # 2) 최신 코드 가져오기
+            git pull origin main
+
+            # 3) (옵션) 환경변수/설정 파일이 있다면 여기서 갱신
+
+            # 4) 백엔드 + DB만 재빌드 & 재시작
+            docker compose -f docker-compose.prod.yml pull || true
+            docker compose -f docker-compose.prod.yml up -d --build backend database
