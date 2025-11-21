@@ -1769,6 +1769,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   min-width: 130px;
   padding: 0px 10px;
   font-weight: 600;
+  color: var(--text-primary, #1f2937);
 }
 
 .tripod-slot {
@@ -1835,7 +1836,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .tripod-desc {
   display: block;
-  /* color: #e5e7eb; */
+  color: var(--text-secondary, #4b5563);
   font-size: 0.8rem;
   line-height: 1.4;
 }
@@ -2116,6 +2117,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0;
+  color: var(--text-secondary, #4b5563);
 }
 
 /* ===== 보석 표시 스타일 ===== */
