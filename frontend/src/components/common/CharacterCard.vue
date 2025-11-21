@@ -61,19 +61,19 @@ withDefaults(defineProps<Props>(), {
   width: 320px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-md);
   padding: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--card-bg);
   border: 2px solid var(--border-color);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all var(--transition-slow);
   cursor: pointer;
 }
 
 .engraving-card-wrapper:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
   border-color: var(--primary-color);
 }
 
@@ -94,16 +94,16 @@ withDefaults(defineProps<Props>(), {
 
 /* 텍스트 컨텐츠: Padding 내부 */
 .card-content {
-  padding: 0 16px;
+  padding: 0 var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-xs);
 }
 
 /* 이름: 16/Bold */
 .character-name {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--font-base);
+  font-weight: var(--font-bold);
   color: var(--text-primary);
   margin: 0;
   line-height: 1.4;
@@ -114,8 +114,8 @@ withDefaults(defineProps<Props>(), {
 
 /* Sub: 12px (직업 • iLv) */
 .character-sub {
-  font-size: 12px;
-  font-weight: 400;
+  font-size: var(--font-xs);
+  font-weight: var(--font-normal);
   color: var(--text-secondary);
   margin: 0;
   line-height: 1.4;
@@ -125,8 +125,8 @@ withDefaults(defineProps<Props>(), {
 .engraving-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 0 16px 16px 16px;
+  gap: var(--space-sm);
+  padding: 0 var(--space-lg) var(--space-lg) var(--space-lg);
 }
 
 /* pill: Fill/Radius=999 → "알약모양" */
@@ -134,18 +134,18 @@ withDefaults(defineProps<Props>(), {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 12px;
+  padding: var(--space-xs) var(--space-md);
   background: var(--primary-color);
   color: var(--text-inverse);
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
 }
 
 .engraving-pill.debuff {
-  background: #ff6b6b;
+  background: var(--error-color);
 }
 
 .engraving-pill:hover {

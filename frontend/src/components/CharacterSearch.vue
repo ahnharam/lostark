@@ -2001,9 +2001,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .sidebar-menu-badge {
-  font-size: calc(0.75rem - 2px);
-  padding: 4px 8px;
-  border-radius: 999px;
+  font-size: var(--font-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
@@ -2038,8 +2038,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .content-wrapper {
   display: flex;
   flex: 1;
-  gap: 24px;
-  padding: 30px clamp(20px, 5vw, 0px);
+  gap: var(--space-2xl);
+  padding: 30px clamp(var(--space-xl), 5vw, 0px);
   background: var(--bg-secondary);
   box-sizing: border-box;
 }
@@ -2047,10 +2047,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .main-content {
   flex: 1 1 960px;
   /* max-width: 1200px; */
-  padding: 0px 24px;
+  padding: 0px var(--space-2xl);
   /* overflow-y: auto; */
   background: var(--bg-secondary);
-  /* border-radius: 24px; */
+  /* border-radius: var(--radius-2xl); */
   /* box-shadow: var(--shadow-sm); */
   border-left: 1px dashed var(--border-color);
   border-right: 1px dashed var(--border-color);
@@ -2058,7 +2058,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ad-slot {
   flex: 0 0 clamp(140px, 12vw, 220px);
-  border-radius: 24px;
+  border-radius: var(--radius-2xl);
   border: 1px dashed var(--border-color);
   background: var(--card-bg);
   box-shadow: var(--shadow-sm);
@@ -2066,9 +2066,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   align-items: center;
   justify-content: center;
   color: var(--text-tertiary);
-  font-size: calc(0.9rem - 2px);
+  font-size: var(--font-sm);
   text-align: center;
-  padding: 20px;
+  padding: var(--space-xl);
   min-height: 60vh;
 }
 
@@ -2078,10 +2078,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .search-input {
   flex: 1;
-  padding: 12px 16px;
-  font-size: calc(1rem - 2px);
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-base);
   border: 2px solid var(--input-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--input-bg);
   color: var(--text-primary);
 }
@@ -2091,22 +2091,22 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .states-section h2 {
-  font-size: calc(1.3rem - 2px);
+  font-size: var(--font-xl);
   color: var(--text-primary);
   margin-bottom: 15px;
-  font-weight: 700;
+  font-weight: var(--font-bold);
 }
 
 .states-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: var(--space-xl);
 }
 
 .state-card {
-  padding: 20px;
+  padding: var(--space-xl);
   background: var(--card-bg);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 2px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -2124,12 +2124,12 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .character-results {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-2xl);
 }
 
 .results-layout {
   display: flex;
-  gap: 24px;
+  gap: var(--space-2xl);
   align-items: stretch;
 }
 
@@ -2137,24 +2137,24 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-xl);
 }
 
 .view-tabs {
   display: flex;
-  gap: 10px;
+  gap: var(--space-sm);
 }
 
 .view-tab-button {
-  padding: 8px 18px;
-  border-radius: 999px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  font-size: calc(1rem - 4px);
-  font-weight: 600;
+  font-size: var(--font-sm);
+  font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
 }
 
 .view-tab-button.active {
@@ -2175,24 +2175,24 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  gap: var(--space-lg);
 }
 
 .summary-card {
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
-  padding: 18px;
+  padding: var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-md);
   box-shadow: var(--shadow-sm);
 }
 
 .summary-card h4 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-base);
+  font-weight: var(--font-semibold);
   color: var(--text-primary, #1f2937);
 }
 

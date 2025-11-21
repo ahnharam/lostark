@@ -291,14 +291,14 @@ defineExpose({
 .input-frame {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-md);
   height: 52px;
   width: 350px;
-  padding: 0 20px;
+  padding: 0 var(--space-xl);
   background: var(--card-bg);
   border: 2px solid var(--border-color);
-  border-radius: 999px;
-  transition: all 0.3s;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-slow);
   box-shadow: var(--shadow-sm);
   justify-content: space-between;
 }
@@ -322,9 +322,9 @@ defineExpose({
   border: none;
   background: none;
   outline: none;
-  font-size: 1rem;
+  font-size: var(--font-base);
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: var(--font-medium);
   width: 100%;
 }
 
@@ -341,12 +341,12 @@ defineExpose({
 }
 
 .clear-button {
-  padding: 6px;
+  padding: var(--space-sm);
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-tertiary);
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   border-radius: 50%;
 }
 
@@ -359,28 +359,28 @@ defineExpose({
 .recommendations-hint {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 0 20px;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding: 0 var(--space-xl);
   flex-wrap: wrap;
 }
 
 .hint-label {
-  font-size: 0.85rem;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .recommendation-chip {
-  padding: 6px 14px;
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 999px;
-  font-size: 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: var(--font-sm);
   color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
+  transition: all var(--transition-base);
+  font-weight: var(--font-medium);
 }
 
 .recommendation-chip:hover {
@@ -393,18 +393,18 @@ defineExpose({
 /* 자동완성 드롭다운 */
 .suggestions-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--space-sm));
   left: 0;
   right: 0;
   background: var(--card-bg);
   border: 2px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   max-height: 400px;
   max-width: 350px;
   overflow-y: auto;
-  z-index: 1000;
-  animation: slideDown 0.2s ease-out;
+  z-index: var(--z-dropdown);
+  animation: slideDown var(--transition-base) ease-out;
 }
 
 @keyframes slideDown {
@@ -419,22 +419,22 @@ defineExpose({
 }
 
 .suggestions-header {
-  padding: 12px 18px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-sm);
+  font-weight: var(--font-bold);
   color: var(--text-secondary);
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
-  border-radius: 10px 10px 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 .suggestion-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   border-bottom: 1px solid var(--border-color-light);
 }
 
@@ -462,36 +462,36 @@ defineExpose({
 }
 
 .suggestion-name {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: var(--font-base);
 }
 
 .suggestion-name :deep(.highlight) {
   color: var(--primary-color);
   background: rgba(102, 126, 234, 0.1);
-  padding: 2px 4px;
+  padding: 2px var(--space-xs);
   border-radius: 3px;
 }
 
 .suggestion-info {
-  font-size: 0.85rem;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   margin-top: 2px;
 }
 
 .suggestion-level {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--font-bold);
   color: var(--primary-color);
   flex-shrink: 0;
 }
 
 .no-suggestions {
-  padding: 20px;
+  padding: var(--space-xl);
   text-align: center;
   color: var(--text-tertiary);
-  font-size: 0.9rem;
+  font-size: var(--font-sm);
 }
 
 /* 스크롤바 스타일 */
