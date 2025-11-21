@@ -195,44 +195,28 @@
                 <div class="skill-card-main">
                   <div class="skill-card-area">
 
-                    <div class="skill-card-hero">
-                      <div class="skill-card-icon-block">
-                        <div class="skill-icon-wrapper" tabindex="0">
-                          <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="50" height="50"
-                            imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
-                        </div>
-                        <p class="skill-card-name">{{ skill.name }}</p>
-                        <p class="skill-card-meta">
-                          <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
-                        </p>
-                      </div>
-
-                      <div class="skill-main-destruction">
-                        <!-- 스킬 메타 정보 (무력화, 공격 타입 등) -->
-                        <div v-if="skill.stagger || skill.attackType || skill.superArmor || skill.destruction"
-                          class="skill-metadata">
-                          <span v-if="skill.stagger" class="skill-metadata-badge skill-metadata-badge--stagger">
-                            무력화 {{ skill.stagger }}
-                          </span>
-                          <span v-if="skill.attackType" class="skill-metadata-badge skill-metadata-badge--attack">
-                            {{ skill.attackType }}
-                          </span>
-                          <span v-if="skill.superArmor" class="skill-metadata-badge skill-metadata-badge--armor">
-                            {{ skill.superArmor }}
-                          </span>
-                          <span v-if="skill.destruction" class="skill-metadata-badge skill-metadata-badge--destruction">
-                            부위파괴 {{ skill.destruction }}
-                          </span>
+                      <div class="skill-card-hero">
+                        <div class="skill-card-icon-block">
+                          <div class="skill-icon-wrapper" tabindex="0">
+                            <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="50" height="50"
+                              imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
+                          </div>
+                          <p class="skill-card-name">{{ skill.name }}</p>
+                          <p class="skill-card-meta">
+                            <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
+                            <span v-if="skill.skillPointLabel" class="skill-card-point">{{ skill.skillPointLabel }}</span>
+                            <span v-if="skill.rune?.name" class="skill-card-rune">룬: {{ skill.rune.name }}</span>
+                          </p>
                         </div>
 
-                        <!-- 스킬 설명 -->
-                        <p v-if="skill.description" class="skill-description">
-                          {{ skill.description }}
-                        </p>
+                        <div class="skill-main-destruction">
+                          <p v-if="skill.description" class="skill-description">
+                            {{ skill.description }}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div v-if="skill.tripods.length || skill.rune || skill.gemBadges.length" class="skill-tripod-rail"
+                        <div v-if="skill.tripods.length || skill.rune || skill.gemBadges.length" class="skill-tripod-rail"
                       :class="{ 'skill-tripod-rail--compact': skill.isCompact }">
                       <div v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
                         <div class="tripod-detail-icon">
@@ -402,6 +386,7 @@ interface SkillCardView {
   levelLabel?: string
   typeLabel?: string
   pointLabel?: string
+  skillPointLabel?: string
   description?: string
   // 메타 정보
   stagger?: string          // 무력화 (예: "중", "상")
@@ -1152,6 +1137,8 @@ const skillCards = computed<SkillCardView[]>(() => {
         levelLabel: formatLevelLabel(skill.level),
         typeLabel: typeParts.join(' · ') || undefined,
         pointLabel: typeof skill.skillPoints === 'number' ? `${skill.skillPoints.toLocaleString()} 포인트` : undefined,
+        skillPointLabel:
+          typeof skill.skillPoints === 'number' ? `${skill.skillPoints.toLocaleString()}P` : undefined,
         description: summarizeTooltip(skill.tooltip, ''),
         // 메타 정보
         stagger: metadata.stagger,
@@ -1223,10 +1210,12 @@ const classicAwakeningPairs = computed<AwakeningPairGroup[]>(() => {
 })
 
 /**
- * 일반 전투 스킬 목록 (각성기 제외, skillTypeCode: 0)
+ * 일반 전투 스킬 목록 (각성기 제외, skillTypeCode: 0) + 스킬포인트/룬이 있는 스킬만 노출
  */
 const regularSkillCards = computed(() =>
-  skillCards.value.filter(card => !card.isAwakening && card.skillTypeCode === 0)
+  skillCards.value.filter(
+    card => !card.isAwakening && card.skillTypeCode === 0 && (card.skillPointLabel || card.rune)
+  )
 )
 
 /**
@@ -1555,9 +1544,9 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-card {
   width: 100%;
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 10px;
-  /* background: var(--surface-color, #fff); */
+  background: transparent;
 }
 
 .skill-card-inline-row {
@@ -1568,7 +1557,11 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-card--enhanced-row {
   width: 100%;
-  border-bottom: 1px dashed lightgray;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.skill-card-main {
+  background: transparent;
 }
 
 .skill-card--inline {

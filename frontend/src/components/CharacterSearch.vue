@@ -428,85 +428,333 @@
                   v-if="activeResultTab === 'summary'"
                   class="detail-panel summary-panel"
                 >
-                  <div v-if="activeCharacter" class="summary-grid">
-                    <div class="summary-card summary-card--hero">
-                      <h4>기본 정보</h4>
-                      <p class="summary-name">{{ activeCharacter.characterName }}</p>
-                      <ul class="summary-meta-list">
-                        <li>
-                          <span>직업</span>
-                          <strong>{{ activeCharacter.characterClassName }}</strong>
-                        </li>
-                        <li>
-                          <span>서버</span>
-                          <strong>{{ activeCharacter.serverName }}</strong>
-                        </li>
-                        <li v-if="activeCharacter.guildName">
-                          <span>길드</span>
-                          <strong>{{ activeCharacter.guildName }}</strong>
-                        </li>
-                        <li v-if="activeCharacter.pvpGradeName">
-                          <span>PVP</span>
-                          <strong>{{ activeCharacter.pvpGradeName }}</strong>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div class="summary-card">
-                      <h4>레벨 요약</h4>
-                      <div class="summary-stats">
-                        <div class="summary-stat">
-                          <span>전투 레벨</span>
-                          <strong>Lv. {{ formatInteger(activeCharacter.characterLevel) }}</strong>
+                  <div v-if="activeCharacter" class="summary-grid summary-grid--modules summary-grid--stacked">
+                    <article class="summary-card summary-card--module summary-card--equipment">
+                      <div class="summary-card__head">
+                        <div>
+                          <p class="summary-eyebrow">장비</p>
+                          <h4>세팅 스냅샷</h4>
                         </div>
-                        <div class="summary-stat">
-                          <span>아이템 레벨</span>
-                          <strong>{{ formatItemLevel(activeCharacter.itemAvgLevel || activeCharacter.itemMaxLevel) }}</strong>
-                        </div>
-                        <div class="summary-stat">
-                          <span>전투력</span>
-                          <strong>{{ formatCombatPower(activeCharacter.combatPower) }}</strong>
-                        </div>
-                        <div class="summary-stat">
-                          <span>원정대 레벨</span>
-                          <strong>Lv. {{ formatInteger(activeCharacter.expeditionLevel) }}</strong>
+                        <div class="summary-pill-row summary-pill-row--wrap" v-if="equipmentSummary.gradeBadges.length">
+                          <span
+                            v-for="badge in equipmentSummary.gradeBadges"
+                            :key="badge.grade"
+                            class="summary-pill summary-pill--ghost"
+                          >
+                            {{ badge.grade }} · {{ badge.count }}개
+                          </span>
                         </div>
                       </div>
-                    </div>
+                      <p v-if="detailLoading" class="summary-note">장비 정보를 정리하는 중입니다...</p>
+                      <p v-else-if="detailError" class="summary-note summary-note--warning">{{ detailError }}</p>
+                      <div v-else class="equipment-grid">
+                        <div class="equipment-column">
+                          <h5>무기/방어구</h5>
+                          <ul class="summary-list summary-list--flat">
+                            <li
+                              v-for="item in equipmentSummary.left"
+                              :key="item.key"
+                              class="summary-list-item summary-list-item--plain"
+                            >
+                              <LazyImage
+                                :src="item.icon"
+                                :alt="item.name"
+                                width="32"
+                                height="32"
+                                imageClass="summary-icon"
+                                errorIcon="🗡️"
+                                :useProxy="true"
+                              />
+                              <div class="summary-list-text">
+                                <p class="summary-title">{{ item.name }}</p>
+                                <p class="summary-sub">{{ item.typeLabel }}</p>
+                                <p class="summary-inline">{{ item.meta }}</p>
+                              </div>
+                              <div class="summary-pill-col">
+                                <span v-if="item.itemLevel" class="summary-pill summary-pill--primary">
+                                  {{ item.itemLevel }}
+                                </span>
+                                <span v-if="item.quality" class="summary-pill summary-pill--ghost">
+                                  품질 {{ item.quality }}
+                                </span>
+                                <span v-if="item.transcend" class="summary-pill summary-pill--accent">
+                                  초월 {{ item.transcend }}
+                                </span>
+                              </div>
+                            </li>
+                          </ul>
+                        </div>
+                        <div class="equipment-column">
+                          <h5>장신구</h5>
+                          <ul class="summary-list summary-list--flat">
+                            <li
+                              v-for="item in equipmentSummary.right"
+                              :key="item.key"
+                              class="summary-list-item summary-list-item--plain"
+                            >
+                              <LazyImage
+                                :src="item.icon"
+                                :alt="item.name"
+                                width="32"
+                                height="32"
+                                imageClass="summary-icon"
+                                errorIcon="💍"
+                                :useProxy="true"
+                              />
+                              <div class="summary-list-text">
+                                <p class="summary-title">{{ item.name }}</p>
+                                <p class="summary-sub">{{ item.typeLabel }}</p>
+                                <p class="summary-inline">{{ item.meta }}</p>
+                              </div>
+                              <div class="summary-pill-col">
+                                <span v-if="item.quality" class="summary-pill summary-pill--ghost">
+                                  품질 {{ item.quality }}
+                                </span>
+                                <span v-if="item.special" class="summary-pill summary-pill--primary">
+                                  {{ item.special }}
+                                </span>
+                                <span v-if="item.transcend" class="summary-pill summary-pill--accent">
+                                  초월 {{ item.transcend }}
+                                </span>
+                              </div>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </article>
 
-                    <div class="summary-card" v-if="condensedStats.length">
-                      <h4>전투 특성 상위</h4>
-                      <ul class="summary-meta-list summary-meta-list--stats">
-                        <li v-for="stat in condensedStats" :key="`${stat.type}-${stat.value}`">
-                          <span>{{ stat.type }}</span>
-                          <strong>{{ formatProfileStat(stat.value) }}</strong>
+                    <article class="summary-card summary-card--module summary-card--ark">
+                      <div class="summary-card__head">
+                        <div>
+                          <p class="summary-eyebrow">아크 그리드</p>
+                          <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
+                        </div>
+                        <span
+                          class="summary-chip"
+                          :class="{ 'summary-chip--muted': !arkSummary.slotCount }"
+                        >
+                          {{ arkSummary.slotCount ? `${arkSummary.slotCount} 슬롯` : '데이터 없음' }}
+                        </span>
+                      </div>
+                      <p v-if="arkGridLoading" class="summary-note">아크 그리드 정보를 불러오는 중입니다...</p>
+                      <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
+                      <div v-else>
+                        <div v-if="arkSummary.gemSummary.length" class="ark-gem-pills">
+                          <span
+                            v-for="gem in arkSummary.gemSummary"
+                            :key="gem.key"
+                            class="summary-pill summary-pill--ghost"
+                          >
+                            {{ gem.label }} · {{ gem.value }}
+                          </span>
+                        </div>
+                        <div v-if="arkSummary.slotPoints.length" class="summary-pill-row summary-pill-row--wrap">
+                          <span
+                            v-for="slot in arkSummary.slotPoints"
+                            :key="slot.key"
+                            class="summary-pill summary-pill--primary"
+                          >
+                            {{ slot.label }} · {{ slot.value }}
+                          </span>
+                        </div>
+                        <ul v-if="arkSummary.effects.length" class="summary-list summary-list--compact">
+                          <li
+                            v-for="effect in arkSummary.effects"
+                            :key="effect.key"
+                            class="summary-list-item"
+                          >
+                            <div class="summary-list-text">
+                              <p class="summary-title">{{ effect.title }}</p>
+                              <p class="summary-sub">{{ effect.subtitle }}</p>
+                            </div>
+                            <LazyImage
+                              v-if="effect.icon"
+                              :src="effect.icon"
+                              :alt="effect.title"
+                              width="28"
+                              height="28"
+                              imageClass="summary-icon"
+                              errorIcon="⭐"
+                              :useProxy="true"
+                            />
+                            <span v-if="effect.levelLabel" class="summary-pill summary-pill--ghost">
+                              {{ effect.levelLabel }}
+                            </span>
+                          </li>
+                        </ul>
+                        <p v-else class="summary-note">요약할 아크 패시브가 없습니다.</p>
+                      </div>
+                    </article>
+
+                    <article class="summary-card summary-card--module summary-card--arkpassive">
+                      <div class="summary-card__head">
+                        <div>
+                          <p class="summary-eyebrow">아크 패시브</p>
+                          <h4>진화 · 깨달음 · 도약</h4>
+                        </div>
+                      </div>
+                      <div v-if="arkSummary.corePassives.length" class="summary-list summary-list--flat">
+                        <div
+                          v-for="effect in arkSummary.corePassives"
+                          :key="effect.key"
+                          class="summary-list-item summary-list-item--plain"
+                        >
+                          <LazyImage
+                            v-if="effect.icon"
+                            :src="effect.icon"
+                            :alt="effect.title"
+                            width="32"
+                            height="32"
+                            imageClass="summary-icon"
+                            errorIcon="🌟"
+                            :useProxy="true"
+                          />
+                          <div class="summary-list-text">
+                            <p class="summary-title">{{ effect.title }}</p>
+                            <p class="summary-sub">{{ effect.subtitle }}</p>
+                          </div>
+                          <span class="summary-pill summary-pill--primary">{{ effect.levelLabel || 'Lv.1' }}</span>
+                        </div>
+                      </div>
+                      <p v-else class="summary-note">패시브 정보가 없습니다.</p>
+                    </article>
+
+                    <article class="summary-card summary-card--module summary-card--skills">
+                      <div class="summary-card__head">
+                        <div>
+                          <p class="summary-eyebrow">스킬</p>
+                          <h4>핵심 스킬 라인업</h4>
+                        </div>
+                        <span class="summary-chip" :class="{ 'summary-chip--muted': !skillHighlights.length }">
+                          {{ skillHighlights.length ? `${skillHighlights.length}개` : '데이터 없음' }}
+                        </span>
+                      </div>
+                      <p v-if="skillLoading" class="summary-note">스킬 정보를 불러오는 중입니다...</p>
+                      <p v-else-if="skillError" class="summary-note summary-note--warning">{{ skillError }}</p>
+                      <ul v-else-if="skillHighlights.length" class="summary-list summary-list--flat">
+                        <li
+                          v-for="skill in skillHighlights"
+                          :key="skill.key"
+                          class="summary-list-item summary-list-item--plain"
+                        >
+                          <LazyImage
+                            :src="skill.icon"
+                            :alt="skill.name"
+                            width="34"
+                            height="34"
+                            imageClass="summary-icon"
+                            errorIcon="🎯"
+                            :useProxy="true"
+                          />
+                          <div class="summary-list-text">
+                            <p class="summary-title">{{ skill.name }}</p>
+                            <p class="summary-sub">스킬 포인트 {{ skill.pointLabel }}</p>
+                            <div class="summary-pill-row summary-pill-row--wrap">
+                              <span v-if="skill.levelLabel" class="summary-pill summary-pill--primary">
+                                {{ skill.levelLabel }}
+                              </span>
+                              <span v-if="skill.rune" class="summary-pill summary-pill--accent">
+                                {{ skill.rune }}
+                              </span>
+                              <span v-if="skill.gemLabel" class="summary-pill summary-pill--ghost">
+                                {{ skill.gemLabel }}
+                              </span>
+                              <span v-if="skill.tripodLabel" class="summary-pill summary-pill--ghost">
+                                {{ skill.tripodLabel }}
+                              </span>
+                            </div>
+                          </div>
                         </li>
                       </ul>
-                    </div>
+                      <p v-else class="summary-note">요약할 스킬 정보가 없습니다.</p>
+                    </article>
 
-                    <div
-                      class="summary-card summary-card--notes"
-                      v-if="paradiseInfo.power || paradiseInfo.season || specialEquipmentsDetailed.length"
-                    >
-                      <h4>모험 메모</h4>
-                      <ul class="summary-meta-list">
-                        <li v-if="paradiseInfo.season">
-                          <span>낙원 시즌</span>
-                          <strong>{{ paradiseInfo.season }}</strong>
-                        </li>
-                        <li v-if="paradiseInfo.power">
-                          <span>낙원력</span>
-                          <strong>{{ formatInteger(paradiseInfo.power) }}</strong>
-                        </li>
-                        <li v-if="specialEquipmentsDetailed.length">
-                          <span>항해 장비</span>
-                          <strong>{{ specialEquipmentsDetailed.length }}개</strong>
-                        </li>
-                      </ul>
-                      <p class="summary-note" v-if="specialEquipmentsDetailed.length">
-                        항해/수집 보조 장비가 {{ specialEquipmentsDetailed.length }}개 감지되었습니다.
+                    <article class="summary-card summary-card--module summary-card--engravings">
+                      <div class="summary-card__head">
+                        <div>
+                          <p class="summary-eyebrow">각인</p>
+                          <h4>전설 · 유물 · 고대</h4>
+                        </div>
+                        <span
+                          class="summary-chip"
+                          :class="{ 'summary-chip--muted': !engravingSummary.length }"
+                        >
+                          {{ engravingSummary.length ? `${engravingSummary.length}개` : '데이터 없음' }}
+                        </span>
+                      </div>
+                      <div v-if="engravingSummary.length" class="summary-list summary-list--flat">
+                        <div
+                          v-for="engrave in engravingSummary"
+                          :key="engrave.key"
+                          class="summary-list-item summary-list-item--plain"
+                        >
+                          <LazyImage
+                            v-if="engrave.icon"
+                            :src="engrave.icon"
+                            :alt="engrave.name"
+                            width="32"
+                            height="32"
+                            imageClass="summary-icon"
+                            errorIcon="🔮"
+                            :useProxy="true"
+                          />
+                          <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">
+                            {{ engrave.gradeLabel?.[0] || 'E' }}
+                          </div>
+                          <div class="summary-list-text">
+                            <p class="summary-title">{{ engrave.name }}</p>
+                            <p class="summary-sub">{{ engrave.gradeLabel }}</p>
+                          </div>
+                          <div class="summary-pill-row summary-pill-row--wrap">
+                            <span v-if="engrave.levelLabel" class="summary-pill summary-pill--primary">
+                              {{ engrave.levelLabel }}
+                            </span>
+                            <span v-if="engrave.craftLabel" class="summary-pill summary-pill--ghost">
+                              {{ engrave.craftLabel }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <p v-else class="summary-note">각인 정보가 없습니다.</p>
+                    </article>
+
+                    <article class="summary-card summary-card--module summary-card--collection">
+                      <div class="summary-card__head">
+                        <div>
+                          <p class="summary-eyebrow">수집</p>
+                          <h4>주요 포인트</h4>
+                        </div>
+                        <span
+                          class="summary-chip"
+                          :class="{ 'summary-chip--muted': !collectionSummary.length }"
+                        >
+                          {{ collectionSummary.length ? `${collectionSummary.length}종` : '데이터 없음' }}
+                        </span>
+                      </div>
+                      <p v-if="collectiblesLoading" class="summary-note">수집 정보를 정리하는 중입니다...</p>
+                      <p v-else-if="collectiblesError" class="summary-note summary-note--warning">
+                        {{ collectiblesError }}
                       </p>
-                    </div>
+                      <div v-else-if="collectionSummary.length" class="summary-progress-list summary-progress-list--dense">
+                        <div
+                          v-for="item in collectionSummary"
+                          :key="item.key"
+                          class="summary-progress summary-progress--compact"
+                        >
+                          <div class="summary-progress__head">
+                            <p class="summary-title">{{ item.name }}</p>
+                            <span v-if="item.levelLabel" class="summary-pill summary-pill--ghost">
+                              {{ item.levelLabel }}
+                            </span>
+                          </div>
+                          <div class="summary-progress__bar">
+                            <span :style="{ width: item.percentLabel }"></span>
+                          </div>
+                          <p class="summary-progress__meta">{{ item.pointLabel }}</p>
+                        </div>
+                      </div>
+                      <p v-else class="summary-note">표시할 수집 포인트가 없습니다.</p>
+                    </article>
                   </div>
                   <EmptyState
                     v-else
@@ -634,6 +882,12 @@
         <span>광고 영역</span>
       </aside>
     </div>
+    <footer class="page-footer">
+      <div class="footer-inner">
+        <span class="footer-badge">Copyright</span>
+        <span class="footer-copy">© Ferny</span>
+      </div>
+    </footer>
   </div>
   <div
     v-if="activeSiteMenu === 'character-search' && isHeroImagePopupOpen && hasCharacterImage"
@@ -667,7 +921,8 @@ import type {
   CharacterStat,
   ArkGridResponse,
   SkillMenuResponse,
-  Collectible
+  Collectible,
+  CombatSkill
 } from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
@@ -858,6 +1113,280 @@ const specialEquipmentsDetailed = computed(() => {
     highlights: getSpecialHighlights(item),
     label: getSpecialLabel(item)
   }))
+})
+
+const inlineText = (value?: string | number | null) => {
+  if (value === undefined || value === null) return ''
+  return cleanTooltipLine(String(value)).replace(/\s+/g, ' ').trim()
+}
+
+const normalizeSkillKey = (value?: string | null) =>
+  inlineText(value)
+    .replace(/[\s\[\]\(\)<>{}]/g, '')
+    .toLowerCase()
+
+const isAwakeningSkill = (skill: CombatSkill) => {
+  const numericType =
+    typeof skill.skillType === 'string' ? Number(skill.skillType) : skill.skillType
+  if (typeof numericType === 'number' && (numericType === 100 || numericType === 101)) {
+    return true
+  }
+  const candidates = [skill.skillType, skill.type, skill.name]
+    .map(value => inlineText(value).toLowerCase())
+    .filter(Boolean)
+  return candidates.some(value => value.includes('각성'))
+}
+
+const skillGemCountMap = computed(() => {
+  const map = new Map<string, number>()
+  const gems = skillResponse.value?.skillGems ?? []
+  gems.forEach(gem => {
+    const key = normalizeSkillKey(gem.skill?.name || gem.skill?.description || gem.name)
+    if (!key) return
+    map.set(key, (map.get(key) || 0) + 1)
+  })
+  return map
+})
+
+const skillHighlights = computed(() => {
+  const skills = skillResponse.value?.combatSkills ?? []
+  if (!skills.length) return []
+  const gemCounts = skillGemCountMap.value
+  return skills
+    .filter(skill => !isAwakeningSkill(skill))
+    .sort((a, b) => {
+      const levelA = typeof a.level === 'number' ? a.level : -1
+      const levelB = typeof b.level === 'number' ? b.level : -1
+      return levelB - levelA
+    })
+    .filter(skill => (skill.skillPoints ?? 0) > 0 || Boolean(skill.rune))
+    .slice(0, 5)
+    .map((skill, index) => {
+      const key = normalizeSkillKey(skill.name || `skill-${index}`)
+      const gemCount = key ? gemCounts.get(key) || 0 : 0
+      const tripodCount = (skill.tripods ?? []).filter(tripod => tripod.name && tripod.selected !== false).length
+      return {
+        key: key || `skill-${index}`,
+        name: inlineText(skill.name) || `스킬 ${index + 1}`,
+        icon: skill.icon || '',
+        levelLabel: typeof skill.level === 'number' ? `Lv.${skill.level}` : '',
+        rune: inlineText(skill.rune?.name) || '',
+        gemLabel: gemCount ? `보석 ${gemCount}` : '',
+        tripodLabel: tripodCount ? `트포 ${tripodCount}` : '',
+        pointLabel: skill.skillPoints ?? 0
+      }
+    })
+})
+
+const summarizeEquipmentLine = (item: Equipment): string => {
+  const lines = extractTooltipLines(item.tooltip)
+  if (!lines.length) return ''
+  const highlightRegex = /(추가 피해|무력화|치명|신속|특화|공격력|방어력|품질|효과|피해|쿨타임|쿨타운)/i
+  const candidate = lines.find(line => highlightRegex.test(line)) || lines[0]
+  return inlineText(candidate)
+}
+
+const matchStatFromLines = (lines: string[], patterns: RegExp[]) => {
+  for (const line of lines) {
+    for (const pattern of patterns) {
+      const match = line.match(pattern)
+      if (match) {
+        return match[1] || match[0]
+      }
+    }
+  }
+  return ''
+}
+
+const parseEquipmentMeta = (item: Equipment) => {
+  const lines = extractTooltipLines(item.tooltip)
+  const itemLevel = matchStatFromLines(lines, [/아이템\s*레벨\s*([0-9.,]+)/i, /iLv\.?\s*([0-9.,]+)/i])
+  const quality = matchStatFromLines(lines, [/품질\s*([0-9]+)/i, /\(품질\)\s*([0-9]+)/i])
+  const transcend = matchStatFromLines(lines, [/초월\s*([0-9]+)/i])
+  const engravingLine = matchStatFromLines(lines, [/각인\s*효과\s*(.+)/i])
+  const harmony = matchStatFromLines(lines, [/상재\s*([0-9]+)/i, /상급\s*재련\s*([0-9]+)/i])
+  const mainStat = matchStatFromLines(lines, [/(힘|민첩|지능)[^0-9+]*([0-9.,]+)/i])
+  const craft = matchStatFromLines(lines, [/세공\s*([0-9]+)/i])
+  return {
+    itemLevel: itemLevel ? `iLv. ${itemLevel}` : '',
+    quality,
+    transcend,
+    harmony,
+    engravingLine,
+    mainStat,
+    craft
+  }
+}
+
+const isAccessory = (item: Equipment) => {
+  const label = inlineText(item.type).toLowerCase()
+  return /(목걸이|귀걸이|반지|팔찌|어빌리티|돌)/.test(label)
+}
+
+const isBracelet = (item: Equipment) => inlineText(item.type).includes('팔찌')
+const isAbilityStone = (item: Equipment) => /어빌리/i.test(inlineText(item.name) + inlineText(item.type))
+
+const equipmentSummary = computed(() => {
+  if (!detailEquipment.value.length) {
+    return { gradeBadges: [], left: [], right: [] }
+  }
+
+  const gradeCounts = new Map<string, number>()
+  detailEquipment.value.forEach(item => {
+    const grade = inlineText(item.grade) || '등급 미상'
+    gradeCounts.set(grade, (gradeCounts.get(grade) || 0) + 1)
+  })
+
+  const gradeBadges = Array.from(gradeCounts.entries())
+    .map(([grade, count]) => ({ grade, count }))
+    .sort((a, b) => b.count - a.count)
+
+  const left: any[] = []
+  const right: any[] = []
+
+  const stoneCraft = detailEngravings.value.find(eng => typeof eng.abilityStoneLevel === 'number')
+    ?.abilityStoneLevel
+
+  detailEquipment.value.forEach((item, index) => {
+    const meta = parseEquipmentMeta(item)
+    const base = {
+      key: `${item.name || 'equipment'}-${index}`,
+      name: inlineText(item.name) || `장비 ${index + 1}`,
+      typeLabel: inlineText(item.type) || '장비',
+      grade: inlineText(item.grade),
+      icon: item.icon || '',
+      itemLevel: meta.itemLevel,
+      quality: meta.quality,
+      transcend: meta.transcend,
+      meta: summarizeEquipmentLine(item)
+    }
+
+    if (isAccessory(item)) {
+      const special = isAbilityStone(item)
+        ? stoneCraft
+          ? `세공 ${stoneCraft}단`
+          : meta.craft
+            ? `세공 ${meta.craft}단`
+            : meta.engravingLine || '세공 정보'
+        : isBracelet(item)
+          ? (meta.engravingLine || base.meta || '').slice(0, 14)
+          : inlineText(meta.harmony || meta.engravingLine || meta.mainStat)
+      right.push({
+        ...base,
+        special: special || undefined
+      })
+    } else {
+      left.push(base)
+    }
+  })
+
+  return {
+    gradeBadges,
+    left: left.slice(0, 6),
+    right: right.slice(0, 8)
+  }
+})
+
+const collectionSummary = computed(() => {
+  if (!collectibles.value.length) return []
+  return collectibles.value
+    .map((item, index) => {
+      const point = typeof item.point === 'number' ? item.point : 0
+      const maxPoint = typeof item.maxPoint === 'number' ? item.maxPoint : 0
+      const percent = maxPoint > 0 ? Math.min(point / maxPoint, 1) : null
+      const percentLabel = percent === null ? '0%' : `${Math.round(percent * 100)}%`
+      return {
+        key: `${item.type || 'collectible'}-${index}`,
+        name: inlineText(item.type) || `수집 ${index + 1}`,
+        levelLabel: typeof item.collectibleLevel === 'number' ? `Lv.${item.collectibleLevel}` : '',
+        pointLabel: maxPoint
+          ? `${formatNumberLocalized(point)} / ${formatNumberLocalized(maxPoint)}`
+          : `포인트 ${formatNumberLocalized(point)}`,
+        percentLabel: percentLabel,
+        percentValue: percent ?? 0
+      }
+    })
+    .sort((a, b) => b.percentValue - a.percentValue)
+})
+
+const engravingSummary = computed(() => {
+  return detailEngravings.value.map((engrave, index) => {
+    const gradeLabel = inlineText(engrave.grade) || '등급 미상'
+    return {
+      key: `${engrave.name || 'engrave'}-${index}`,
+      name: inlineText(engrave.name),
+      gradeLabel,
+      levelLabel: typeof engrave.level === 'number' ? `Lv.${engrave.level}` : '',
+      craftLabel:
+        typeof engrave.abilityStoneLevel === 'number' ? `세공 ${engrave.abilityStoneLevel}단` : '',
+      icon: engrave.icon || ''
+    }
+  })
+})
+
+const arkSummary = computed(() => {
+  const passive = arkGridResponse.value?.arkPassive
+  const grid = arkGridResponse.value?.arkGrid
+  const pointSummary =
+    [] as Array<{ key: string; label: string; valueLabel: string }>
+
+  const effectsSource = passive?.effects ?? grid?.effects ?? []
+  const effects = effectsSource
+    .map((effect, index) => {
+      const title = inlineText(effect.name)
+      const subtitle = inlineText(effect.tooltip || effect.description || '')
+      const levelLabel = effect.level ? `Lv.${effect.level}` : ''
+      return {
+        key: `${title || 'effect'}-${index}`,
+        title: title || '효과',
+        subtitle: subtitle || '효과 설명이 없습니다.',
+        levelLabel,
+        icon: effect.icon || ''
+      }
+    })
+    .slice(0, 4)
+
+  const gemSummary =
+    grid?.slots
+      ?.flatMap(slot =>
+        (slot.gems ?? []).map(gem => {
+          const text = inlineText(gem.tooltip)
+          const isOrder = /질서/i.test(text) || /order/i.test(text)
+          const isChaos = /혼돈/i.test(text) || /chaos/i.test(text)
+          const nameHint = text.match(/해|달|별/)?.[0] || ''
+          const grade = inlineText(gem.grade) || ''
+          return {
+            key: `${slot.index}-${gem.index}`,
+            label: `${isOrder ? '질서' : isChaos ? '혼돈' : '젬'}${nameHint ? `·${nameHint}` : ''}`,
+            value: grade || '등급 미상'
+          }
+        })
+      )
+      .slice(0, 6) ?? []
+
+  const slotPoints =
+    grid?.slots?.slice(0, 6).map((slot, index) => ({
+      key: `slot-${slot.index ?? index}`,
+      label: inlineText(slot.name) || `슬롯 ${slot.index ?? index + 1}`,
+      value: slot.point !== undefined ? `${slot.point}P` : ''
+    })) ?? []
+
+  const corePassives = effects
+    .filter(effect => /진화|깨달음|도약/i.test(effect.title))
+    .map(effect => ({
+      ...effect,
+      levelLabel: effect.levelLabel || 'Lv.'
+    }))
+
+  return {
+    passiveTitle: inlineText(passive?.title),
+    slotCount: grid?.slots?.length ?? 0,
+    pointSummary,
+    effects,
+    gemSummary,
+    slotPoints,
+    corePassives
+  }
 })
 
 const menuOpen = ref(false)
@@ -1058,7 +1587,6 @@ const displayStats = computed<CharacterStat[]>(() => {
     : []
   return stats
 })
-const condensedStats = computed(() => displayStats.value.slice(0, 4))
 
 const tooltipWidthValue = computed(() => {
   if (!overviewWidth.value) return 320
@@ -1249,6 +1777,8 @@ watch(activeResultTab, async newTab => {
     await ensureSkillData()
   } else if (newTab === 'collection') {
     await ensureCollectiblesData()
+  } else if (newTab === 'summary') {
+    await Promise.all([ensureSkillData(), ensureCollectiblesData(), ensureArkGridData()])
   }
 })
 
@@ -1319,6 +1849,11 @@ const searchCharacter = async (name: string, options: { forceRefresh?: boolean; 
     } else {
       await loadHistory()
     }
+    await Promise.allSettled([
+      ensureSkillData({ forceRefresh: options.forceRefresh }),
+      ensureCollectiblesData({ forceRefresh: options.forceRefresh }),
+      ensureArkGridData({ forceRefresh: options.forceRefresh })
+    ])
     activeResultTab.value = DEFAULT_RESULT_TAB
 
     // URL 업데이트 (기본값: true)
@@ -1847,6 +2382,40 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   height: 1px;
 }
 
+.page-footer {
+  margin-top: auto;
+  padding: 18px 40px;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  justify-content: center;
+}
+
+.footer-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.footer-badge {
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs, 0 2px 6px rgba(0, 0, 0, 0.06));
+}
+
+.footer-copy {
+  font-size: calc(0.95rem - 2px);
+  color: var(--text-secondary);
+}
+
 .menu-button {
   width: 48px;
   height: 48px;
@@ -2158,105 +2727,295 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-panel {
-  min-height: 340px;
+  min-height: 360px;
 }
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-xl);
+}
+
+.summary-grid--modules {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.summary-grid--stacked {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .summary-card {
-  border: 1px solid var(--border-color);
+  border: none;
   border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
-  padding: var(--space-lg);
+  background: transparent;
+  padding: var(--space-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
+}
+
+.summary-card--module {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--space-md);
+  min-height: 200px;
+}
+
+.summary-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .summary-card h4 {
   margin: 0;
-  font-size: var(--font-base);
+  font-size: calc(var(--font-lg) - 4px);
   font-weight: var(--font-semibold);
-  color: var(--text-primary, #1f2937);
-}
-
-.summary-card--hero {
-  background: linear-gradient(135deg, var(--primary-soft-bg, rgba(102, 126, 234, 0.15)), var(--accent-soft-bg, rgba(118, 75, 162, 0.1)));
-}
-
-.summary-card--notes {
-  background: linear-gradient(135deg, var(--success-soft-bg, rgba(56, 239, 125, 0.15)), var(--info-soft-bg, rgba(17, 153, 142, 0.1)));
-}
-
-.summary-name {
-  margin: 0;
-  font-size: calc(1.4rem - 2px);
-  font-weight: 700;
   color: var(--text-primary);
 }
 
-.summary-meta-list {
+.summary-eyebrow {
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: calc(var(--font-xs) - 1px);
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.summary-chip {
+  align-self: center;
+  border-radius: var(--radius-full);
+  padding: 6px 12px;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  background: rgba(102, 126, 234, 0.12);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.summary-chip--muted {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.summary-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-md);
 }
 
-.summary-meta-list li {
+.summary-list--flat {
+  gap: var(--space-sm);
+}
+
+.summary-list--split .summary-list-item {
+  align-items: center;
+}
+
+.summary-list--compact .summary-list-item {
+  padding: 10px 12px;
+}
+
+.summary-list-item {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  font-size: calc(0.9rem - 2px);
-  color: var(--text-secondary);
+  gap: var(--space-md);
+  padding: 8px 0;
 }
 
-.summary-meta-list li strong {
-  color: var(--text-primary);
+.summary-list-item--plain {
+  padding: 8px 6px;
 }
 
-.summary-meta-list--stats li {
-  border: 1px dashed var(--border-color);
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: var(--bg-primary);
-}
-
-.summary-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-}
-
-.summary-stat {
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 10px 14px;
+.summary-list-text {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: var(--bg-primary);
 }
 
-.summary-stat span {
-  font-size: calc(0.85rem - 2px);
-  color: var(--text-secondary);
-}
-
-.summary-stat strong {
-  font-size: calc(1.05rem - 2px);
+.summary-title {
+  margin: 0;
+  font-size: calc(var(--font-base) - 1px);
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.summary-note {
-  margin: 10px 0 0;
-  font-size: calc(0.85rem - 2px);
+.summary-sub {
+  margin: 0;
+  font-size: calc(var(--font-sm) - 1px);
   color: var(--text-secondary);
+}
+
+.summary-pill-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.summary-pill-row--wrap {
+  flex-wrap: wrap;
+}
+
+.summary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-xs);
+  border: none;
+  white-space: nowrap;
+}
+
+.summary-pill--primary {
+  background: rgba(102, 126, 234, 0.16);
+  color: var(--primary-color);
+}
+
+.summary-pill--accent {
+  background: rgba(236, 72, 153, 0.2);
+  color: #ec4899;
+}
+
+.summary-pill--ghost {
+  background: var(--bg-secondary);
+}
+
+.summary-list-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.summary-inline {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.summary-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.summary-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.summary-progress__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-progress__bar {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  border-radius: 12px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.summary-progress__bar span {
+  position: absolute;
+  inset: 0;
+  width: 0;
+  display: block;
+  background: linear-gradient(90deg, var(--primary-color), #a855f7);
+  transition: width 0.4s ease;
+}
+
+.summary-progress__meta {
+  margin: 0;
+  font-size: calc(var(--font-xs) - 1px);
+  color: var(--text-secondary);
+}
+
+.summary-footnotes {
+  list-style: none;
+  margin: 0;
+  padding: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+}
+
+.summary-footnote-label {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-right: 6px;
+}
+
+.summary-footnote-text {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.summary-note {
+  margin: 2px 0 0;
+  font-size: calc(var(--font-sm) - 1px);
+  color: var(--text-secondary);
+}
+
+.summary-note--warning {
+  color: var(--warning-color, #d97706);
+}
+
+.summary-icon {
+  border-radius: 8px;
+}
+
+.summary-icon--fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-lg);
+}
+
+.equipment-column h5 {
+  margin: 0 0 8px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.summary-pill-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.summary-progress-list--dense .summary-progress {
+  padding: 8px 0;
 }
 
 .placeholder-panel {
@@ -3073,6 +3832,17 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
   .header-right {
     display: none;
+  }
+
+  .page-footer {
+    padding: 16px 20px;
+  }
+
+  .footer-inner {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+    letter-spacing: 0.06em;
   }
 
   .main-content {
