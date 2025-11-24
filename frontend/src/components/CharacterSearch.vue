@@ -1,12 +1,7 @@
 ﻿<template>
-  <div class="app-container">
+  <div class="character-search">
     <header class="page-header">
       <div class="header-left">
-        <button class="menu-button" type="button" aria-label="메뉴 열기" @click="openMenu">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
         <h1>LOA Character Search</h1>
       </div>
       <div class="header-search">
@@ -114,70 +109,8 @@
       </div>
       <div class="header-right" aria-hidden="true"></div>
     </header>
-    <transition name="sidebar-fade">
-      <div v-if="menuOpen" class="sidebar-overlay" @click="closeMenu"></div>
-    </transition>
-    <transition name="sidebar-slide">
-      <aside
-        v-if="menuOpen"
-        class="sidebar-menu"
-        tabindex="-1"
-        ref="sidebarRef"
-        @keyup.esc="closeMenu"
-      >
-        <div class="sidebar-header">
-          <ThemeToggle />
-          <button class="sidebar-close" type="button" aria-label="메뉴 닫기" @click="closeMenu">×</button>
-        </div>
-        <div class="sidebar-content">
-          <h3>전체 메뉴</h3>
-          <p class="sidebar-description">이용 가능한 메뉴와 준비 중인 기능을 확인해 보세요.</p>
-          <ul class="sidebar-menu-list">
-            <li v-for="menu in siteMenuItems" :key="menu.key">
-              <button
-                type="button"
-                class="sidebar-menu-item"
-                :class="{ active: activeSiteMenu === menu.key, disabled: !menu.available }"
-                :aria-current="activeSiteMenu === menu.key ? 'page' : undefined"
-                :disabled="!menu.available"
-                @click="handleMenuSelect(menu)"
-              >
-                <span class="sidebar-menu-icon" aria-hidden="true">{{ menu.icon }}</span>
-                <span class="sidebar-menu-text">
-                  <span class="sidebar-menu-label">{{ menu.label }}</span>
-                  <span class="sidebar-menu-desc">{{ menu.description }}</span>
-                </span>
-                <span v-if="menu.badge" class="sidebar-menu-badge">{{ menu.badge }}</span>
-              </button>
-            </li>
-          </ul>
-          <p class="sidebar-footnote">경매, 생활 메뉴는 순차적으로 공개됩니다.</p>
-        </div>
-      </aside>
-    </transition>
 
-    <div class="content-wrapper">
-      <aside class="ad-slot ad-slot--left" aria-label="왼쪽 광고 영역">
-        <span>광고 영역</span>
-      </aside>
-      <main class="main-content">
-        <ReforgeMenu v-if="activeSiteMenu === 'reforge'" />
-        <div v-else class="search-container">
-          <section class="states-section" v-if="false">
-            <h2>States</h2>
-            <div class="states-grid">
-              <div class="state-card">
-                <span class="state-label">LoadingSpinner.vue</span>
-              </div>
-              <div class="state-card">
-                <span class="state-label">EmptyState.vue</span>
-              </div>
-              <div class="state-card">
-                <span class="state-label">ErrorMessage.vue</span>
-              </div>
-            </div>
-          </section>
-
+    <div class="search-container">
           <div v-if="loading" class="loading-display">
             <LoadingSpinner message="캐릭터 정보를 불러오는 중..." />
           </div>
@@ -204,211 +137,26 @@
 
           <section v-if="character && !loading" class="character-results">
             <div class="results-layout">
-              <div class="character-overview-card" ref="characterOverviewRef">
-                <div class="overview-toolbar">
-                  <button
-                    type="button"
-                    class="refresh-button"
-                    :disabled="loading || !activeCharacter"
-                    @click="handleRefreshClick"
-                  >
-                    갱신하기
-                  </button>
-                  <span class="refresh-timestamp">
-                    {{ lastRefreshedLabel }}
-                  </span>
-                </div>
-                <div class="hero-row hero-row--levels" v-if="activeCharacter">
-                  <div class="profile-stats-grid hero-levels-grid">
-                    <div class="profile-stat">
-                      <span>전투력</span>
-                      <strong>{{ formatCombatPower(activeCharacter?.combatPower) }}</strong>
-                    </div>
-                    <div class="profile-stat">
-                      <span>전투 레벨</span>
-                      <strong>Lv. {{ formatInteger(activeCharacter?.characterLevel) }}</strong>
-                    </div>
-                    <div class="profile-stat">
-                      <span>아이템 레벨</span>
-                      <strong>{{ formatItemLevel(activeCharacter?.itemAvgLevel) }}</strong>
-                    </div>
-                    <div class="profile-stat">
-                      <span>원정대 레벨</span>
-                      <strong>{{ formatInteger(activeCharacter?.expeditionLevel) }}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="hero-row hero-row--image">
-                  <div class="hero-avatar-column">
-                    <div
-                      v-if="hasCharacterImage"
-                      class="hero-avatar-controls"
-                    >
-                      <button
-                        type="button"
-                        class="hero-avatar-btn"
-                        @click="expandHeroImage"
-                        :disabled="isHeroImageLarge"
-                      >
-                        확대
-                      </button>
-                      <button
-                        type="button"
-                        class="hero-avatar-btn"
-                        @click="shrinkHeroImage"
-                        :disabled="!isHeroImageLarge"
-                      >
-                        축소
-                      </button>
-                      <button
-                        type="button"
-                        class="hero-avatar-btn"
-                        @click="openHeroImagePopup"
-                      >
-                        팝업뷰
-                      </button>
-                    </div>
-                    <div
-                      class="hero-avatar-wrapper"
-                      :class="{ 'is-large': isHeroImageLarge }"
-                    >
-                      <LazyImage
-                        :src="activeCharacter?.characterImage || ''"
-                        :alt="activeCharacter?.characterName || ''"
-                        :width="isHeroImageLarge ? 300 : 140"
-                        :height="isHeroImageLarge ? 350 : 140"
-                        imageClass="hero-avatar"
-                        errorIcon="👤"
-                      />
-                    </div>
-                  </div>
-                  <div class="hero-text">
-                    <div class="hero-text__header">
-                      <h2>{{ activeCharacter?.characterName }}</h2>
-                      <button
-                        v-if="activeCharacter"
-                        type="button"
-                        class="favorite-toggle-btn"
-                        :class="{ 'is-active': isCharacterFavorite }"
-                        :aria-pressed="isCharacterFavorite"
-                        @click="toggleFavorite"
-                        aria-label="즐겨찾기 토글"
-                      >
-                        <span class="favorite-star" aria-hidden="true">★</span>
-                      </button>
-                    </div>
-                    <span class="hero-title" v-if="activeCharacter?.title">{{ activeCharacter?.title }}</span>
-                  </div>
-                </div>
-
-                <div class="hero-row hero-row--meta">
-                  <div class="hero-meta-grid">
-                    <div class="meta-item">
-                      <span>직업</span>
-                      <strong>{{ activeCharacter?.characterClassName }}</strong>
-                    </div>
-                    <div class="meta-item">
-                      <span>서버</span>
-                      <strong>{{ activeCharacter?.serverName }}</strong>
-                    </div>
-                    <div class="meta-item" v-if="activeCharacter?.guildName">
-                      <span>길드</span>
-                      <strong>{{ activeCharacter?.guildName }}</strong>
-                    </div>
-                    <div class="meta-item" v-if="activeCharacter?.pvpGradeName">
-                      <span>PVP</span>
-                      <strong>{{ activeCharacter?.pvpGradeName }}</strong>
-                    </div>
-                  </div>
-                </div>
-                <div class="hero-row hero-row--profile-stats" v-if="displayStats.length">
-                  <h3>전투 특성</h3>
-                  <div class="profile-stats-grid">
-                    <div
-                      v-for="stat in displayStats"
-                      :key="`${stat.type}-${stat.value}`"
-                      class="profile-stat"
-                    >
-                      <span>{{ stat.type }}</span>
-                      <strong>{{ formatProfileStat(stat.value) }}</strong>
-                    </div>
-                  </div>
-                </div>
-                <div class="hero-row hero-row--paradise" v-if="paradiseInfo.power || paradiseInfo.season">
-                  <h3>낙원</h3>
-                  <div class="paradise-info">
-                    <div class="paradise-item" v-if="paradiseInfo.season">
-                      <span>시즌</span>
-                      <strong>{{ paradiseInfo.season }}</strong>
-                    </div>
-                    <div class="paradise-item" v-if="paradiseInfo.power">
-                      <span>낙원력</span>
-                      <strong>{{ formatInteger(paradiseInfo.power) }}</strong>
-                    </div>
-                  </div>
-                </div>
-                <div class="hero-row hero-row--special" v-if="specialEquipmentsDetailed.length">
-                  <div class="special-header">
-                    <h3>기타</h3>
-                    <!-- <span class="special-count">{{ specialEquipmentsDetailed.length }}개</span> -->
-                  </div>
-                    <div class="special-grid special-grid--icons">
-                      <div
-                        v-for="special in specialEquipmentsDetailed"
-                        :key="special.item.name"
-                        class="special-icon-wrapper"
-                        :class="{ 'is-hovered': hoveredSpecialName === special.item.name }"
-                        tabindex="0"
-                        @mouseenter="handleSpecialHover(special.item.name)"
-                        @mouseleave="scheduleSpecialHoverClear"
-                        @focus="handleSpecialHover(special.item.name)"
-                        @blur="scheduleSpecialHoverClear"
-                      >
-                        <div class="special-icon-box">
-                          <LazyImage
-                            v-if="special.item.icon"
-                            :src="special.item.icon"
-                            :alt="special.item.name"
-                            width="56"
-                            height="56"
-                            imageClass="special-icon"
-                            errorIcon="🧭"
-                            :useProxy="true"
-                          />
-                          <div v-else class="special-icon special-icon--fallback" aria-hidden="true">
-                            {{ special.item.name ? special.item.name[0] : '?' }}
-                          </div>
-                        </div>
-                        <span class="special-label">
-                          {{ special.label }}
-                        </span>
-                        <div
-                          v-if="hoveredSpecialName === special.item.name"
-                          class="special-tooltip popup-surface popup-surface--tooltip"
-                          :style="tooltipWidthStyle"
-                          role="tooltip"
-                          @mouseenter="cancelSpecialHoverTimeout"
-                          @mouseleave="scheduleSpecialHoverClear"
-                        >
-                          <p class="popup-surface__title special-tooltip-title">
-                            {{ special.item.name }}
-                          </p>
-                          <div v-if="special.highlights.length" class="special-highlights">
-                            <span
-                              v-for="(line, idx) in special.highlights"
-                              :key="`${special.item.name}-${idx}`"
-                            >
-                              {{ line }}
-                            </span>
-                          </div>
-                          <p v-else class="special-tooltip-empty">추가 설명이 없습니다.</p>
-                        </div>
-                      </div>
-                    </div>
-                </div>
-
-              </div>
+              <CharacterOverviewCard
+                :active-character="activeCharacter"
+                :has-character-image="hasCharacterImage"
+                :is-hero-image-large="isHeroImageLarge"
+                :is-character-favorite="isCharacterFavorite"
+                :last-refreshed-label="lastRefreshedLabel"
+                :display-stats="displayStats"
+                :paradise-info="paradiseInfo"
+                :special-equipments="specialEquipmentsDetailed"
+                :loading="loading"
+                :format-combat-power="formatCombatPower"
+                :format-integer="formatInteger"
+                :format-item-level="formatItemLevel"
+                :format-profile-stat="formatProfileStat"
+                @refresh="handleRefreshClick"
+                @expand-hero="expandHeroImage"
+                @shrink-hero="shrinkHeroImage"
+                @open-hero-popup="openHeroImagePopup"
+                @toggle-favorite="toggleFavorite"
+              />
 
               <div class="results-panel">
                 <div class="view-tabs">
@@ -424,345 +172,23 @@
                   </button>
                 </div>
 
-                <section
+                <CharacterSummaryPanel
                   v-if="activeResultTab === 'summary'"
-                  class="detail-panel summary-panel"
-                >
-                  <div v-if="activeCharacter" class="summary-grid summary-grid--modules summary-grid--stacked">
-                    <article class="summary-card summary-card--module summary-card--equipment">
-                      <div class="summary-card__head">
-                        <div>
-                          <p class="summary-eyebrow">장비</p>
-                          <h4>세팅 스냅샷</h4>
-                        </div>
-                        <div class="summary-pill-row summary-pill-row--wrap" v-if="equipmentSummary.gradeBadges.length">
-                          <span
-                            v-for="badge in equipmentSummary.gradeBadges"
-                            :key="badge.grade"
-                            class="summary-pill summary-pill--ghost"
-                          >
-                            {{ badge.grade }} · {{ badge.count }}개
-                          </span>
-                        </div>
-                      </div>
-                      <p v-if="detailLoading" class="summary-note">장비 정보를 정리하는 중입니다...</p>
-                      <p v-else-if="detailError" class="summary-note summary-note--warning">{{ detailError }}</p>
-                      <div v-else class="equipment-grid">
-                        <div class="equipment-column">
-                          <h5>무기/방어구</h5>
-                          <ul class="summary-list summary-list--flat">
-                            <li
-                              v-for="item in equipmentSummary.left"
-                              :key="item.key"
-                              class="summary-list-item summary-list-item--plain"
-                            >
-                              <LazyImage
-                                :src="item.icon"
-                                :alt="item.name"
-                                width="32"
-                                height="32"
-                                imageClass="summary-icon"
-                                errorIcon="🗡️"
-                                :useProxy="true"
-                              />
-                              <div class="summary-list-text">
-                                <p class="summary-title">{{ item.name }}</p>
-                                <p class="summary-sub">{{ item.typeLabel }}</p>
-                                <p class="summary-inline">{{ item.meta }}</p>
-                              </div>
-                              <div class="summary-pill-col">
-                                <span v-if="item.itemLevel" class="summary-pill summary-pill--primary">
-                                  {{ item.itemLevel }}
-                                </span>
-                                <span v-if="item.quality" class="summary-pill summary-pill--ghost">
-                                  품질 {{ item.quality }}
-                                </span>
-                                <span v-if="item.transcend" class="summary-pill summary-pill--accent">
-                                  초월 {{ item.transcend }}
-                                </span>
-                              </div>
-                            </li>
-                          </ul>
-                        </div>
-                        <div class="equipment-column">
-                          <h5>장신구</h5>
-                          <ul class="summary-list summary-list--flat">
-                            <li
-                              v-for="item in equipmentSummary.right"
-                              :key="item.key"
-                              class="summary-list-item summary-list-item--plain"
-                            >
-                              <LazyImage
-                                :src="item.icon"
-                                :alt="item.name"
-                                width="32"
-                                height="32"
-                                imageClass="summary-icon"
-                                errorIcon="💍"
-                                :useProxy="true"
-                              />
-                              <div class="summary-list-text">
-                                <p class="summary-title">{{ item.name }}</p>
-                                <p class="summary-sub">{{ item.typeLabel }}</p>
-                                <p class="summary-inline">{{ item.meta }}</p>
-                              </div>
-                              <div class="summary-pill-col">
-                                <span v-if="item.quality" class="summary-pill summary-pill--ghost">
-                                  품질 {{ item.quality }}
-                                </span>
-                                <span v-if="item.special" class="summary-pill summary-pill--primary">
-                                  {{ item.special }}
-                                </span>
-                                <span v-if="item.transcend" class="summary-pill summary-pill--accent">
-                                  초월 {{ item.transcend }}
-                                </span>
-                              </div>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </article>
-
-                    <article class="summary-card summary-card--module summary-card--ark">
-                      <div class="summary-card__head">
-                        <div>
-                          <p class="summary-eyebrow">아크 그리드</p>
-                          <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
-                        </div>
-                        <span
-                          class="summary-chip"
-                          :class="{ 'summary-chip--muted': !arkSummary.slotCount }"
-                        >
-                          {{ arkSummary.slotCount ? `${arkSummary.slotCount} 슬롯` : '데이터 없음' }}
-                        </span>
-                      </div>
-                      <p v-if="arkGridLoading" class="summary-note">아크 그리드 정보를 불러오는 중입니다...</p>
-                      <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
-                      <div v-else>
-                        <div v-if="arkSummary.gemSummary.length" class="ark-gem-pills">
-                          <span
-                            v-for="gem in arkSummary.gemSummary"
-                            :key="gem.key"
-                            class="summary-pill summary-pill--ghost"
-                          >
-                            {{ gem.label }} · {{ gem.value }}
-                          </span>
-                        </div>
-                        <div v-if="arkSummary.slotPoints.length" class="summary-pill-row summary-pill-row--wrap">
-                          <span
-                            v-for="slot in arkSummary.slotPoints"
-                            :key="slot.key"
-                            class="summary-pill summary-pill--primary"
-                          >
-                            {{ slot.label }} · {{ slot.value }}
-                          </span>
-                        </div>
-                        <ul v-if="arkSummary.effects.length" class="summary-list summary-list--compact">
-                          <li
-                            v-for="effect in arkSummary.effects"
-                            :key="effect.key"
-                            class="summary-list-item"
-                          >
-                            <div class="summary-list-text">
-                              <p class="summary-title">{{ effect.title }}</p>
-                              <p class="summary-sub">{{ effect.subtitle }}</p>
-                            </div>
-                            <LazyImage
-                              v-if="effect.icon"
-                              :src="effect.icon"
-                              :alt="effect.title"
-                              width="28"
-                              height="28"
-                              imageClass="summary-icon"
-                              errorIcon="⭐"
-                              :useProxy="true"
-                            />
-                            <span v-if="effect.levelLabel" class="summary-pill summary-pill--ghost">
-                              {{ effect.levelLabel }}
-                            </span>
-                          </li>
-                        </ul>
-                        <p v-else class="summary-note">요약할 아크 패시브가 없습니다.</p>
-                      </div>
-                    </article>
-
-                    <article class="summary-card summary-card--module summary-card--arkpassive">
-                      <div class="summary-card__head">
-                        <div>
-                          <p class="summary-eyebrow">아크 패시브</p>
-                          <h4>진화 · 깨달음 · 도약</h4>
-                        </div>
-                      </div>
-                      <div v-if="arkSummary.corePassives.length" class="summary-list summary-list--flat">
-                        <div
-                          v-for="effect in arkSummary.corePassives"
-                          :key="effect.key"
-                          class="summary-list-item summary-list-item--plain"
-                        >
-                          <LazyImage
-                            v-if="effect.icon"
-                            :src="effect.icon"
-                            :alt="effect.title"
-                            width="32"
-                            height="32"
-                            imageClass="summary-icon"
-                            errorIcon="🌟"
-                            :useProxy="true"
-                          />
-                          <div class="summary-list-text">
-                            <p class="summary-title">{{ effect.title }}</p>
-                            <p class="summary-sub">{{ effect.subtitle }}</p>
-                          </div>
-                          <span class="summary-pill summary-pill--primary">{{ effect.levelLabel || 'Lv.1' }}</span>
-                        </div>
-                      </div>
-                      <p v-else class="summary-note">패시브 정보가 없습니다.</p>
-                    </article>
-
-                    <article class="summary-card summary-card--module summary-card--skills">
-                      <div class="summary-card__head">
-                        <div>
-                          <p class="summary-eyebrow">스킬</p>
-                          <h4>핵심 스킬 라인업</h4>
-                        </div>
-                        <span class="summary-chip" :class="{ 'summary-chip--muted': !skillHighlights.length }">
-                          {{ skillHighlights.length ? `${skillHighlights.length}개` : '데이터 없음' }}
-                        </span>
-                      </div>
-                      <p v-if="skillLoading" class="summary-note">스킬 정보를 불러오는 중입니다...</p>
-                      <p v-else-if="skillError" class="summary-note summary-note--warning">{{ skillError }}</p>
-                      <ul v-else-if="skillHighlights.length" class="summary-list summary-list--flat">
-                        <li
-                          v-for="skill in skillHighlights"
-                          :key="skill.key"
-                          class="summary-list-item summary-list-item--plain"
-                        >
-                          <LazyImage
-                            :src="skill.icon"
-                            :alt="skill.name"
-                            width="34"
-                            height="34"
-                            imageClass="summary-icon"
-                            errorIcon="🎯"
-                            :useProxy="true"
-                          />
-                          <div class="summary-list-text">
-                            <p class="summary-title">{{ skill.name }}</p>
-                            <p class="summary-sub">스킬 포인트 {{ skill.pointLabel }}</p>
-                            <div class="summary-pill-row summary-pill-row--wrap">
-                              <span v-if="skill.levelLabel" class="summary-pill summary-pill--primary">
-                                {{ skill.levelLabel }}
-                              </span>
-                              <span v-if="skill.rune" class="summary-pill summary-pill--accent">
-                                {{ skill.rune }}
-                              </span>
-                              <span v-if="skill.gemLabel" class="summary-pill summary-pill--ghost">
-                                {{ skill.gemLabel }}
-                              </span>
-                              <span v-if="skill.tripodLabel" class="summary-pill summary-pill--ghost">
-                                {{ skill.tripodLabel }}
-                              </span>
-                            </div>
-                          </div>
-                        </li>
-                      </ul>
-                      <p v-else class="summary-note">요약할 스킬 정보가 없습니다.</p>
-                    </article>
-
-                    <article class="summary-card summary-card--module summary-card--engravings">
-                      <div class="summary-card__head">
-                        <div>
-                          <p class="summary-eyebrow">각인</p>
-                          <h4>전설 · 유물 · 고대</h4>
-                        </div>
-                        <span
-                          class="summary-chip"
-                          :class="{ 'summary-chip--muted': !engravingSummary.length }"
-                        >
-                          {{ engravingSummary.length ? `${engravingSummary.length}개` : '데이터 없음' }}
-                        </span>
-                      </div>
-                      <div v-if="engravingSummary.length" class="summary-list summary-list--flat">
-                        <div
-                          v-for="engrave in engravingSummary"
-                          :key="engrave.key"
-                          class="summary-list-item summary-list-item--plain"
-                        >
-                          <LazyImage
-                            v-if="engrave.icon"
-                            :src="engrave.icon"
-                            :alt="engrave.name"
-                            width="32"
-                            height="32"
-                            imageClass="summary-icon"
-                            errorIcon="🔮"
-                            :useProxy="true"
-                          />
-                          <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">
-                            {{ engrave.gradeLabel?.[0] || 'E' }}
-                          </div>
-                          <div class="summary-list-text">
-                            <p class="summary-title">{{ engrave.name }}</p>
-                            <p class="summary-sub">{{ engrave.gradeLabel }}</p>
-                          </div>
-                          <div class="summary-pill-row summary-pill-row--wrap">
-                            <span v-if="engrave.levelLabel" class="summary-pill summary-pill--primary">
-                              {{ engrave.levelLabel }}
-                            </span>
-                            <span v-if="engrave.craftLabel" class="summary-pill summary-pill--ghost">
-                              {{ engrave.craftLabel }}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <p v-else class="summary-note">각인 정보가 없습니다.</p>
-                    </article>
-
-                    <article class="summary-card summary-card--module summary-card--collection">
-                      <div class="summary-card__head">
-                        <div>
-                          <p class="summary-eyebrow">수집</p>
-                          <h4>주요 포인트</h4>
-                        </div>
-                        <span
-                          class="summary-chip"
-                          :class="{ 'summary-chip--muted': !collectionSummary.length }"
-                        >
-                          {{ collectionSummary.length ? `${collectionSummary.length}종` : '데이터 없음' }}
-                        </span>
-                      </div>
-                      <p v-if="collectiblesLoading" class="summary-note">수집 정보를 정리하는 중입니다...</p>
-                      <p v-else-if="collectiblesError" class="summary-note summary-note--warning">
-                        {{ collectiblesError }}
-                      </p>
-                      <div v-else-if="collectionSummary.length" class="summary-progress-list summary-progress-list--dense">
-                        <div
-                          v-for="item in collectionSummary"
-                          :key="item.key"
-                          class="summary-progress summary-progress--compact"
-                        >
-                          <div class="summary-progress__head">
-                            <p class="summary-title">{{ item.name }}</p>
-                            <span v-if="item.levelLabel" class="summary-pill summary-pill--ghost">
-                              {{ item.levelLabel }}
-                            </span>
-                          </div>
-                          <div class="summary-progress__bar">
-                            <span :style="{ width: item.percentLabel }"></span>
-                          </div>
-                          <p class="summary-progress__meta">{{ item.pointLabel }}</p>
-                        </div>
-                      </div>
-                      <p v-else class="summary-note">표시할 수집 포인트가 없습니다.</p>
-                    </article>
-                  </div>
-                  <EmptyState
-                    v-else
-                    icon="ℹ️"
-                    title="캐릭터를 먼저 선택하세요"
-                    description="검색 후 내 정보 간소화 탭에서 핵심 정보를 요약해 드립니다."
-                  />
-                </section>
+                  :active-character="activeCharacter"
+                  :equipment-summary="equipmentSummary"
+                  :detail-loading="detailLoading"
+                  :detail-error="detailError"
+                  :ark-summary="arkSummary"
+                  :ark-grid-loading="arkGridLoading"
+                  :ark-grid-error="arkGridError"
+                  :skill-highlights="skillHighlights"
+                  :skill-loading="skillLoading"
+                  :skill-error="skillError"
+                  :engraving-summary="engravingSummary"
+                  :collection-summary="collectionSummary"
+                  :collectibles-loading="collectiblesLoading"
+                  :collectibles-error="collectiblesError"
+                />
 
                 <section
                   v-else-if="activeResultTab === 'skills'"
@@ -782,7 +208,7 @@
                   class="detail-panel"
                 >
                   <CharacterDetailModal
-                    :character="selectedCharacterProfile"
+                    :character="activeCharacter"
                     :equipment="detailEquipment"
                     :engravings="detailEngravings"
                     :loading="detailLoading"
@@ -792,7 +218,7 @@
 
                 <section
                   v-else-if="activeResultTab === 'collection'"
-                  class="detail-panel collection-panel-wrapper"
+                  class="detail-panel collection-panel"
                 >
                   <CollectionPanel
                     :collectibles="collectibles"
@@ -877,33 +303,23 @@
             </div>
           </section>
         </div>
-      </main>
-      <aside class="ad-slot ad-slot--right" aria-label="오른쪽 광고 영역">
-        <span>광고 영역</span>
-      </aside>
-    </div>
-    <footer class="page-footer">
-      <div class="footer-inner">
-        <span class="footer-badge">Copyright</span>
-        <span class="footer-copy">© Ferny</span>
+
+    <div
+      v-if="isHeroImagePopupOpen && hasCharacterImage"
+      class="character-portrait-overlay"
+      @click.self="closeHeroImagePopup"
+    >
+      <div class="character-portrait-overlay__content">
+        <button
+          type="button"
+          class="portrait-overlay__close"
+          aria-label="캐릭터 이미지 닫기"
+          @click="closeHeroImagePopup"
+        >
+          ✕
+        </button>
+        <img :src="characterImageSrc" :alt="activeCharacter?.characterName ?? '캐릭터 확대 이미지'" />
       </div>
-    </footer>
-  </div>
-  <div
-    v-if="activeSiteMenu === 'character-search' && isHeroImagePopupOpen && hasCharacterImage"
-    class="character-portrait-overlay"
-    @click.self="closeHeroImagePopup"
-  >
-    <div class="character-portrait-overlay__content">
-      <button
-        type="button"
-        class="portrait-overlay__close"
-        aria-label="캐릭터 이미지 닫기"
-        @click="closeHeroImagePopup"
-      >
-        ✕
-      </button>
-      <img :src="characterImageSrc" :alt="activeCharacter?.characterName ?? '캐릭터 확대 이미지'" />
     </div>
   </div>
 </template>
@@ -929,7 +345,6 @@ import type {
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
 import EmptyState from './common/EmptyState.vue'
-import ThemeToggle from './common/ThemeToggle.vue'
 import LazyImage from './common/LazyImage.vue'
 import AutocompleteInput from './common/AutocompleteInput.vue'
 import CharacterDetailModal from './common/CharacterDetailModal.vue'
@@ -937,13 +352,10 @@ import ArkGridPanel from './common/ArkGridPanel.vue'
 import SkillPanel from './common/SkillPanel.vue'
 import CollectionPanel from './common/CollectionPanel.vue'
 import RankingTab from './ranking/RankingTab.vue'
-import ReforgeMenu from './ReforgeMenu.vue'
-import { useTheme } from '@/composables/useTheme'
+import CharacterOverviewCard from './common/CharacterOverviewCard.vue'
+import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
 import { cleanTooltipLine, flattenTooltipLines } from '@/utils/tooltipText'
-
-const { initTheme } = useTheme()
-initTheme()
 
 interface ErrorState {
   message: string
@@ -966,22 +378,9 @@ interface TabPlaceholderCopy {
   description: string
 }
 
-type SiteMenuKey = 'character-search' | 'reforge' | 'auction' | 'life'
-
-interface SiteMenuItem {
-  key: SiteMenuKey
-  label: string
-  description: string
-  icon: string
-  available: boolean
-  routeName?: string
-  badge?: string
-}
-
 const FAVORITES_STORAGE_KEY = 'loa:favorites'
 const HISTORY_STORAGE_KEY = 'loa:history'
 const DEFAULT_RESULT_TAB: ResultTabKey = 'summary'
-const DEFAULT_SITE_MENU: SiteMenuKey = 'character-search'
 const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
   { key: 'summary', label: '내 정보 간소화' },
   { key: 'skills', label: '스킬' },
@@ -1001,43 +400,6 @@ const tabPlaceholderCopy: Record<ResultTabKey, TabPlaceholderCopy | null> = {
   arkGrid: null
 }
 
-const siteMenuItems: SiteMenuItem[] = [
-  {
-    key: 'character-search',
-    label: '캐릭터 검색',
-    description: '원정대 캐릭터와 상세 스펙을 확인할 수 있는 기본 화면이에요.',
-    icon: '🧭',
-    available: true,
-    routeName: 'character-search',
-    badge: '기본'
-  },
-  {
-    key: 'reforge',
-    label: '재련',
-    description: '제련/상급 제련 재료와 확률을 한눈에 확인하세요.',
-    icon: '⚒️',
-    available: true,
-    routeName: 'reforge',
-    badge: 'NEW'
-  },
-  {
-    key: 'auction',
-    label: '경매',
-    description: '경매장 시세와 수익 계산 도구를 곧 제공할 예정입니다.',
-    icon: '💰',
-    available: false,
-    badge: '준비 중'
-  },
-  {
-    key: 'life',
-    label: '생활',
-    description: '생활 컨텐츠 수익 분석과 동선 추천을 만들고 있어요.',
-    icon: '🌿',
-    available: false,
-    badge: '준비 중'
-  }
-]
-
 const router = useRouter()
 const route = useRoute()
 
@@ -1052,9 +414,6 @@ const characterAvailability = ref<Record<string, 'available' | 'unavailable' | '
 const selectedCharacterProfile = ref<CharacterProfile | null>(null)
 const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
 const activePlaceholder = computed(() => tabPlaceholderCopy[activeResultTab.value])
-const activeSiteMenu = ref<SiteMenuKey>(DEFAULT_SITE_MENU)
-const characterOverviewRef = ref<HTMLElement | null>(null)
-const overviewWidth = ref(0)
 const searchPanelWrapperRef = ref<HTMLElement | null>(null)
 const searchPanelOpen = ref(false)
 const activeSearchPanelTab = ref<'recent' | 'favorites'>('recent')
@@ -1334,8 +693,6 @@ const isArkPassiveEffect = (effect: ArkPassiveEffect | ArkGridEffect): effect is
 const arkSummary = computed(() => {
   const passive = arkGridResponse.value?.arkPassive
   const grid = arkGridResponse.value?.arkGrid
-  const pointSummary =
-    [] as Array<{ key: string; label: string; valueLabel: string }>
 
   const effectsSource = passive?.effects ?? grid?.effects ?? []
   const effects = effectsSource
@@ -1356,30 +713,39 @@ const arkSummary = computed(() => {
     })
     .slice(0, 4)
 
-  const gemSummary =
-    grid?.slots
-      ?.flatMap(slot =>
-        (slot.gems ?? []).map(gem => {
-          const text = inlineText(gem.tooltip)
-          const isOrder = /질서/i.test(text) || /order/i.test(text)
-          const isChaos = /혼돈/i.test(text) || /chaos/i.test(text)
-          const nameHint = text.match(/해|달|별/)?.[0] || ''
-          const grade = inlineText(gem.grade) || ''
-          return {
-            key: `${slot.index}-${gem.index}`,
-            label: `${isOrder ? '질서' : isChaos ? '혼돈' : '젬'}${nameHint ? `·${nameHint}` : ''}`,
-            value: grade || '등급 미상'
-          }
-        })
-      )
-      .slice(0, 6) ?? []
+  const coreSlots = (grid?.slots ?? [])
+    .map((slot, index) => {
+      const name = inlineText(slot.name) || `코어 ${slot.index ?? index + 1}`
+      const pointLabel =
+        slot.point !== undefined && slot.point !== null ? `${slot.point}P` : ''
+      return {
+        key: `slot-${slot.index ?? index}`,
+        name,
+        icon: slot.icon || '',
+        pointLabel,
+        initial: name.charAt(0) || 'C'
+      }
+    })
+    .filter(slot => slot.icon || slot.pointLabel || slot.name)
 
-  const slotPoints =
-    grid?.slots?.slice(0, 6).map((slot, index) => ({
-      key: `slot-${slot.index ?? index}`,
-      label: inlineText(slot.name) || `슬롯 ${slot.index ?? index + 1}`,
-      value: slot.point !== undefined ? `${slot.point}P` : ''
-    })) ?? []
+  const appliedPoints = (passive?.points ?? [])
+    .map((point, index) => {
+      const label = inlineText(point.name) || `포인트 ${index + 1}`
+      let value = ''
+      if (typeof point.value === 'number') {
+        value = `${point.value}P`
+      } else if (point.value !== undefined && point.value !== null) {
+        value = inlineText(point.value)
+      } else if (point.description) {
+        value = inlineText(point.description)
+      }
+      return {
+        key: `point-${label}-${index}`,
+        label,
+        value
+      }
+    })
+    .filter(point => point.label && point.value)
 
   const corePassives = effects
     .filter(effect => /진화|깨달음|도약/i.test(effect.title))
@@ -1391,33 +757,11 @@ const arkSummary = computed(() => {
   return {
     passiveTitle: inlineText(passive?.title),
     slotCount: grid?.slots?.length ?? 0,
-    pointSummary,
-    effects,
-    gemSummary,
-    slotPoints,
+    coreSlots,
+    appliedPoints,
     corePassives
   }
 })
-
-const menuOpen = ref(false)
-const sidebarRef = ref<HTMLElement | null>(null)
-
-const syncActiveMenuWithRoute = () => {
-  const currentName = typeof route.name === 'string' ? route.name : null
-  const matchedMenu = currentName
-    ? siteMenuItems.find(item => item.routeName === currentName) ?? null
-    : null
-  activeSiteMenu.value = matchedMenu?.key ?? DEFAULT_SITE_MENU
-}
-
-syncActiveMenuWithRoute()
-
-watch(
-  () => route.name,
-  () => {
-    syncActiveMenuWithRoute()
-  }
-)
 
 const loadFromStorage = <T>(key: string, fallback: T): T => {
   if (typeof window === 'undefined' || !window.localStorage) return fallback
@@ -1483,26 +827,6 @@ const persistHistoryToStorage = () => {
   saveToStorage(HISTORY_STORAGE_KEY, history.value)
 }
 
-const openMenu = () => {
-  menuOpen.value = true
-  nextTick(() => {
-    sidebarRef.value?.focus()
-  })
-}
-
-const closeMenu = () => {
-  menuOpen.value = false
-}
-
-const handleMenuSelect = (menu: SiteMenuItem) => {
-  if (!menu.available) return
-  activeSiteMenu.value = menu.key
-  if (menu.routeName) {
-    router.push({ name: menu.routeName })
-  }
-  closeMenu()
-}
-
 const expandHeroImage = () => {
   if (hasCharacterImage.value) {
     isHeroImageLarge.value = true
@@ -1532,28 +856,6 @@ watch(activeCharacter, () => {
   isHeroImageLarge.value = false
   isHeroImagePopupOpen.value = false
 })
-
-const hoveredSpecialName = ref<string | null>(null)
-const specialHoverTimeout = ref<number | null>(null)
-
-const cancelSpecialHoverTimeout = () => {
-  if (specialHoverTimeout.value !== null && typeof window !== 'undefined') {
-    window.clearTimeout(specialHoverTimeout.value)
-  }
-  specialHoverTimeout.value = null
-}
-
-const scheduleSpecialHoverClear = () => {
-  if (typeof window === 'undefined') {
-    hoveredSpecialName.value = null
-    return
-  }
-  cancelSpecialHoverTimeout()
-  specialHoverTimeout.value = window.setTimeout(() => {
-    hoveredSpecialName.value = null
-    specialHoverTimeout.value = null
-  }, 120)
-}
 
 interface ParadiseInfo {
   season?: string
@@ -1598,50 +900,6 @@ const displayStats = computed<CharacterStat[]>(() => {
     : []
   return stats
 })
-
-const tooltipWidthValue = computed(() => {
-  if (!overviewWidth.value) return 320
-  return Math.max(Math.round(overviewWidth.value - 20), 240)
-})
-
-const handleSpecialHover = (name: string | null) => {
-  cancelSpecialHoverTimeout()
-  hoveredSpecialName.value = name
-}
-
-const tooltipWidthStyle = computed(() => {
-  const width = tooltipWidthValue.value
-  return width ? { '--tooltip-width': `${width}px` } : {}
-})
-
-const syncOverviewWidth = () => {
-  if (!characterOverviewRef.value) return
-  const width = characterOverviewRef.value.getBoundingClientRect().width
-  if (!width) return
-  if (overviewWidth.value !== width) {
-    overviewWidth.value = width
-  }
-}
-
-let overviewObserver: ResizeObserver | null = null
-
-const observeOverviewCard = () => {
-  if (typeof window === 'undefined') return
-  overviewObserver?.disconnect()
-  const el = characterOverviewRef.value
-  if (el && 'ResizeObserver' in window) {
-    overviewObserver = new ResizeObserver(entries => {
-      const entryWidth = entries[0]?.contentRect.width ?? el.getBoundingClientRect().width
-      if (entryWidth) {
-        overviewWidth.value = entryWidth
-      }
-    })
-    overviewObserver.observe(el)
-    syncOverviewWidth()
-  } else {
-    syncOverviewWidth()
-  }
-}
 
 const panelFilterQuery = computed(() => characterName.value.trim().toLowerCase())
 
@@ -1704,24 +962,14 @@ const expeditionGroups = computed(() => {
   }))
 })
 
-const handleResize = () => {
-  syncOverviewWidth()
-}
-
 onMounted(() => {
   loadFavoritesFromStorage()
   loadHistoryFromStorage()
   loadFavorites()
   loadHistory()
-  if (typeof window !== 'undefined') {
-    window.addEventListener('resize', handleResize)
-  }
   if (typeof document !== 'undefined') {
     document.addEventListener('click', handleOutsideSearchClick)
   }
-  nextTick(() => {
-    observeOverviewCard()
-  })
 
   // URL에서 캐릭터 이름 확인 후 자동 로드
   const urlCharacter = route.query.character
@@ -1731,39 +979,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('resize', handleResize)
-  }
-  overviewObserver?.disconnect()
-  cancelSpecialHoverTimeout()
   if (typeof document !== 'undefined') {
     document.removeEventListener('click', handleOutsideSearchClick)
   }
 })
-
-watch(
-  specialEquipmentsDetailed,
-  newList => {
-    if (!newList.some(special => special.item.name === hoveredSpecialName.value)) {
-      handleSpecialHover(null)
-    }
-  },
-  { deep: false }
-)
-
-watch(
-  () => characterOverviewRef.value,
-  () => {
-    nextTick(() => {
-      if (characterOverviewRef.value) {
-        observeOverviewCard()
-      } else {
-        overviewObserver?.disconnect()
-        overviewWidth.value = 0
-      }
-    })
-  }
-)
 
 // URL 쿼리 파라미터 변경 감지 (브라우저 뒤로가기/앞으로가기 지원)
 watch(
@@ -1780,8 +999,6 @@ watch(
 
 watch(activeResultTab, async newTab => {
   await nextTick()
-  syncOverviewWidth()
-  handleSpecialHover(null)
   if (newTab === 'arkGrid') {
     await ensureArkGridData()
   } else if (newTab === 'skills') {
@@ -1931,7 +1148,6 @@ const clearSearch = () => {
   collectiblesLoading.value = false
   lastRefreshedAt.value = null
   activeResultTab.value = DEFAULT_RESULT_TAB
-  handleSpecialHover(null)
 }
 
 const loadFavorites = async () => {
@@ -2263,8 +1479,8 @@ const formatCombatPower = (value?: number | string) => formatNumberLocalized(val
 const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 </script>
 
-<style scoped>
-.app-container {
+<style>
+.character-search {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -2310,38 +1526,15 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   height: 1px;
 }
 
-.page-footer {
-  margin-top: auto;
-  padding: 18px 40px;
-  background: var(--card-bg);
-  border-top: 1px solid var(--border-color);
+.search-container {
+  background: var(--surface-color);
+  padding: 22px;
   box-shadow: var(--shadow-sm);
+  width: min(1280px, 100%);
   display: flex;
-  justify-content: center;
-}
-
-.footer-inner {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  font-weight: 700;
-}
-
-.footer-badge {
-  padding: 8px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-xs, 0 2px 6px rgba(0, 0, 0, 0.06));
-}
-
-.footer-copy {
-  font-size: calc(0.95rem - 2px);
-  color: var(--text-secondary);
+  flex-direction: column;
+  gap: 24px;
+  width:100%;
 }
 
 .menu-button {
@@ -2519,47 +1712,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .sidebar-fade-enter-active,
 .sidebar-fade-leave-active {
   transition: opacity 0.25s ease;
-}
-
-.content-wrapper {
-  display: flex;
-  flex: 1;
-  gap: var(--space-2xl);
-  padding: 30px clamp(var(--space-xl), 5vw, 0px);
-  background: var(--bg-secondary);
-  box-sizing: border-box;
-}
-
-.main-content {
-  flex: 1 1 960px;
-  /* max-width: 1200px; */
-  padding: 0px var(--space-2xl);
-  /* overflow-y: auto; */
-  background: var(--bg-secondary);
-  /* border-radius: var(--radius-2xl); */
-  /* box-shadow: var(--shadow-sm); */
-  border-left: 1px dashed var(--border-color);
-  border-right: 1px dashed var(--border-color);
-}
-
-.ad-slot {
-  flex: 0 0 clamp(140px, 12vw, 220px);
-  border-radius: var(--radius-2xl);
-  border: 1px dashed var(--border-color);
-  background: var(--card-bg);
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary);
-  font-size: var(--font-sm);
-  text-align: center;
-  padding: var(--space-xl);
-  min-height: 60vh;
-}
-
-.ad-slot span {
-  pointer-events: none;
 }
 
 .search-input {
@@ -2921,6 +2073,67 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   justify-content: center;
   font-weight: 700;
   color: var(--text-secondary);
+}
+
+.ark-core-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.ark-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ark-core__thumb {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.ark-core__image {
+  border-radius: var(--radius-md);
+}
+
+.ark-core__placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: var(--font-lg);
+}
+
+.ark-core__point {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(102, 126, 234, 0.16);
+  color: var(--primary-color);
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+
+.ark-core__name {
+  margin: 0;
+  text-align: center;
+  font-size: calc(var(--font-sm) - 1px);
+  color: var(--text-secondary);
+  line-height: 1.2;
 }
 
 .equipment-grid {
@@ -3710,23 +2923,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 @media (max-width: 1024px) {
-  .content-wrapper {
-    flex-direction: column;
-    padding: 0px 20px;
-    gap: 20px;
-  }
-
-  .ad-slot {
-    display: none;
-  }
-
-  .main-content {
-    max-width: 100%;
-    padding: 20px;
-    /* border-radius: 16px; */
-    box-shadow: none;
-  }
-
   .states-grid {
     grid-template-columns: 1fr;
   }
@@ -3760,21 +2956,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
   .header-right {
     display: none;
-  }
-
-  .page-footer {
-    padding: 16px 20px;
-  }
-
-  .footer-inner {
-    flex-direction: column;
-    gap: 6px;
-    text-align: center;
-    letter-spacing: 0.06em;
-  }
-
-  .main-content {
-    padding: 20px 15px;
   }
 
   .hero-row--levels .hero-levels {
