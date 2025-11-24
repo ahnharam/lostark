@@ -329,7 +329,7 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
   display: grid;
   grid-template-columns: 160px minmax(0, 1fr) 160px;
   gap: 20px;
-  padding: 20px 24px 40px;
+  padding: 0px 20px 20px 20px;
   flex: 1;
 }
 
@@ -347,6 +347,7 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
   background: var(--card-bg, #ffffff);
   color: var(--text-muted, #9ca3af);
   font-weight: 600;
+  margin-top:20px;
 }
 
 .page-footer {

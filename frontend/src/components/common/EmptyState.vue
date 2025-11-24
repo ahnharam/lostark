@@ -29,8 +29,9 @@ defineEmits<{
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 20px 20px 100px 20px;
   text-align: center;
+  min-height: inherit;
 }
 
 .empty-icon {

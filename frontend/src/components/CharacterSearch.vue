@@ -1533,8 +1533,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   width: min(1280px, 100%);
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 24px;
   width:100%;
+  min-height: inherit;
 }
 
 .menu-button {

@@ -561,7 +561,7 @@ onBeforeUnmount(() => {
 }
 
 .special-label {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   text-align: center;
 }
