@@ -198,11 +198,12 @@ export const lostarkApi = {
     params: RankingQueryParams,
     options?: { force?: boolean }
   ): Promise<ApiResult<RankingResponse>> {
+    const normalizedParams: Record<string, unknown> = { ...params }
     return cachedRequest(
       'ranking',
-      params,
+      normalizedParams,
       async () => {
-        const response = await apiClient.get<RankingResponse>('/rankings', { params })
+        const response = await apiClient.get<RankingResponse>('/rankings', { params: normalizedParams })
         return response.data
       },
       CACHE_TTL.RANKING,

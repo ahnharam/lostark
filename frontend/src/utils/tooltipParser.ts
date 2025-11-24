@@ -97,7 +97,8 @@ function extractColor(html: string): string | null {
 function parseQualityText(input: string): number | null {
   const text = stripHtml(input)
   const match = text.match(/품질[^0-9]*(\d{1,3})/i)
-  return match ? parseInt(match[1], 10) : null
+  const quality = match?.[1]
+  return quality ? parseInt(quality, 10) : null
 }
 
 function toNumber(value: unknown): number | null {
@@ -126,7 +127,7 @@ function parseQuality(element: unknown): number | null {
       if (value.leftStr || value.rightStr) {
         const normalized = [value.leftStr, value.rightStr]
           .filter(Boolean)
-          .map((str: string) => parseQualityText(str))
+          .map(str => parseQualityText(String(str)))
           .find(q => q !== null)
         if (normalized !== undefined) {
           return normalized ?? null
@@ -145,7 +146,7 @@ function parseQuality(element: unknown): number | null {
 function parseItemLevel(html: string): string | null {
   const text = stripHtml(html)
   const match = text.match(/아이템\s*레벨\s*(\d+)/i)
-  return match ? match[1] : null
+  return match?.[1] ?? null
 }
 
 /**
@@ -157,7 +158,8 @@ function normalizeNewlines(input: string): string {
 
 function extractFontColor(html: string): string | undefined {
   const match = html.match(/color=['"]?#?([0-9a-fA-F]{6})['"]?/i)
-  return match ? `#${match[1].toUpperCase()}` : undefined
+  const color = match?.[1]
+  return color ? `#${color.toUpperCase()}` : undefined
 }
 
 function flattenValue(value: any): string[] {
@@ -433,16 +435,16 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
 
       const stageMatches = [...text.matchAll(/(\d+)\s*단계\s*-\s*([^\n]+)/gi)]
       if (stageMatches.length) {
-        const best = stageMatches.reduce(
-          (acc, match) => {
-            const stage = Number(match[1])
-            if (stage > acc.stage) {
-              return { stage, value: match[2] }
-            }
+        const best = stageMatches.reduce<{ stage: number; value: string }>((acc, match) => {
+          const stage = Number(match[1])
+          if (Number.isNaN(stage)) {
             return acc
-          },
-          { stage: -Infinity, value: '' }
-        )
+          }
+          if (stage > acc.stage) {
+            return { stage, value: match[2] ?? '' }
+          }
+          return acc
+        }, { stage: -Infinity, value: '' })
         if (best.stage > -Infinity) {
           parsed.sangjaeStage = best.stage
           const formatted = best.value.replace(/\s+/g, ' ').trim()
@@ -647,13 +649,20 @@ function extractTranscendenceAggregates(lines: string[]): TranscendenceAggregate
   lines.forEach(line => {
     const clean = stripHtml(line)
     for (const match of clean.matchAll(/공격력[^\d%]*([0-9,]+)/g)) {
-      weaponAttack += parseNumber(match[1])
+      const numericText = match[1] ?? ''
+      weaponAttack += parseNumber(numericText)
     }
     for (const match of clean.matchAll(/낙인력[^\d%]*([0-9.]+)\s*%/gi)) {
-      brandPercent += Number(match[1])
+      const percent = match[1]
+      if (percent) {
+        brandPercent += Number(percent)
+      }
     }
     for (const match of clean.matchAll(/아군\s*공격력\s*강화\s*효과[^\d%]*([0-9.]+)\s*%/gi)) {
-      allyBuffPercent += Number(match[1])
+      const percent = match[1]
+      if (percent) {
+        allyBuffPercent += Number(percent)
+      }
     }
   })
 

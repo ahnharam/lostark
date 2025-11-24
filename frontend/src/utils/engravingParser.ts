@@ -28,11 +28,11 @@ export function parseEngravingDescription(description: string): ParsedEngraving 
 
   // 레벨 추출 (Lv.1, Lv.2, Lv.3 등)
   const levelMatch = description.match(/Lv\.?\s*(\d+)/i)
-  const level = levelMatch ? parseInt(levelMatch[1], 10) : 0
+  const level = levelMatch?.[1] ? parseInt(levelMatch[1], 10) : 0
 
   // 효과 값 추출 (+15, +30, -10 등)
   const effectMatch = description.match(/([+-]\s*\d+)/i)
-  const effectValue = effectMatch ? effectMatch[1].replace(/\s/g, '') : ''
+  const effectValue = effectMatch?.[1] ? effectMatch[1].replace(/\s/g, '') : ''
 
   // 디버프 여부 (감소, 페널티 등의 키워드 또는 - 부호)
   const isDebuff = description.includes('감소') ||

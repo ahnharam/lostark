@@ -134,7 +134,7 @@
                 }"
               >
                 <span v-if="line.pointLabel" class="slot-tooltip-point">{{ line.pointLabel }}</span>
-                <span class="slot-tooltip-body">{{ line.text }}</span>
+                <span v-if="line.pointLabel" class="slot-tooltip-body">{{ line.text }}</span>
               </div>
             </div>
             <div v-if="slot.gemCards.length" class="slot-gem-stack">
@@ -201,6 +201,7 @@ import EmptyState from './EmptyState.vue'
 import ErrorMessage from './ErrorMessage.vue'
 import LazyImage from './LazyImage.vue'
 import { stripHtml } from '@/utils/tooltipParser'
+import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import type { ArkGridResponse, ArkGridSlot, ArkPassiveEffect, ArkPassivePoint } from '@/api/types'
 
 const props = defineProps<{
@@ -275,14 +276,6 @@ interface ParsedTooltip {
   lines: string[]
 }
 
-const sanitizeInline = (value?: string | null) => {
-  if (!value) return ''
-  return stripHtml(value)
-    .replace(/\\r\\n|\\n|\\r/g, ' ')
-    .replace(/\\s+/g, ' ')
-    .trim()
-}
-
 const stripStageKeywords = (value?: string | null) => {
   if (!value) return ''
   return value
@@ -297,52 +290,9 @@ const stripStageKeywords = (value?: string | null) => {
     .trim()
 }
 
-const normalizeTooltipText = (value: string) => {
-  return value
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/\n/g, '\n')
-    .replace(/\|/g, '\n')
-}
-
-const flattenTooltip = (value: unknown, bucket: string[]) => {
-  if (!value) return
-  if (typeof value === 'string') {
-    normalizeTooltipText(value)
-      .split('\\n')
-      .map(line => stripHtml(line).trim())
-      .filter(Boolean)
-      .forEach(line => bucket.push(line))
-    return
-  }
-  if (Array.isArray(value)) {
-    value.forEach(item => flattenTooltip(item, bucket))
-    return
-  }
-  if (typeof value === 'object') {
-    Object.values(value).forEach(item => flattenTooltip(item, bucket))
-  }
-}
-
 const parseTooltip = (tooltip?: string | null): ParsedTooltip => {
-  if (!tooltip) {
-    return { title: '', lines: [] }
-  }
-  const bucket: string[] = []
-  try {
-    const parsed = JSON.parse(tooltip)
-    flattenTooltip(parsed, bucket)
-  } catch {
-    flattenTooltip(tooltip, bucket)
-  }
-  const sanitized = bucket.map(line =>
-    line
-      .replace(/\\s+/g, ' ')
-      .trim()
-  )
-  const [title, ...rest] = sanitized
+  const lines = flattenTooltipLines(tooltip)
+  const [title, ...rest] = lines
   return {
     title: title || '',
     lines: rest
@@ -397,7 +347,11 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
 
     let i = 0
     while (i < segments.length) {
-      const segment = segments[i]
+      const segment = segments[i] ?? ''
+      if (!segment) {
+        i++
+        continue
+      }
 
       // 1. 필요 의지력 패턴
       const willpowerMatch = segment.match(/필요\s*의지력\s*:\s*(\d+)/i)
@@ -420,14 +374,18 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
       }
 
       // 3. 효과 이름과 레벨 패턴 (예: [추가 피해] Lv.1)
-      const effectNameMatch = segment.match(/\[([^\]]+)\]\s*Lv\.(\d+)/i)
-      if (effectNameMatch) {
-        const effectName = effectNameMatch[1].trim()
-        const levelNum = effectNameMatch[2]
+    const effectNameMatch = segment.match(/\[([^\]]+)\]\s*Lv\.(\d+)/i)
+    if (effectNameMatch) {
+      const effectName = (effectNameMatch[1] ?? '').trim()
+      const levelNum = effectNameMatch[2] ?? ''
 
         // 다음 라인에서 효과 값 찾기
         if (i + 1 < segments.length) {
           const nextSegment = segments[i + 1]
+          if (!nextSegment) {
+            i++
+            continue
+          }
           // 값 패턴 찾기 (예: +0.08%, +0.11%)
           const valueMatch = nextSegment.match(/([\+\-]\d+(?:\.\d+)?%)/i)
           if (valueMatch) {
@@ -460,36 +418,8 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
   return result
 }
 
-const extractColorFromTooltip = (tooltip?: string | null): string | null => {
-  if (!tooltip) return null
-
-  try {
-    const parsed = JSON.parse(tooltip)
-    const extractColorFromObject = (obj: any): string | null => {
-      if (typeof obj === 'string') {
-        // <FONT color='#COLOR'> 패턴 찾기
-        const colorMatch = obj.match(/<FONT[^>]*color=['"]?([#\w]+)['"]?[^>]*>/i)
-        if (colorMatch) return colorMatch[1]
-      } else if (Array.isArray(obj)) {
-        for (const item of obj) {
-          const color = extractColorFromObject(item)
-          if (color) return color
-        }
-      } else if (typeof obj === 'object' && obj !== null) {
-        for (const value of Object.values(obj)) {
-          const color = extractColorFromObject(value)
-          if (color) return color
-        }
-      }
-      return null
-    }
-    return extractColorFromObject(parsed)
-  } catch {
-    // JSON 파싱 실패 시 직접 문자열에서 찾기
-    const colorMatch = tooltip.match(/<FONT[^>]*color=['"]?([#\w]+)['"]?[^>]*>/i)
-    return colorMatch ? colorMatch[1] : null
-  }
-}
+const extractColorFromTooltip = (tooltip?: string | null): string | null =>
+  extractTooltipColor(tooltip)
 
 const parsePointSummary = (points?: ArkPassivePoint[]) => {
   return (points ?? []).filter(point => point.name)
@@ -549,7 +479,10 @@ const romanToNumber = (value: string) => {
   let total = 0
   let previous = 0
   for (let i = chars.length - 1; i >= 0; i -= 1) {
-    const current = ROMAN_NUMERAL_MAP[chars[i]]
+    const char = chars[i]
+    if (!char) continue
+    const current = ROMAN_NUMERAL_MAP[char]
+    if (!current) continue
     if (current < previous) {
       total -= current
     } else {
@@ -563,7 +496,7 @@ const romanToNumber = (value: string) => {
 const extractTierGroupLabel = (card: PassiveCard) => {
   const candidates = [card.tierLabel, card.levelLine]
   for (const candidate of candidates) {
-    const normalized = normalizeTierText(candidate)
+    const normalized = normalizeTierText(candidate ?? '')
     if (!normalized) continue
     const digitMatch = normalized.match(/(\d+)/)
     if (digitMatch) {
@@ -571,11 +504,12 @@ const extractTierGroupLabel = (card: PassiveCard) => {
     }
     const romanMatch = normalized.match(/\b([IVXLCDM]+)\b/i)
     if (romanMatch) {
-      const numericValue = romanToNumber(romanMatch[1])
+      const numeral = romanMatch[1] ?? ''
+      const numericValue = numeral ? romanToNumber(numeral) : null
       if (numericValue) {
         return `${numericValue}티어`
       }
-      return `티어 ${romanMatch[1].toUpperCase()}`
+      return `티어 ${numeral.toUpperCase()}`
     }
     if (normalized.includes('티어')) {
       return normalized
@@ -600,10 +534,10 @@ const passiveMatrix = computed<PassiveMatrixRow[]>(() => {
     }, {})
   }
 
-  const resolveSection = (card: PassiveCard) =>
+  const resolveSection = (card: PassiveCard): PassiveSection =>
     PASSIVE_SECTIONS.find(section => card.tierLabel.includes(section.keyword)) ??
     PASSIVE_SECTIONS.find(section => card.levelLine.includes(section.keyword)) ??
-    PASSIVE_SECTIONS[0]
+    PASSIVE_SECTIONS[0]!
 
   effects.forEach((effect, index) => {
     const card = buildPassiveCard(effect, index)
@@ -859,7 +793,7 @@ const emptyStateDescription = computed(() => {
 .ark-grid-layout {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 40px;
 }
 
 .ark-grid-overview {
@@ -927,7 +861,7 @@ const emptyStateDescription = computed(() => {
 }
 
 .section-heading h4 {
-  margin: 0 0 4px;
+  margin: 0 0 10px;
   font-size: 1.1rem;
   color: var(--text-primary, #1f2937);
 }

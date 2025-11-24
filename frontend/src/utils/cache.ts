@@ -83,7 +83,9 @@ class CacheManager {
     if (this.memoryCache.size >= this.MAX_MEMORY_SIZE) {
       // 가장 오래된 항목 제거
       const oldestKey = Array.from(this.memoryCache.keys())[0]
-      this.memoryCache.delete(oldestKey)
+      if (oldestKey !== undefined) {
+        this.memoryCache.delete(oldestKey)
+      }
     }
 
     // 메모리 캐시에 저장

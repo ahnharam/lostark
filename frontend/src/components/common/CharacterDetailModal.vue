@@ -483,7 +483,7 @@ watch(
       !selectedEquipmentKey.value ||
       !filtered.some(item => item.__uid === selectedEquipmentKey.value)
     ) {
-      selectedEquipmentKey.value = filtered[0].__uid
+      selectedEquipmentKey.value = filtered[0]?.__uid ?? null
     }
   },
   { immediate: true }
@@ -558,8 +558,9 @@ interface ExtractedLine {
 const extractColorFromHtml = (html?: string): string | undefined => {
   if (!html) return undefined
   const match = html.match(/color\s*[:=]\s*['"]?#?([0-9a-f]{6})/i)
-  if (!match) return undefined
-  return `#${match[1].toUpperCase()}`
+  const color = match?.[1]
+  if (!color) return undefined
+  return `#${color.toUpperCase()}`
 }
 
 const extractItemPartLines = (
@@ -783,9 +784,8 @@ const groupedBraceletStats = computed<BraceletStatGrouping>(() => {
   const hasAdditional = Boolean(selectedParsed.value?.additionalStats?.length)
   const baseStats = hasAdditional ? selectedParsed.value!.additionalStats! : statsWithoutMain.value
   const numericPartStats = parsedBraceletLines.value
-    .filter(item => !item.isEffect && item.stat)
+    .filter((item): item is { isEffect: false; stat: StatItem } => !item.isEffect && Boolean(item.stat))
     .map(item => item.stat)
-    .filter((stat): stat is StatItem => Boolean(stat))
 
   const baseCombatStats = makeUniqueStats(
     baseStats.filter(stat =>
@@ -1286,6 +1286,7 @@ const coreRows = computed<CoreRow[]>(() => {
         )
         for (let i = 0; i < combatStats.length; i += 2) {
           const left = combatStats[i]
+          if (!left) continue
           const right = combatStats[i + 1]
           pushRow(createStatCell(left.type, left, true), right ? createStatCell(right.type, right, true) : undefined)
         }
@@ -1581,7 +1582,7 @@ const statToLine = (stat?: StatItem | null) => {
   return `${stat.type} ${formatStatValue(stat.value)}`
 }
 
-const getSummaryLines = (item: Equipment) => {
+const getSummaryLines = (item: EquipmentWithId) => {
   const parsed = getParsedEquipment(item)
   if (!parsed) return []
   const lines: string[] = []
@@ -1594,13 +1595,16 @@ const getSummaryLines = (item: Equipment) => {
     if (extra) lines.push(extra)
   }
   if (!lines.length && parsed.engravingEffects?.length) {
-    lines.push(parsed.engravingEffects[0])
+    const firstEngraving = parsed.engravingEffects[0]
+    if (firstEngraving) {
+      lines.push(firstEngraving)
+    }
   }
   const sanitized = lines.filter(line => !/상재/.test(line))
   return sanitized.slice(0, 2)
 }
 
-const getQualityBadgeColor = (item: Equipment) => getQualityColor(getParsedEquipment(item)?.quality)
+const getQualityBadgeColor = (item: EquipmentWithId) => getQualityColor(getParsedEquipment(item)?.quality)
 
 interface TooltipValueBuckets {
   stats: string[]

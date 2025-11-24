@@ -245,7 +245,7 @@ const qualityColor = computed(() => {
 })
 
 const gradeColor = computed(() => {
-  return getGradeColor(props.equipment.grade)
+  return getGradeColor(props.equipment.grade ?? '')
 })
 
 const engravingNames = Object.keys(ENGRAVING_ICON_MAP)
@@ -270,9 +270,9 @@ const extractEngravingName = (effect: string): string => {
   if (matchedName) return matchedName
 
   const levelMatch = cleaned.match(/(.+?)(?:\s*(?:Lv\.?\s*\d+|활성도|노드|레벨)\b)/i)
-  if (levelMatch) return levelMatch[1].trim()
+  if (levelMatch?.[1]) return levelMatch[1].trim()
   const plusMatch = cleaned.match(/(.+?)\s*\+\s*\d+/)
-  if (plusMatch) return plusMatch[1].trim()
+  if (plusMatch?.[1]) return plusMatch[1].trim()
   return cleaned.split(/\s+/)[0] || ''
 }
 

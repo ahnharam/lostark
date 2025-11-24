@@ -920,6 +920,8 @@ import type {
   Engraving,
   CharacterStat,
   ArkGridResponse,
+  ArkGridEffect,
+  ArkPassiveEffect,
   SkillMenuResponse,
   Collectible,
   CombatSkill
@@ -938,6 +940,7 @@ import RankingTab from './ranking/RankingTab.vue'
 import ReforgeMenu from './ReforgeMenu.vue'
 import { useTheme } from '@/composables/useTheme'
 import type { Suggestion } from './common/AutocompleteInput.vue'
+import { cleanTooltipLine, flattenTooltipLines } from '@/utils/tooltipText'
 
 const { initTheme } = useTheme()
 initTheme()
@@ -1324,6 +1327,10 @@ const engravingSummary = computed(() => {
   })
 })
 
+const isArkPassiveEffect = (effect: ArkPassiveEffect | ArkGridEffect): effect is ArkPassiveEffect => {
+  return 'description' in effect || 'toolTip' in effect
+}
+
 const arkSummary = computed(() => {
   const passive = arkGridResponse.value?.arkPassive
   const grid = arkGridResponse.value?.arkGrid
@@ -1334,14 +1341,17 @@ const arkSummary = computed(() => {
   const effects = effectsSource
     .map((effect, index) => {
       const title = inlineText(effect.name)
-      const subtitle = inlineText(effect.tooltip || effect.description || '')
-      const levelLabel = effect.level ? `Lv.${effect.level}` : ''
+      const subtitle = inlineText(
+        isArkPassiveEffect(effect) ? effect.toolTip ?? effect.description ?? '' : effect.tooltip ?? ''
+      )
+      const levelLabel =
+        !isArkPassiveEffect(effect) && typeof effect.level === 'number' ? `Lv.${effect.level}` : ''
       return {
         key: `${title || 'effect'}-${index}`,
         title: title || '효과',
         subtitle: subtitle || '효과 설명이 없습니다.',
         levelLabel,
-        icon: effect.icon || ''
+        icon: isArkPassiveEffect(effect) ? effect.icon || '' : ''
       }
     })
     .slice(0, 4)
@@ -1550,13 +1560,14 @@ interface ParadiseInfo {
   power?: string
 }
 
-const paradiseInfo = computed<ParadiseInfo>(() => {
-  const info: ParadiseInfo = {}
-  const extractLastNumber = (text: string) => {
-    const matches = text.match(/\d[\d.,]*/g)
-    if (!matches || !matches.length) return ''
-    return matches[matches.length - 1].replace(/[^\d.,]/g, '')
-  }
+  const paradiseInfo = computed<ParadiseInfo>(() => {
+    const info: ParadiseInfo = {}
+    const extractLastNumber = (text: string) => {
+      const matches = text.match(/\d[\d.,]*/g)
+      if (!matches || !matches.length) return ''
+      const last = matches[matches.length - 1] ?? ''
+      return last.replace(/[^\d.,]/g, '')
+    }
 
   for (const special of specialEquipmentsDetailed.value) {
     const tooltipLines = extractTooltipLines(special.item.tooltip)
@@ -2143,7 +2154,7 @@ const viewCharacterDetail = (summary: CharacterProfile | SiblingCharacter) => {
   if (characterAvailability.value[summary.characterName] === 'loading') return
   activeResultTab.value = 'detail'
   const isPrimary = character.value?.characterName === summary.characterName
-  const profile = isPrimary ? character.value : undefined
+  const profile = isPrimary ? character.value ?? undefined : undefined
   loadCharacterDetails(summary.characterName, { profile })
 
   // URL 업데이트
@@ -2154,93 +2165,8 @@ const formatItemLevel = (value?: string | number) => {
   return formatNumberLocalized(value, 2)
 }
 
-const extractTooltipLines = (tooltip?: string): string[] => {
-  if (!tooltip) return []
-  try {
-    const raw = JSON.parse(tooltip)
-    const normalize = (value: any): string[] => {
-      if (!value) return []
-      if (typeof value === 'string') return [cleanTooltipLine(value)]
-      if (Array.isArray(value)) return value.flatMap(normalize)
-      if (typeof value === 'object') {
-        if ('value' in value) return normalize(value.value)
-        return Object.values(value).flatMap(normalize)
-      }
-      return []
-    }
-    return Object.values(raw).flatMap(normalize).filter(Boolean)
-  } catch {
-    return [cleanTooltipLine(tooltip)]
-  }
-}
-
-const addFallbackLineBreaks = (value: string): string => {
-  if (!value) return value
-  if (value.includes('\n')) return value
-
-  const insertSentenceBreaks = (text: string) => {
-    return text.replace(/(?<!\d)([.!?])\s+/g, (_, mark) => `${mark}\n`)
-  }
-
-  const insertStatBreaks = (text: string) => {
-    return text.replace(/\s+(?=[+-]\d)/g, '\n')
-  }
-
-  const formatLines = (text: string) =>
-    text
-      .split('\n')
-      .map(part => part.trim())
-      .filter(Boolean)
-      .join('\n')
-
-  const withSentenceBreaks = insertSentenceBreaks(value)
-  if (withSentenceBreaks.includes('\n')) {
-    return formatLines(withSentenceBreaks)
-  }
-
-  const withStatBreaks = insertStatBreaks(value)
-  if (withStatBreaks.includes('\n')) {
-    return formatLines(withStatBreaks)
-  }
-
-  if (value.length <= 80) return value
-
-  const segments: string[] = []
-  let start = 0
-  const length = value.length
-  while (start < length) {
-    let end = Math.min(start + 70, length)
-    if (end === length) {
-      segments.push(value.slice(start).trim())
-      break
-    }
-    let breakIndex = value.lastIndexOf(' ', end)
-    if (breakIndex <= start + 30) {
-      breakIndex = value.indexOf(' ', end)
-    }
-    if (breakIndex === -1) {
-      segments.push(value.slice(start).trim())
-      break
-    }
-    segments.push(value.slice(start, breakIndex).trim())
-    start = breakIndex + 1
-  }
-  return segments.join('\n')
-}
-
-const cleanTooltipLine = (text: string) => {
-  const normalized = text
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\\r\\n|\\n|\\r/g, '\n')
-    .replace(/&[^;]+;/g, ' ')
-    .split('\n')
-    .map(part => part.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .join('\n')
-  return addFallbackLineBreaks(normalized)
-}
+const extractTooltipLines = (tooltip?: string): string[] =>
+  flattenTooltipLines(tooltip, { fallbackBreaks: true })
 
 const tooltipIgnorePatterns = [
   /캐릭터 귀속/,
@@ -2312,18 +2238,20 @@ const formatProfileStat = (value?: string | string[]) => {
   const normalized = normalizeStatValue(value)
   if (!normalized.length) return '—'
   const percentMatch = normalized.match(/^([+-]?\d+(?:\.\d+)?)\s*%$/)
-  if (percentMatch) {
+  const percentValue = percentMatch?.[1]
+  if (percentValue) {
     const formatted = formatNumberLocalized(
-      percentMatch[1],
-      percentMatch[1].includes('.') ? 2 : undefined
+      percentValue,
+      percentValue.includes('.') ? 2 : undefined
     )
     return formatted === '—' ? normalized : `${formatted}%`
   }
   const numericMatch = normalized.match(/^([+-]?\d+(?:\.\d+)?)(?:\s*점)?$/)
-  if (numericMatch) {
+  const numericValue = numericMatch?.[1]
+  if (numericValue) {
     const formatted = formatNumberLocalized(
-      numericMatch[1],
-      numericMatch[1].includes('.') ? 2 : undefined
+      numericValue,
+      numericValue.includes('.') ? 2 : undefined
     )
     return formatted
   }

@@ -205,7 +205,6 @@
                           <p class="skill-card-meta">
                             <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
                             <span v-if="skill.skillPointLabel" class="skill-card-point">{{ skill.skillPointLabel }}</span>
-                            <span v-if="skill.rune?.name" class="skill-card-rune">룬: {{ skill.rune.name }}</span>
                           </p>
                         </div>
 
@@ -327,7 +326,7 @@ import LoadingSpinner from './LoadingSpinner.vue'
 import EmptyState from './EmptyState.vue'
 import ErrorMessage from './ErrorMessage.vue'
 import LazyImage from './LazyImage.vue'
-import { stripHtml } from '@/utils/tooltipParser'
+import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import type { CombatSkill, SkillMenuResponse } from '@/api/types'
 
 // ===== Props 정의 =====
@@ -353,6 +352,7 @@ interface SkillTripodView {
   tier?: number
   levelLabel?: string
   description?: string
+  slotLabel?: string
 }
 
 /** 룬 뷰 인터페이스 */
@@ -454,17 +454,6 @@ const skillGems = computed(() => props.response?.skillGems ?? [])
 // ===== 유틸리티 함수 =====
 
 /**
- * HTML 태그를 제거하고 인라인 텍스트로 정리
- * @param value - 정리할 값 (문자열 또는 숫자)
- * @returns 정리된 문자열
- */
-const sanitizeInline = (value?: string | number | null) => {
-  if (value === undefined || value === null) return ''
-  const source = typeof value === 'number' ? String(value) : value
-  return stripHtml(source).replace(/\s+/g, ' ').trim()
-}
-
-/**
  * 스킬 이름을 정규화된 키로 변환 (공백 및 특수문자 제거, 소문자 변환)
  * @param value - 스킬 이름
  * @returns 정규화된 키
@@ -496,15 +485,7 @@ const resolveGemBadgesForSkill = (skillName: string, map: Map<string, SkillGemBa
  * @param value - HTML 문자열
  * @returns HEX 색상 코드 (예: "#FF0000")
  */
-const extractFontColor = (value?: string | null) => {
-  if (!value) return ''
-  const match = value.match(/color=['"]?#?([0-9a-fA-F]{6,8})['"]?/i)
-  if (match) {
-    const hex = match[1].slice(0, 6).toUpperCase()
-    return `#${hex}`
-  }
-  return ''
-}
+const extractFontColor = (value?: string | null) => extractTooltipColor(value) || ''
 
 /**
  * 각성기 페어 제목 추출 (콜론 앞부분 또는 "(클론" 앞부분)
@@ -585,38 +566,6 @@ const detectAwakeningKind = (
 // ===== 툴팁 파싱 함수 =====
 
 /**
- * JSON 형태의 툴팁을 평면 문자열 배열로 변환
- * @param tooltip - 툴팁 문자열 (JSON 또는 일반 문자열)
- * @returns 평면화된 문자열 배열
- */
-const flattenTooltipLines = (tooltip?: string | null): string[] => {
-  if (!tooltip) return []
-  const bucket: string[] = []
-  const visit = (node: unknown) => {
-    if (!node) return
-    if (typeof node === 'string') {
-      bucket.push(node)
-      return
-    }
-    if (Array.isArray(node)) {
-      node.forEach(visit)
-      return
-    }
-    if (typeof node === 'object') {
-      Object.values(node as Record<string, unknown>).forEach(visit)
-    }
-  }
-  try {
-    visit(JSON.parse(tooltip))
-  } catch {
-    visit(tooltip)
-  }
-  return bucket
-    .map(line => sanitizeInline(line))
-    .filter(Boolean)
-}
-
-/**
  * 툴팁에서 특정 키워드 다음 줄 추출
  * @param tooltip - 툴팁 문자열
  * @param keyword - 검색할 키워드
@@ -672,24 +621,27 @@ const extractSkillMetadata = (tooltip?: string | null) => {
       // 무력화: "무력화 : 중", "무력화: 상" - 한 글자만 추출
       if (!metadata.stagger) {
         const staggerMatch = cleanValue.match(/무력화\s*[:\:]\s*([가-힣]+)/)
-        if (staggerMatch) {
-          metadata.stagger = staggerMatch[1].trim()
+        const staggerValue = staggerMatch?.[1]
+        if (staggerValue) {
+          metadata.stagger = staggerValue.trim()
         }
       }
 
       // 공격 타입: "백 어택" 또는 "헤드 어택"만 정확히 추출
       if (!metadata.attackType) {
         const attackMatch = cleanValue.match(/공격\s*타입\s*[:\:]\s*(백\s*어택|헤드\s*어택)/)
-        if (attackMatch) {
-          metadata.attackType = attackMatch[1].trim()
+        const attackValue = attackMatch?.[1]
+        if (attackValue) {
+          metadata.attackType = attackValue.trim()
         }
       }
 
       // 슈퍼아머: "경직 면역" 등의 값만 추출 (다음 키워드 전까지)
       if (!metadata.superArmor) {
         const armorMatch = cleanValue.match(/슈퍼아머\s*[:\:]\s*([가-힣\s]+?)(?=\s*무력화|\s*공격|\s*부위|$)/)
-        if (armorMatch) {
-          metadata.superArmor = armorMatch[1].trim()
+        const armorValue = armorMatch?.[1]
+        if (armorValue) {
+          metadata.superArmor = armorValue.trim()
         }
       }
 
@@ -697,8 +649,9 @@ const extractSkillMetadata = (tooltip?: string | null) => {
       if (!metadata.destruction) {
         // 실제 형식: "부위 파괴 : 레벨 1"
         const destructionMatch = cleanValue.match(/부위\s*파괴\s*[:\:]\s*레벨\s*(\d+)/)
-        if (destructionMatch) {
-          metadata.destruction = `${destructionMatch[1]}레벨`
+        const destructionValue = destructionMatch?.[1]
+        if (destructionValue) {
+          metadata.destruction = `${destructionValue}레벨`
         }
       }
     })
@@ -708,21 +661,25 @@ const extractSkillMetadata = (tooltip?: string | null) => {
     lines.forEach(line => {
       if (!metadata.stagger) {
         const staggerMatch = line.match(/무력화\s*[:\:]\s*([가-힣]+)/)
-        if (staggerMatch) metadata.stagger = staggerMatch[1].trim()
+        const staggerValue = staggerMatch?.[1]
+        if (staggerValue) metadata.stagger = staggerValue.trim()
       }
       if (!metadata.attackType) {
         const attackMatch = line.match(/공격\s*타입\s*[:\:]\s*(백\s*어택|헤드\s*어택)/)
-        if (attackMatch) metadata.attackType = attackMatch[1].trim()
+        const attackValue = attackMatch?.[1]
+        if (attackValue) metadata.attackType = attackValue.trim()
       }
       if (!metadata.superArmor) {
         const armorMatch = line.match(/슈퍼아머\s*[:\:]\s*([가-힣\s]+?)(?=\s*무력화|\s*공격|\s*부위|$)/)
-        if (armorMatch) metadata.superArmor = armorMatch[1].trim()
+        const armorValue = armorMatch?.[1]
+        if (armorValue) metadata.superArmor = armorValue.trim()
       }
       if (!metadata.destruction) {
         // 실제 형식: "부위 파괴 : 레벨 1"
         const destructionMatch = line.match(/부위\s*파괴\s*[:\:]\s*레벨\s*(\d+)/)
-        if (destructionMatch) {
-          metadata.destruction = `${destructionMatch[1]}레벨`
+        const destructionValue = destructionMatch?.[1]
+        if (destructionValue) {
+          metadata.destruction = `${destructionValue}레벨`
         }
       }
     })
@@ -759,7 +716,7 @@ const splitGemEffectText = (effectText?: string | null, extraEffect?: string | n
   const keyword = '추가 효과'
 
   if (base && base.includes(keyword)) {
-    const [mainPart, ...rest] = base.split(keyword)
+    const [mainPart = '', ...rest] = base.split(keyword)
     const main = mainPart.trim()
     const tail = rest.join(keyword).trim()
     return {
@@ -932,10 +889,10 @@ const parseGemTooltipMapping = (tooltip?: string | null) => {
       let effectText = ''
       let extraEffect = ''
       if (lines.length) {
-        const first = lines[0]
-        if (skillName && first.includes(skillName)) {
+        const first = lines[0] ?? ''
+        if (first && skillName && first.includes(skillName)) {
           effectText = sanitizeInline(first.replace(skillName, '').replace(/\[[^\]]+\]\s*/, ''))
-        } else {
+        } else if (first) {
           effectText = sanitizeInline(first.replace(/^\[[^\]]+\]\s*/, ''))
         }
         const extraIdx = lines.findIndex(line => /추가\s*효과/.test(line))
@@ -1034,12 +991,13 @@ const gemBadgesBySkill = computed(() => {
     map.get(key)!.push(badge)
   })
 
-  inventoryGems.forEach((gem, index) => {
-    const parsed = parseGemTooltipMapping(gem?.Tooltip)
-    const skillName = parsed?.skillName
-    const key = normalizeSkillKey(skillName)
-    if (!key) return
-    const splitEffect = splitGemEffectText(parsed.effectText, parsed.extraEffect)
+inventoryGems.forEach((gem, index) => {
+  const parsed = parseGemTooltipMapping(gem?.Tooltip)
+  if (!parsed) return
+  const skillName = parsed.skillName
+  const key = normalizeSkillKey(skillName)
+  if (!key) return
+  const splitEffect = splitGemEffectText(parsed.effectText, parsed.extraEffect)
     const badge: SkillGemBadge = {
       key: `${skillName}-inv-${index}`,
       name: sanitizeInline(gem?.Name) || '보석',
@@ -1115,7 +1073,7 @@ const skillCards = computed<SkillCardView[]>(() => {
             key: `${name}-tripod-${tripodIndex}`,
             name: sanitizeInline(tripod.name) || `트라이포드 ${tripodIndex + 1}`,
             icon: tripod.icon || undefined,
-            tier: tripod.tier + 1 ?? undefined,
+            tier: typeof tripod.tier === 'number' ? tripod.tier + 1 : undefined,
             slot: typeof tripod.slot === 'number' ? tripod.slot : undefined,
             slotLabel: typeof tripod.slot === 'number' ? `${tripod.slot}` : `${tripodIndex + 1}`,
             levelLabel: formatLevelLabel(tripod.level),
@@ -1155,7 +1113,7 @@ const skillCards = computed<SkillCardView[]>(() => {
         awakeningType: awakeningKind ?? undefined,
         skillTypeCode: parsedSkillType ?? undefined,
         originalIndex: entry.originalIndex,
-        runeEffect: skill.rune ? extractNextLineAfterKeyword(skill.rune.tooltip ?? skill.rune.description, '스킬 룬 효과') : undefined
+        runeEffect: skill.rune ? extractNextLineAfterKeyword(skill.rune.tooltip, '스킬 룬 효과') : undefined
       }
     })
 })
@@ -1371,8 +1329,8 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .skill-panel-placeholder {
   padding: 32px;
   border-radius: 16px;
-  border: 1px dashed var(--border-color, #e5e7eb);
-  background: var(--surface-muted, #f9fafb);
+  background: var(--surface-color, #fff);
+  box-shadow: 0 10px 26px rgba(17, 24, 39, 0.06);
 }
 
 .skill-panel-retry {
@@ -1389,7 +1347,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .skill-panel-layout {
   display: flex;
   flex-wrap: wrap;
-  gap: 32px;
+  gap: 36px;
 }
 
 /* ===== 섹션 헤딩 ===== */
@@ -1401,7 +1359,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 }
 
 .section-heading h4 {
-  margin: 0 0 4px;
+  margin: 0 0 10px;
   font-size: 1rem;
   color: var(--text-primary, #1f2937);
 }
@@ -1414,10 +1372,10 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 /* ===== 스킬 섹션 ===== */
 .skill-section {
-  padding: 15px;
+  padding: 25px;
   border-radius: 16px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  background: var(--card-bg, #fbfbfb);
+  background: var(--surface-color, #fff);
+  box-shadow: 0 10px 26px rgba(17, 24, 39, 0.06);
   width: fit-content;
 }
 
@@ -1430,8 +1388,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 /* 초각성 스킬 하이라이트 섹션 */
 .skill-section--highlight {
   border-color: rgba(59, 130, 246, 0.4);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(191, 219, 254, 0.15));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  background:  rgba(59, 130, 246, 0.08);
 }
 
 /* ===== 스킬 카드 그룹 ===== */
@@ -1546,7 +1503,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   width: 100%;
   border-radius: 12px;
   padding: 10px;
-  background: transparent;
 }
 
 .skill-card-inline-row {
@@ -1557,7 +1513,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-card--enhanced-row {
   width: 100%;
-  border-bottom: 1px dashed var(--border-color);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .skill-card-main {
@@ -1662,7 +1618,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   padding: 10px 12px;
   background: var(--surface-muted, #f9fafb);
   border-radius: 8px;
-  border: 1px solid var(--border-color, #e5e7eb);
   color: var(--text-secondary, #4b5563);
   font-size: 0.85rem;
   line-height: 1.5;
@@ -2318,6 +2273,55 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   flex: 1;
   min-width: 0;
   word-break: keep-all;
+}
+
+@media (max-width: 1100px) {
+  .skill-card-pair-columns {
+    flex-wrap: wrap;
+  }
+  .skill-card {
+    padding: 12px;
+  }
+  .skill-card-inline-row {
+    grid-template-columns: repeat(3, minmax(70px, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .skill-panel-layout {
+    gap: 20px;
+  }
+  .skill-card-grid {
+    gap: 12px;
+  }
+  .skill-card-inline-row {
+    grid-template-columns: repeat(2, minmax(100px, 1fr));
+  }
+  .skill-card--compact .skill-card-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .skill-card--compact .skill-card-meta {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .skill-card {
+    padding: 10px;
+  }
+  .skill-card-main {
+    flex-direction: column;
+  }
+  .skill-card-hero {
+    flex-wrap: wrap;
+  }
+  .skill-card-icon-block {
+    width: 48px;
+  }
+  .skill-card-meta {
+    gap: 4px;
+  }
 }
 
 .skill-gem-extra {

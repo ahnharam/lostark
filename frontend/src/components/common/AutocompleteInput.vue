@@ -228,7 +228,10 @@ const navigateUp = () => {
 // 현재 선택된 항목 선택
 const selectCurrent = () => {
   if (selectedIndex.value >= 0 && selectedIndex.value < filteredSuggestions.value.length) {
-    selectSuggestion(filteredSuggestions.value[selectedIndex.value])
+    const suggestion = filteredSuggestions.value[selectedIndex.value]
+    if (suggestion) {
+      selectSuggestion(suggestion)
+    }
   } else if (localValue.value.trim()) {
     // 선택된 항목이 없으면 입력값으로 검색
     closeSuggestions()

@@ -16,7 +16,7 @@
       :alt="alt"
       :class="imageClass"
       :referrerpolicy="referrerPolicy"
-      :crossorigin="crossOrigin || null"
+      :crossorigin="crossOrigin || undefined"
       @load="onLoad"
       @error="onError"
     />

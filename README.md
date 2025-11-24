@@ -64,6 +64,13 @@ lostark-project/
   - `backend/`는 Gradle 기반이며 `./gradlew bootRun`으로 실행합니다.
   - `src/main/resources/application.yml`은 `SPRING_DATASOURCE_*`, `LOSTARK_API_KEY` 등 환경 변수를 주입받도록 설계되어 다른 인프라로 옮겨도 설정만 교체하면 됩니다.
 
+## 구조 정리·정렬 프레임워크
+- **분석(Inventory)**: 기능 단위로 중복/흩어진 로직을 `rg`/`ts-prune` 등으로 수집하고, “한 기능 = 한 유틸/컴포넌트” 매핑표를 작성합니다.
+- **정리(Consolidate)**: 공통 규칙을 유틸/컴포넌트/서비스 레이어로 올리고, 이름·타입·리턴 형태를 표준화합니다. 예) 툴팁 파싱/정리 → `src/utils/tooltipText.ts`.
+- **정렬(Align)**: 사용처를 새 유틸로 치환하고, 임시/중복 함수를 제거합니다. 동일 입력에 동일 결과가 나오도록 옵션을 정의하고 테스트(또는 샘플 데이터)로 검증합니다.
+- **검증(Verify)**: ESLint/TypeScript 체크 → 주요 화면 스모크 테스트(검색, 상세 모달, 스킬/아크 그리드 등) 순서로 확인합니다.
+- **문서화(Guide)**: README에 “어떤 기능을 어디서 다루는지” 표와 정리 규칙을 남겨 이후 기여자가 동일한 흐름을 따르도록 합니다.
+
 ## Git 사용 순서
 ```bash
 git init
