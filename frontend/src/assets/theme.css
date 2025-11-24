@@ -6,6 +6,7 @@
   --bg-hover: #e9ecef;
   --bg-gradient-start: #667eea;
   --bg-gradient-end: #764ba2;
+  --page-bg: #f7f8fa;
 
   /* 텍스트 색상 */
   --text-primary: #333333;
@@ -135,6 +136,7 @@
   --bg-hover: #3a3a3a;
   --bg-gradient-start: #4a5568;
   --bg-gradient-end: #2d3748;
+  --page-bg: #0f1115;
 
   /* 텍스트 색상 */
   --text-primary: #e0e0e0;

@@ -47,7 +47,6 @@ const getThemeLabel = () => {
 .theme-toggle {
   display: flex;
   align-items: center;
-  min-width: 200px;
 }
 
 .theme-toggle-btn {

@@ -1934,14 +1934,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-pill-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-
-.summary-pill-row--wrap {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
 }
 
 .summary-pill {
@@ -1955,6 +1951,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   font-size: var(--font-xs);
   border: none;
   white-space: nowrap;
+  justify-content: space-around;
 }
 
 .summary-pill--primary {
@@ -2073,6 +2070,12 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   justify-content: center;
   font-weight: 700;
   color: var(--text-secondary);
+}
+
+.ark-core-layout{
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .ark-core-grid {
@@ -2267,12 +2270,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .hero-avatar-controls {
   display: flex;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
+  justify-content: space-evenly;
   padding: 4px;
-  border-radius: 999px;
-  backdrop-filter: blur(8px);
 }
 
 .hero-avatar-btn {
@@ -2477,6 +2476,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  width:100%;
 }
 
 .special-grid--icons {
@@ -2490,16 +2490,15 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .special-icon-wrapper {
   position: relative;
   width: 100%;
-  max-width: 110px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 10px;
   border: 2px solid transparent;
   border-radius: 16px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
+  padding:10px;
 }
 
 .special-icon-wrapper.is-hovered .special-icon-box {
@@ -2524,8 +2523,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .special-icon-box {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2981,6 +2980,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .paradise-info {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
 }
 
 .paradise-item {

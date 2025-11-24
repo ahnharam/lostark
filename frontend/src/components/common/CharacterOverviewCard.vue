@@ -162,8 +162,8 @@
               v-if="special.item.icon"
               :src="special.item.icon"
               :alt="special.item.name"
-              width="56"
-              height="56"
+              width="40"
+              height="40"
               imageClass="special-icon"
               errorIcon="🧭"
               :useProxy="true"
@@ -384,7 +384,7 @@ onBeforeUnmount(() => {
 .hero-avatar-column {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
 
@@ -469,13 +469,13 @@ onBeforeUnmount(() => {
 }
 
 .meta-item span {
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
 }
 
 .meta-item strong {
   display: block;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: var(--text-primary);
 }
 
@@ -488,19 +488,17 @@ onBeforeUnmount(() => {
 .profile-stat {
   padding: 12px 10px;
   border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
 }
 
 .profile-stat span {
   display: block;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
 }
 
 .profile-stat strong {
   display: block;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   color: var(--text-primary);
 }
 
@@ -508,28 +506,21 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-.paradise-info {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 .paradise-item {
   padding: 8px 12px;
   border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
 }
 
 .paradise-item span {
   display: block;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
 }
 
 .paradise-item strong {
   display: block;
   color: var(--text-primary);
+  font-size: 0.9rem;
 }
 
 .hero-row--special {
@@ -549,20 +540,7 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-.special-grid--icons {
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-}
-
-.special-icon-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  position: relative;
-}
-
 .special-icon-box {
-  padding: 8px;
   border-radius: 14px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);

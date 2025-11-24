@@ -1,27 +1,45 @@
 <template>
   <div class="main-layout">
-    <header class="main-header">
-      <div class="main-brand">
-        <strong>LOA Toolkit</strong>
-        <span>Lost Ark 도우미</span>
-      </div>
-      <nav class="main-nav" aria-label="주 메뉴">
-        <button
-          v-for="item in menuItems"
-          :key="item.key"
-          type="button"
-          class="main-nav__btn"
-          :class="{ active: activeMenu === item.key, disabled: !item.available }"
-          :disabled="!item.available"
-          @click="selectMenu(item.key)"
-        >
-          <span aria-hidden="true">{{ item.icon }}</span>
-          {{ item.label }}
-          <span v-if="item.badge" class="main-nav__badge">{{ item.badge }}</span>
-        </button>
+    <button
+      type="button"
+      class="menu-trigger"
+      :aria-expanded="menuOpen"
+      aria-label="메인 메뉴 열기"
+      @click="toggleMenu"
+    >
+      <span class="menu-trigger__icon">☰</span>
+    </button>
+
+    <transition name="menu-slide">
+      <nav
+        v-if="menuOpen"
+        class="menu-drawer"
+        aria-label="주 메뉴"
+      >
+        <div class="menu-drawer__inner">
+          <div class="menu-inline">
+            <span class="menu-logo">Loap</span>
+            <div class="menu-items-row">
+              <button
+                v-for="item in menuItems"
+                :key="item.key"
+                type="button"
+                class="menu-item"
+                :class="{ active: activeMenu === item.key, disabled: !item.available }"
+                :disabled="!item.available"
+                @click="handleMenuSelect(item.key)"
+              >
+                <span class="menu-item__icon" aria-hidden="true">{{ item.icon }}</span>
+                <span class="menu-item__label">{{ item.label }}</span>
+                <span v-if="item.badge" class="menu-item__badge">{{ item.badge }}</span>
+              </button>
+            </div>
+            <ThemeToggle class="menu-theme-toggle" />
+          </div>
+          <button class="menu-close" type="button" @click="closeMenu" aria-label="메뉴 닫기"></button>
+        </div>
       </nav>
-      <ThemeToggle class="main-theme-toggle" />
-    </header>
+    </transition>
 
     <div class="layout-body">
       <aside class="ad-slot ad-slot--left" aria-label="왼쪽 광고 영역">
@@ -83,6 +101,7 @@ const { initTheme } = useTheme()
 initTheme()
 
 const activeMenu = ref<MainMenuKey>(normalizeMenu(route.params.menu))
+const menuOpen = ref(false)
 
 watch(
   () => route.params.menu,
@@ -91,6 +110,14 @@ watch(
   }
 )
 
+const toggleMenu = () => {
+  menuOpen.value = !menuOpen.value
+}
+
+const closeMenu = () => {
+  menuOpen.value = false
+}
+
 const selectMenu = (menu: MainMenuKey) => {
   if (activeMenu.value === menu) return
   activeMenu.value = menu
@@ -98,6 +125,11 @@ const selectMenu = (menu: MainMenuKey) => {
     name: 'main',
     params: menu === 'character-search' ? {} : { menu }
   })
+}
+
+const handleMenuSelect = (menu: MainMenuKey) => {
+  selectMenu(menu)
+  closeMenu()
 }
 
 const componentMap: Record<MainMenuKey, unknown> = {
@@ -118,17 +150,32 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
   background: var(--page-bg, #f7f8fa);
 }
 
-.main-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
-  background: var(--card-bg, #ffffff);
-  position: sticky;
-  top: 0;
+.menu-trigger {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f3f4f6);
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
   z-index: 10;
+}
+
+.menu-trigger:hover,
+.menu-trigger:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--primary-color, #6366f1);
+}
+
+.menu-trigger__icon {
+  line-height: 1;
 }
 
 .main-brand {
@@ -139,26 +186,67 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
 }
 
 .main-brand strong {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .main-brand span {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-muted, #6b7280);
 }
 
-.main-nav {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
+.menu-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--card-bg, #ffffff);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  z-index: 30;
+  overflow: visible;
 }
 
-.main-nav__btn {
+.menu-drawer__inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  overflow: visible;
+}
+
+.menu-inline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.menu-logo {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary, #111827);
+}
+
+.menu-items-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  overflow: visible;
+  padding: 4px 0;
+}
+
+.menu-theme-toggle {
+  margin-left: auto;
+}
+
+.menu-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border-color, #e5e7eb);
   background: var(--bg-secondary, #f3f4f6);
@@ -168,22 +256,16 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
   transition: all 0.2s ease;
 }
 
-.main-nav__btn:hover {
-  border-color: var(--primary-color, #6366f1);
+.menu-item__icon {
+  font-size: 1.1rem;
 }
 
-.main-nav__btn.active {
-  background: rgba(99, 102, 241, 0.16);
-  border-color: var(--primary-color, #6366f1);
-  color: var(--primary-color, #6366f1);
+.menu-item__label {
+  flex: 1;
+  text-align: left;
 }
 
-.main-nav__btn.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.main-nav__badge {
+.menu-item__badge {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--bg-secondary, #eef2ff);
@@ -191,8 +273,56 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
   color: var(--primary-color, #6366f1);
 }
 
-.main-theme-toggle {
-  margin-left: auto;
+.menu-item:hover:not(.disabled),
+.menu-item:focus-visible:not(.disabled) {
+  border-color: var(--primary-color, #6366f1);
+  transform: translateY(-1px);
+}
+
+.menu-item.active {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #6366f1);
+}
+
+.menu-item.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.menu-close {
+  position: absolute;
+  left: 50%;
+  bottom: 0px;
+  transform: translate(-50%, 50%) ;
+  width: 40px;
+  height: 34px;
+  border-radius: 999px;
+  border: none;
+  background: var(--card-bg, #ffffff);
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.menu-close::after {
+  content: '▲';
+  font-size: 0.9rem;
+  color: var(--text-primary, #111827);
+  line-height: 1;
+}
+
+.menu-slide-enter-from,
+.menu-slide-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.menu-slide-enter-active,
+.menu-slide-leave-active {
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .layout-body {

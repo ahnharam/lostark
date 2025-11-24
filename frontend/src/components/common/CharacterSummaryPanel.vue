@@ -3,25 +3,13 @@
     <div v-if="activeCharacter" class="summary-grid summary-grid--modules summary-grid--stacked">
       <article class="summary-card summary-card--module summary-card--equipment">
         <div class="summary-card__head">
-          <div>
-            <p class="summary-eyebrow">장비</p>
-            <h4>세팅 스냅샷</h4>
-          </div>
-          <div class="summary-pill-row summary-pill-row--wrap" v-if="equipmentSummary.gradeBadges.length">
-            <span
-              v-for="badge in equipmentSummary.gradeBadges"
-              :key="badge.grade"
-              class="summary-pill summary-pill--ghost"
-            >
-              {{ badge.grade }} · {{ badge.count }}개
-            </span>
-          </div>
+          <p class="summary-eyebrow">장비</p>
+          <h5>무기/방어구</h5>
         </div>
         <p v-if="detailLoading" class="summary-note">장비 정보를 정리하는 중입니다...</p>
         <p v-else-if="detailError" class="summary-note summary-note--warning">{{ detailError }}</p>
         <div v-else class="equipment-grid">
           <div class="equipment-column">
-            <h5>무기/방어구</h5>
             <ul class="summary-list summary-list--flat">
               <li
                 v-for="item in equipmentSummary.left"
@@ -97,20 +85,21 @@
 
       <article class="summary-card summary-card--module summary-card--ark">
         <div class="summary-card__head">
-          <div>
-            <p class="summary-eyebrow">아크 그리드</p>
-            <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
-          </div>
-          <span
-            class="summary-chip"
-            :class="{ 'summary-chip--muted': !arkSummary.slotCount }"
-          >
-            {{ arkSummary.slotCount ? `${arkSummary.slotCount} 슬롯` : '데이터 없음' }}
-          </span>
+          <p class="summary-eyebrow">아크 그리드</p>
+          <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
         </div>
         <p v-if="arkGridLoading" class="summary-note">아크 그리드 정보를 불러오는 중입니다...</p>
         <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
-        <div v-else>
+        <div v-else class="ark-core-layout">
+          <div v-if="arkSummary.appliedPoints.length" class="summary-pill-row summary-pill-row--wrap">
+            <span
+              v-for="point in arkSummary.appliedPoints"
+              :key="point.key"
+              class="summary-pill summary-pill--primary"
+            >
+              {{ point.label }} · {{ point.value }}
+            </span>
+          </div>
           <div v-if="arkSummary.coreSlots.length" class="ark-core-grid">
             <div
               v-for="slot in arkSummary.coreSlots"
@@ -135,15 +124,6 @@
               </div>
               <p class="ark-core__name">{{ slot.name }}</p>
             </div>
-          </div>
-          <div v-if="arkSummary.appliedPoints.length" class="summary-pill-row summary-pill-row--wrap">
-            <span
-              v-for="point in arkSummary.appliedPoints"
-              :key="point.key"
-              class="summary-pill summary-pill--primary"
-            >
-              {{ point.label }} · {{ point.value }}
-            </span>
           </div>
           <p
             v-if="!arkSummary.coreSlots.length && !arkSummary.appliedPoints.length"
