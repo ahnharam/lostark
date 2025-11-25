@@ -99,6 +99,7 @@
   --radius-full: 999px;
 
   /* 폰트 크기 (Font Size) */
+  --font-xxs: 0.65rem;   /* 10.4px */
   --font-xs: 0.75rem;    /* 12px */
   --font-sm: 0.875rem;   /* 14px */
   --font-base: 1rem;     /* 16px */

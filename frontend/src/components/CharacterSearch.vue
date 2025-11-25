@@ -355,7 +355,7 @@ import CharacterOverviewCard from './common/CharacterOverviewCard.vue'
 import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
 import { cleanTooltipLine, flattenTooltipLines } from '@/utils/tooltipText'
-import { applyEffectAbbreviations } from "@/data/effectAbbreviations"
+import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbbreviations'
 
 interface ErrorState {
   message: string
@@ -757,16 +757,17 @@ const formatEffectLabel = (label: string) => {
 
     const addEffect = (label: string, full?: string, color?: string) => {
       const cleanedLabel = normalizeEffectLabel(label)
-      const normalizedLabel = formatEffectLabel(cleanedLabel)
+      const formatted = formatEffectLabel(cleanedLabel)
+      const normalizedLabel = formatted.label
       const key = `${normalizedLabel}|${full || ''}`
       if (effects.find(e => `${e.label}|${e.full || ''}` === key)) return
-      const hasAbbrev = hasAbbreviationMatch(cleanedLabel)
-      const textColor = color || (hasAbbrev ? 'var(--text-primary)' : '#6b7280')
-      const bgColor = color
-        ? hexToRgba(color, 0.16)
-        : hasAbbrev
-          ? 'var(--bg-secondary)'
-          : 'rgba(107, 114, 128, 0.15)'
+      const hasAbbrev = formatted.changed
+      const textColor = hasAbbrev ? color || 'var(--text-primary)' : '#9ca3af'
+      const bgColor = hasAbbrev
+        ? color
+          ? hexToRgba(color, 0.16)
+          : 'var(--bg-secondary)'
+        : 'rgba(156, 163, 175, 0.25)'
       effects.push({ label: normalizedLabel, full, textColor, bgColor })
     }
 

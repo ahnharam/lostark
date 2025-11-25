@@ -9,50 +9,9 @@
         <p v-if="detailLoading" class="summary-note">장비 정보를 정리하는 중입니다...</p>
         <p v-else-if="detailError" class="summary-note summary-note--warning">{{ detailError }}</p>
         <div v-else class="equipment-row-list">
-          <div
-            v-for="row in equipmentRows"
-            :key="row.key"
-            class="equipment-row"
-          >
-            <div class="equipment-side equipment-side--left">
-              <template v-if="row.left">
-                <div class="equipment-icon-stack">
-                  <LazyImage
-                    :src="row.left.icon"
-                    :alt="row.left.name"
-                    width="32"
-                    height="32"
-                    imageClass="summary-icon"
-                    errorIcon="🗡️"
-                    :useProxy="true"
-                  />
-                  <span
-                    v-if="row.left.quality"
-                    class="equipment-quality-badge"
-                    :style="qualityStyle(row.left.quality)"
-                  >
-                    {{ row.left.quality }}
-                  </span>
-                  <span class="equipment-slot-label">{{ row.left.typeLabel }}</span>
-                  <span v-if="row.left.itemLevel" class="equipment-item-level">{{ row.left.itemLevel }}</span>
-                </div>
-                <div class="equipment-badge-stack">
-                  <span v-if="row.left.enhancement" class="equipment-badge equipment-badge--enhance">
-                    강화 {{ row.left.enhancement }}
-                  </span>
-                  <span v-if="row.left.harmony" class="equipment-badge equipment-badge--harmony">
-                    상재 {{ row.left.harmony }}
-                  </span>
-                  <span v-if="row.left.transcend" class="equipment-badge equipment-badge--transcend">
-                    초월 {{ row.left.transcend }}
-                  </span>
-                </div>
-              </template>
-              <p v-else class="equipment-empty">—</p>
-            </div>
-
-            <div class="equipment-side">
-              <template v-if="row.right">
+          <div v-for="row in equipmentRows" :key="row.key" class="equipment-row">
+            <template v-if="row.right?.isBracelet && !row.left">
+              <div class="equipment-side equipment-side--bracelet">
                 <div class="equipment-icon-stack">
                   <LazyImage
                     :src="row.right.icon"
@@ -74,11 +33,7 @@
                   <span v-if="row.right.itemLevel" class="equipment-item-level">{{ row.right.itemLevel }}</span>
                 </div>
                 <div class="equipment-badge-stack">
-                  <div
-                    v-if="row.right.effects?.length"
-                    class="equipment-effect-badges"
-                    :class="{ 'equipment-effect-badges--grid': row.right.isBracelet }"
-                  >
+                  <div v-if="row.right.effects?.length" class="equipment-effect-badges equipment-effect-badges--grid">
                     <span
                       v-for="(effect, idx) in row.right.effects"
                       :key="`effect-${row.key}-${idx}`"
@@ -86,16 +41,97 @@
                       :title="effect.full || effect.label"
                       :style="{
                         backgroundColor: effect.bgColor,
-                        color: effect.textColor
                       }"
                     >
                       {{ effect.label }}
                     </span>
                   </div>
                 </div>
-              </template>
-              <p v-else class="equipment-empty">—</p>
-            </div>
+              </div>
+            </template>
+            <template v-else>
+              <div class="equipment-side equipment-side--left">
+                <template v-if="row.left">
+                  <div class="equipment-icon-stack">
+                    <LazyImage
+                      :src="row.left.icon"
+                      :alt="row.left.name"
+                      width="32"
+                      height="32"
+                      imageClass="summary-icon"
+                      errorIcon="🗡️"
+                      :useProxy="true"
+                    />
+                    <span
+                      v-if="row.left.quality"
+                      class="equipment-quality-badge"
+                      :style="qualityStyle(row.left.quality)"
+                    >
+                      {{ row.left.quality }}
+                    </span>
+                    <span class="equipment-slot-label">{{ row.left.typeLabel }}</span>
+                    <span v-if="row.left.itemLevel" class="equipment-item-level">{{ row.left.itemLevel }}</span>
+                  </div>
+                  <div class="equipment-badge-stack">
+                    <span v-if="row.left.enhancement" class="equipment-badge equipment-badge--enhance">
+                      강화 {{ row.left.enhancement }}
+                    </span>
+                    <span v-if="row.left.harmony" class="equipment-badge equipment-badge--harmony">
+                      상재 {{ row.left.harmony }}
+                    </span>
+                    <span v-if="row.left.transcend" class="equipment-badge equipment-badge--transcend">
+                      초월 {{ row.left.transcend }}
+                    </span>
+                  </div>
+                </template>
+                <p v-else class="equipment-empty">—</p>
+              </div>
+
+              <div class="equipment-side">
+                <template v-if="row.right">
+                  <div class="equipment-icon-stack">
+                    <LazyImage
+                      :src="row.right.icon"
+                      :alt="row.right.name"
+                      width="32"
+                      height="32"
+                      imageClass="summary-icon"
+                      errorIcon="💍"
+                      :useProxy="true"
+                    />
+                    <span
+                      v-if="row.right.quality && !row.right.isAbilityStone && !row.right.isBracelet"
+                      class="equipment-quality-badge"
+                      :style="qualityStyle(row.right.quality)"
+                    >
+                      {{ row.right.quality }}
+                    </span>
+                    <span class="equipment-slot-label">{{ row.right.typeLabel }}</span>
+                    <span v-if="row.right.itemLevel" class="equipment-item-level">{{ row.right.itemLevel }}</span>
+                  </div>
+                  <div class="equipment-badge-stack">
+                    <div
+                      v-if="row.right.effects?.length"
+                      class="equipment-effect-badges"
+                      :class="{ 'equipment-effect-badges--grid': row.right.isBracelet }"
+                    >
+                      <span
+                        v-for="(effect, idx) in row.right.effects"
+                        :key="`effect-${row.key}-${idx}`"
+                        class="equipment-badge equipment-badge--effect"
+                        :title="effect.full || effect.label"
+                        :style="{
+                          backgroundColor: effect.bgColor,
+                        }"
+                      >
+                        {{ effect.label }}
+                      </span>
+                    </div>
+                  </div>
+                </template>
+                <p v-else class="equipment-empty">—</p>
+              </div>
+            </template>
           </div>
         </div>
       </article>
@@ -398,7 +434,7 @@ const qualityStyle = (quality?: number | string) => {
   const num = typeof quality === 'number' ? quality : Number(quality)
   const color = getQualityColor(Number.isFinite(num) ? num : undefined)
   const fallbackText = '#f9fafb'
-  const bg = 'rgba(15, 23, 42, 0.75)'
+  const bg = 'rgba(15, 23, 42, 0.333)'
   return {
     color: color || fallbackText,
     backgroundColor: bg,
