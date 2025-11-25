@@ -4,7 +4,7 @@
       <article class="summary-card summary-card--module summary-card--equipment">
         <div class="summary-card__head">
           <p class="summary-eyebrow">장비</p>
-          <h5>무기/방어구 | 장신구</h5>
+          <h4>무기 | 방어구 | 장신구</h4>
         </div>
         <p v-if="detailLoading" class="summary-note">장비 정보를 정리하는 중입니다...</p>
         <p v-else-if="detailError" class="summary-note summary-note--warning">{{ detailError }}</p>
@@ -129,7 +129,7 @@
                     </div>
                   </div>
                 </template>
-                <p v-else class="equipment-empty">—</p>
+                <p v-else class="equipment-empty"> </p>
               </div>
             </template>
           </div>
@@ -137,116 +137,177 @@
       </article>
 
       <article class="summary-card summary-card--module summary-card--ark">
-        <div class="summary-card__head">
-          <p class="summary-eyebrow">아크 그리드</p>
-          <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
-        </div>
-        <p v-if="arkGridLoading" class="summary-note">아크 그리드 정보를 불러오는 중입니다...</p>
-        <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
-        <div v-else class="ark-core-layout">
-          <div v-if="arkSummary.appliedPoints.length" class="summary-pill-row summary-pill-row--wrap">
-            <span
-              v-for="point in arkSummary.appliedPoints"
-              :key="point.key"
-              class="summary-pill summary-pill--primary"
-            >
-              {{ point.label }} · {{ point.value }}
-            </span>
-          </div>
-          <div v-if="arkSummary.coreSlots.length" class="ark-core-grid">
-            <div
-              v-for="slot in arkSummary.coreSlots"
-              :key="slot.key"
-              class="ark-core"
-            >
-              <div class="ark-core__thumb">
-                <LazyImage
-                  v-if="slot.icon"
-                  :src="slot.icon"
-                  :alt="slot.name"
-                  width="64"
-                  height="64"
-                  imageClass="ark-core__image"
-                  errorIcon="🧩"
-                  :useProxy="true"
-                />
-                <div v-else class="ark-core__placeholder" aria-hidden="true">
-                  {{ slot.initial }}
+        <div class="ark-section">
+          <div class="ark-section__block">
+            <div class="summary-card__head">
+              <p class="summary-eyebrow">아크 그리드</p>
+            </div>
+            <p v-if="arkGridLoading" class="summary-note">아크 그리드 정보를 불러오는 중입니다...</p>
+            <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
+            <div v-else class="ark-core-layout">
+              <div
+                v-if="arkSummary.coreMatrix.rows.length"
+                class="ark-core-matrix"
+                :style="{ '--ark-core-col-count': arkSummary.coreMatrix.headers.length }"
+              >
+                <div class="ark-core-matrix__header">
+                  <div class="ark-core-matrix__corner">구분</div>
+                  <div
+                    v-for="header in arkSummary.coreMatrix.headers"
+                    :key="`core-header-${header.key}`"
+                    class="ark-core-matrix__header-cell"
+                  >
+                    {{ header.label }}
+                  </div>
                 </div>
-                <span v-if="slot.pointLabel" class="ark-core__point">{{ slot.pointLabel }}</span>
+                <div
+                  v-for="row in arkSummary.coreMatrix.rows"
+                  :key="`core-row-${row.key}`"
+                  class="ark-core-matrix__row"
+                >
+                  <div class="ark-core-matrix__row-label">{{ row.label }}</div>
+                  <div
+                    v-for="cell in row.cells"
+                    :key="`core-cell-${cell.key}`"
+                    class="ark-core-matrix__cell"
+                    :class="{ 'ark-core-matrix__cell--empty': !cell.slots.length }"
+                  >
+                    <div v-if="cell.slots.length" class="ark-core-cell-grid">
+                      <div
+                        v-for="slot in cell.slots"
+                        :key="slot.key"
+                        class="ark-core"
+                      >
+                        <div class="ark-core__thumb">
+                          <LazyImage
+                            v-if="slot.icon"
+                            :src="slot.icon"
+                            :alt="slot.name"
+                            width="55"
+                            height="55"
+                            imageClass="ark-core__image"
+                            errorIcon="🧩"
+                            :useProxy="true"
+                          />
+                          <div v-else class="ark-core__placeholder" aria-hidden="true">
+                            {{ slot.initial }}
+                          </div>
+                          <span v-if="slot.pointLabel" class="ark-core__point">{{ slot.pointLabel }}</span>
+                        </div>
+                        <p class="ark-core__name">{{ slot.name }}</p>
+                      </div>
+                    </div>
+                    <p v-else class="summary-note">-</p>
+                  </div>
+                </div>
               </div>
-              <p class="ark-core__name">{{ slot.name }}</p>
+              <p v-else class="summary-note">
+                표시할 아크 그리드 정보가 없습니다.
+              </p>
             </div>
           </div>
-          <p
-            v-if="!arkSummary.coreSlots.length && !arkSummary.appliedPoints.length"
-            class="summary-note"
-          >
-            표시할 아크 그리드 정보가 없습니다.
-          </p>
+
+          <div class="ark-section__block ark-section__block--passive">
+            <div class="summary-card__head">
+              <p class="summary-eyebrow">아크 패시브</p>
+              <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
+            </div>
+            <div v-if="arkSummary.passiveMatrix?.length" class="ark-passive-summary">
+              <div class="ark-passive-grid">
+                <div class="ark-passive-grid-header">
+                  <span class="ark-passive-header-cell ark-passive-header-tier">티어</span>
+                  <span
+                    v-for="point in arkSummary.appliedPoints"
+                    :key="point.key"
+                    class="ark-passive-header-cell"
+                  >
+                    {{ point.label }} · {{ point.value }}
+                  </span>
+                </div>
+                <div
+                  v-for="row in arkSummary.passiveMatrix.slice(0, 4)"
+                  :key="row.id"
+                  class="ark-passive-grid-row"
+                >
+                  <span class="ark-passive-tier">{{ row.label }}</span>
+                  <div
+                    v-for="section in row.sections"
+                    :key="`${row.id}-${section.key}`"
+                    class="ark-passive-cell"
+                  >
+                    <div v-if="section.effects.length" class="ark-passive-cell-list">
+                      <div
+                        v-for="effect in section.effects"
+                        :key="effect.key"
+                        class="ark-passive-chip"
+                      >
+                        <div class="ark-passive-chip-visual">
+                          <LazyImage
+                            v-if="effect.icon"
+                            :src="effect.icon"
+                            :alt="effect.name"
+                            width="32"
+                            height="32"
+                            imageClass="summary-icon"
+                            errorIcon="🌟"
+                            :useProxy="true"
+                          />
+                          <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">★</div>
+                          <span v-if="effect.levelDisplay" class="ark-passive-level">
+                            {{ effect.levelDisplay }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p v-else class="summary-note"> </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p v-else class="summary-note">패시브 정보가 없습니다.</p>
+          </div>
         </div>
       </article>
 
-      <article class="summary-card summary-card--module summary-card--arkpassive">
+      <article class="summary-card summary-card--module summary-card--engravings">
         <div class="summary-card__head">
-          <div>
-            <p class="summary-eyebrow">아크 패시브</p>
-            <h4>진화 · 깨달음 · 도약</h4>
-          </div>
+          <p class="summary-eyebrow">각인</p>
+          <!-- <h4>전설 · 유물 · 고대</h4> -->
         </div>
-        <div v-if="arkSummary.passiveMatrix?.length" class="ark-passive-summary">
-          <div class="ark-passive-grid">
-            <div class="ark-passive-grid-header">
-              <span class="ark-passive-header-cell ark-passive-header-tier">티어</span>
-              <span
-                v-for="section in arkSummary.passiveMatrix[0].sections"
-                :key="`header-${section.key}`"
-                class="ark-passive-header-cell"
-              >
-                {{ section.label }}
+        <div v-if="engravingSummary.length" class="summary-list summary-list--flat">
+          <div
+            v-for="engrave in engravingSummary"
+            :key="engrave.key"
+            class="summary-list-item summary-list-item--plain"
+          >
+            <LazyImage
+              v-if="engrave.icon || engravingIcon(engrave.name)"
+              :src="engrave.icon || engravingIcon(engrave.name)"
+              :alt="engrave.name"
+              width="45"
+              height="45"
+              imageClass="summary-icon"
+              errorIcon="🔮"
+              :useProxy="true"
+            />
+            <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">
+              {{ engrave.gradeLabel?.[0] || 'E' }}
+            </div>
+            <div class="summary-list-text">
+              <p class="summary-title">{{ engrave.name }}</p>
+              <p class="summary-sub">{{ engrave.gradeLabel }}</p>
+            </div>
+            <div class="summary-pill-row summary-pill-row--wrap">
+              <span v-if="engrave.levelLabel" class="summary-pill summary-pill--primary">
+                {{ engrave.levelLabel }}
+              </span>
+              <span v-if="engrave.craftLabel" class="summary-pill summary-pill--ghost">
+                {{ engrave.craftLabel }}
               </span>
             </div>
-            <div
-              v-for="row in arkSummary.passiveMatrix.slice(0, 4)"
-              :key="row.id"
-              class="ark-passive-grid-row"
-            >
-              <span class="ark-passive-tier">{{ row.label }}</span>
-              <div
-                v-for="section in row.sections"
-                :key="`${row.id}-${section.key}`"
-                class="ark-passive-cell"
-              >
-                <div v-if="section.effects.length" class="ark-passive-cell-list">
-                  <div
-                    v-for="effect in section.effects"
-                    :key="effect.key"
-                    class="ark-passive-chip"
-                  >
-                    <div class="ark-passive-chip-visual">
-                      <LazyImage
-                        v-if="effect.icon"
-                        :src="effect.icon"
-                        :alt="effect.name"
-                        width="32"
-                        height="32"
-                        imageClass="summary-icon"
-                        errorIcon="🌟"
-                        :useProxy="true"
-                      />
-                      <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">★</div>
-                      <span v-if="effect.levelDisplay" class="ark-passive-level">
-                        {{ effect.levelDisplay }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <p v-else class="summary-note">-</p>
-              </div>
-            </div>
           </div>
         </div>
-        <p v-else class="summary-note">패시브 정보가 없습니다.</p>
+        <p v-else class="summary-note">각인 정보가 없습니다.</p>
       </article>
 
       <article class="summary-card summary-card--module summary-card--skills">
@@ -278,7 +339,7 @@
             />
             <div class="summary-list-text">
               <p class="summary-title">{{ skill.name }}</p>
-              <p class="summary-sub">스킬 포인트 {{ skill.pointLabel }}</p>
+              <p class="summary-sub">스킬 포인트 {{ skill.levelLabel }}</p>
               <div class="summary-pill-row summary-pill-row--wrap">
                 <span v-if="skill.levelLabel" class="summary-pill summary-pill--primary">
                   {{ skill.levelLabel }}
@@ -297,55 +358,6 @@
           </li>
         </ul>
         <p v-else class="summary-note">요약할 스킬 정보가 없습니다.</p>
-      </article>
-
-      <article class="summary-card summary-card--module summary-card--engravings">
-        <div class="summary-card__head">
-          <div>
-            <p class="summary-eyebrow">각인</p>
-            <h4>전설 · 유물 · 고대</h4>
-          </div>
-          <span
-            class="summary-chip"
-            :class="{ 'summary-chip--muted': !engravingSummary.length }"
-          >
-            {{ engravingSummary.length ? `${engravingSummary.length}개` : '데이터 없음' }}
-          </span>
-        </div>
-        <div v-if="engravingSummary.length" class="summary-list summary-list--flat">
-          <div
-            v-for="engrave in engravingSummary"
-            :key="engrave.key"
-            class="summary-list-item summary-list-item--plain"
-          >
-            <LazyImage
-              v-if="engrave.icon"
-              :src="engrave.icon"
-              :alt="engrave.name"
-              width="32"
-              height="32"
-              imageClass="summary-icon"
-              errorIcon="🔮"
-              :useProxy="true"
-            />
-            <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">
-              {{ engrave.gradeLabel?.[0] || 'E' }}
-            </div>
-            <div class="summary-list-text">
-              <p class="summary-title">{{ engrave.name }}</p>
-              <p class="summary-sub">{{ engrave.gradeLabel }}</p>
-            </div>
-            <div class="summary-pill-row summary-pill-row--wrap">
-              <span v-if="engrave.levelLabel" class="summary-pill summary-pill--primary">
-                {{ engrave.levelLabel }}
-              </span>
-              <span v-if="engrave.craftLabel" class="summary-pill summary-pill--ghost">
-                {{ engrave.craftLabel }}
-              </span>
-            </div>
-          </div>
-        </div>
-        <p v-else class="summary-note">각인 정보가 없습니다.</p>
       </article>
 
       <article class="summary-card summary-card--module summary-card--collection">
@@ -401,6 +413,7 @@ import LazyImage from './LazyImage.vue'
 import EmptyState from './EmptyState.vue'
 import type { CharacterProfile } from '@/api/types'
 import { getQualityColor } from '@/utils/tooltipParser'
+import { getEngravingIcon } from '@/assets/BuffImage'
 
 const props = defineProps<{
   activeCharacter: CharacterProfile | null
@@ -442,4 +455,6 @@ const qualityStyle = (quality?: number | string) => {
     borderColor: color ? `${color}55` : 'rgba(255,255,255,0.15)'
   }
 }
+
+const engravingIcon = (name?: string) => getEngravingIcon(name || '')
 </script>
