@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
   padding: 15px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
-  gap: 25px;
+  gap: 15px;
   flex: 0 0 380px;
   height: fit-content;
   overflow: visible;
@@ -368,7 +368,7 @@ onBeforeUnmount(() => {
 .hero-row {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .hero-levels-grid {
@@ -526,7 +526,7 @@ onBeforeUnmount(() => {
 .hero-row--special {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .special-header {

@@ -5,109 +5,124 @@
         <h1>LOA Character Search</h1>
       </div>
       <div class="header-search">
-        <div class="search-panel-wrapper" ref="searchPanelWrapperRef">
-          <AutocompleteInput
-            v-model="characterName"
-            :suggestions="[]"
-            placeholder="캐릭터명을 입력하세요"
-            inputClass="search-input"
-            :min-chars="1"
-            :max-suggestions="8"
-            @select="handleSuggestionSelect"
-            @keyup.enter="searchCharacterByInput"
-            @focus="handleSearchFocus"
-          />
+        <div class="header-search__row">
+          <div class="search-panel-wrapper" ref="searchPanelWrapperRef">
+            <AutocompleteInput
+              v-model="characterName"
+              :suggestions="[]"
+              placeholder="캐릭터명을 입력하세요"
+              inputClass="search-input"
+              :min-chars="1"
+              :max-suggestions="8"
+              @select="handleSuggestionSelect"
+              @keyup.enter="searchCharacterByInput"
+              @focus="handleSearchFocus"
+            />
 
-          <div v-if="shouldShowSearchPanel" class="search-panel-dropdown">
-            <div class="search-panel-tabs">
-              <button
-                type="button"
-                class="search-panel-tab"
-                :class="{ active: activeSearchPanelTab === 'recent' }"
-                @click="activeSearchPanelTab = 'recent'"
-              >
-                최근 검색
-              </button>
-              <button
-                type="button"
-                class="search-panel-tab"
-                :class="{ active: activeSearchPanelTab === 'favorites' }"
-                @click="activeSearchPanelTab = 'favorites'"
-              >
-                내 즐겨찾기
-              </button>
-            </div>
+            <div v-if="shouldShowSearchPanel" class="search-panel-dropdown">
+              <div class="search-panel-tabs">
+                <button
+                  type="button"
+                  class="search-panel-tab"
+                  :class="{ active: activeSearchPanelTab === 'recent' }"
+                  @click="activeSearchPanelTab = 'recent'"
+                >
+                  최근 검색
+                </button>
+                <button
+                  type="button"
+                  class="search-panel-tab"
+                  :class="{ active: activeSearchPanelTab === 'favorites' }"
+                  @click="activeSearchPanelTab = 'favorites'"
+                >
+                  내 즐겨찾기
+                </button>
+              </div>
 
-            <div class="search-panel-content">
-              <template v-if="activeSearchPanelTab === 'recent'">
-                <div class="panel-section-header">
-                  <span>최근 검색</span>
-                  <button
-                    v-if="history.length > 0"
-                    type="button"
-                    class="panel-clear-btn"
-                    @click="clearHistory"
-                  >
-                    전체 삭제
-                  </button>
-                </div>
-                <div v-if="panelHistoryItems.length === 0" class="panel-empty">
-                  {{ history.length === 0 ? '검색 기록이 없습니다' : '일치하는 검색 기록이 없습니다' }}
-                </div>
-                <ul v-else class="panel-list">
-                  <li
-                    v-for="item in panelHistoryItems"
-                    :key="item.id"
-                  >
+              <div class="search-panel-content">
+                <template v-if="activeSearchPanelTab === 'recent'">
+                  <div class="panel-section-header">
+                    <span>최근 검색</span>
                     <button
+                      v-if="history.length > 0"
                       type="button"
-                      class="panel-list-item"
-                      @click="handleSearchPanelSelect(item.characterName)"
+                      class="panel-clear-btn"
+                      @click="clearHistory"
                     >
-                      <span class="panel-list-name">{{ item.characterName }}</span>
-                      <span class="panel-list-meta">🕒</span>
+                      전체 삭제
                     </button>
-                  </li>
-                </ul>
-              </template>
+                  </div>
+                  <div v-if="panelHistoryItems.length === 0" class="panel-empty">
+                    {{ history.length === 0 ? '검색 기록이 없습니다' : '일치하는 검색 기록이 없습니다' }}
+                  </div>
+                  <ul v-else class="panel-list">
+                    <li
+                      v-for="item in panelHistoryItems"
+                      :key="item.id"
+                    >
+                      <button
+                        type="button"
+                        class="panel-list-item"
+                        @click="handleSearchPanelSelect(item.characterName)"
+                      >
+                        <span class="panel-list-name">{{ item.characterName }}</span>
+                        <span class="panel-list-meta">🕒</span>
+                      </button>
+                    </li>
+                  </ul>
+                </template>
 
-              <template v-else>
-                <div class="panel-section-header">
-                  <span>내 즐겨찾기</span>
-                </div>
-                <div v-if="panelFavoriteItems.length === 0" class="panel-empty">
-                  {{ favorites.length === 0 ? '즐겨찾기가 비어있어요' : '일치하는 즐겨찾기가 없습니다' }}
-                </div>
-                <div v-else class="panel-favorite-list">
-                  <button
-                    v-for="fav in panelFavoriteItems"
-                    :key="fav.characterName"
-                    type="button"
-                    class="panel-favorite-item"
-                    @click="handleSearchPanelSelect(fav.characterName)"
-                  >
-                    <LazyImage
-                      :src="fav.characterImage || ''"
-                      :alt="fav.characterName"
-                      width="38"
-                      height="38"
-                      imageClass="panel-favorite-image"
-                      errorIcon="❔"
-                    />
-                    <div class="panel-favorite-details">
-                      <span class="panel-favorite-name">{{ fav.characterName }}</span>
-                      <span class="panel-favorite-meta">
-                        {{ fav.serverName }} · {{ formatItemLevel(fav.itemMaxLevel || fav.itemAvgLevel) }}
-                      </span>
-                    </div>
-                  </button>
-                </div>
-              </template>
+                <template v-else>
+                  <div class="panel-section-header">
+                    <span>내 즐겨찾기</span>
+                  </div>
+                  <div v-if="panelFavoriteItems.length === 0" class="panel-empty">
+                    {{ favorites.length === 0 ? '즐겨찾기가 비어있어요' : '일치하는 즐겨찾기가 없습니다' }}
+                  </div>
+                  <div v-else class="panel-favorite-list">
+                    <button
+                      v-for="fav in panelFavoriteItems"
+                      :key="fav.characterName"
+                      type="button"
+                      class="panel-favorite-item"
+                      @click="handleSearchPanelSelect(fav.characterName)"
+                    >
+                      <LazyImage
+                        :src="fav.characterImage || ''"
+                        :alt="fav.characterName"
+                        width="38"
+                        height="38"
+                        imageClass="panel-favorite-image"
+                        errorIcon="❔"
+                      />
+                      <div class="panel-favorite-details">
+                        <span class="panel-favorite-name">{{ fav.characterName }}</span>
+                        <span class="panel-favorite-meta">
+                          {{ fav.serverName }} · {{ formatItemLevel(fav.itemMaxLevel || fav.itemAvgLevel) }}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </template>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="header-right" aria-hidden="true"></div>
+      <div class="header-right" aria-hidden="true">
+        <div v-if="character && !loading" class="view-tabs view-tabs--header">
+            <button
+              v-for="tab in resultTabs"
+              :key="tab.key"
+              class="view-tab-button"
+              type="button"
+              :class="{ active: activeResultTab === tab.key }"
+              @click="activeResultTab = tab.key"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+      </div>
     </header>
 
     <div class="search-container">
@@ -159,19 +174,6 @@
               />
 
               <div class="results-panel">
-                <div class="view-tabs">
-                  <button
-                    v-for="tab in resultTabs"
-                    :key="tab.key"
-                    class="view-tab-button"
-                    type="button"
-                    :class="{ active: activeResultTab === tab.key }"
-                    @click="activeResultTab = tab.key"
-                  >
-                    {{ tab.label }}
-                  </button>
-                </div>
-
                 <CharacterSummaryPanel
                   v-if="activeResultTab === 'summary'"
                   :active-character="activeCharacter"
@@ -738,7 +740,7 @@ const formatEffectLabel = (label: string) => {
       hash |= 0
     }
     const hue = Math.abs(hash) % 360
-    const bgColor = `hsl(${hue}deg 80% 92%)`
+    const bgColor = ``
     const textColor = `hsl(${hue}deg 45% 30%)`
     return { label, full, bgColor, textColor }
   }
@@ -762,12 +764,13 @@ const formatEffectLabel = (label: string) => {
       const key = `${normalizedLabel}|${full || ''}`
       if (effects.find(e => `${e.label}|${e.full || ''}` === key)) return
       const hasAbbrev = formatted.changed
-      const textColor = hasAbbrev ? color || 'var(--text-primary)' : '#9ca3af'
+      const textColor = hasAbbrev ? color || 'var(--text-primary)' : 'var(--text-secondary)'
+      const neutralBg = 'var(--bg-secondary)'
       const bgColor = hasAbbrev
         ? color
           ? hexToRgba(color, 0.16)
-          : 'var(--bg-secondary)'
-        : 'rgba(156, 163, 175, 0.25)'
+          : neutralBg
+        : neutralBg
       effects.push({ label: normalizedLabel, full, textColor, bgColor })
     }
 
@@ -894,6 +897,7 @@ const formatEffectLabel = (label: string) => {
     const accessory = isAccessory(item)
     const bracelet = isBracelet(item)
     const abilityStone = isAbilityStone(item)
+    const gradeLabel = inlineText(item.grade) || '등급 미상'
     if (abilityStone) {
       typeLabel = '돌'
     }
@@ -928,9 +932,9 @@ const formatEffectLabel = (label: string) => {
       key: `${item.name || 'equipment'}-${index}`,
       name: enhancement ? `+${enhancement}` : inlineText(item.name) || `장비 ${index + 1}`,
       typeLabel,
-      grade: inlineText(item.grade),
+      grade: gradeLabel,
       icon: item.icon || '',
-      itemLevel: abilityStone ? '' : meta.itemLevel || fallbackItemLevel,
+      itemLevel: accessory || bracelet || abilityStone ? gradeLabel : meta.itemLevel || fallbackItemLevel,
       quality: meta.quality,
       transcend: accessory ? '' : meta.transcend,
       harmony: accessory ? '' : meta.harmony,
@@ -1227,6 +1231,61 @@ const buildArkPassiveMatrix = (effects: ArkPassiveEffect[] = []): PassiveSummary
   return rows.sort((a, b) => tierValue(a.label) - tierValue(b.label))
 }
 
+const parseCoreMeta = (rawName: string) => {
+  const alignmentMatch = rawName.match(/(질서|혼돈)/)
+  const alignment: 'order' | 'chaos' | 'unknown' =
+    alignmentMatch?.[1] === '질서' ? 'order' : alignmentMatch?.[1] === '혼돈' ? 'chaos' : 'unknown'
+
+  const celestialMatch = rawName.match(/(해|달|별)/)
+  const celestialMap: Record<string, 'sun' | 'moon' | 'star'> = {
+    '해': 'sun',
+    '달': 'moon',
+    '별': 'star'
+  }
+  const celestial = celestialMap[celestialMatch?.[1] ?? ''] ?? 'unknown'
+
+  const cleaned = rawName.replace(/^(질서|혼돈)?\s*의?\s*(해|달|별)?\s*코어\s*[:：]?\s*/i, '').trim()
+  const displayName = cleaned || rawName
+
+  return {
+    alignment,
+    celestial,
+    displayName
+  }
+}
+
+const buildCoreMatrix = (coreSlots: Array<{ alignment: string; celestial: string }>) => {
+  const hasSlots = coreSlots.length > 0
+  if (!hasSlots) return { headers: [] as Array<{ key: string; label: string }>, rows: [] as any[] }
+
+  const baseHeaders: Array<{ key: string; label: string }> = [
+    { key: 'sun', label: '해' },
+    { key: 'moon', label: '달' },
+    { key: 'star', label: '별' }
+  ]
+  const hasUnknownCelestial = coreSlots.some(slot => slot.celestial === 'unknown')
+  const headers = hasUnknownCelestial ? [...baseHeaders, { key: 'unknown', label: '기타' }] : baseHeaders
+
+  const baseRows: Array<{ key: string; label: string }> = [
+    { key: 'order', label: '질서' },
+    { key: 'chaos', label: '혼돈' }
+  ]
+  const hasUnknownAlignment = coreSlots.some(slot => slot.alignment === 'unknown')
+  const rowsWithUnknown = hasUnknownAlignment ? [...baseRows, { key: 'unknown', label: '기타' }] : baseRows
+
+  const rows = rowsWithUnknown.map(row => ({
+    key: row.key,
+    label: row.label,
+    cells: headers.map(header => ({
+      key: `${row.key}-${header.key}`,
+      label: header.label,
+      slots: coreSlots.filter(slot => slot.alignment === row.key && slot.celestial === header.key)
+    }))
+  }))
+
+  return { headers, rows }
+}
+
 const arkSummary = computed(() => {
   const passive = arkGridResponse.value?.arkPassive
   const grid = arkGridResponse.value?.arkGrid
@@ -1234,18 +1293,23 @@ const arkSummary = computed(() => {
 
   const coreSlots = (grid?.slots ?? [])
     .map((slot, index) => {
-      const name = inlineText(slot.name) || `코어 ${slot.index ?? index + 1}`
+      const rawName = inlineText(slot.name) || `코어 ${slot.index ?? index + 1}`
+      const meta = parseCoreMeta(rawName)
+      const name = meta.displayName
       const pointLabel =
         slot.point !== undefined && slot.point !== null ? `${slot.point}P` : ''
       return {
         key: `slot-${slot.index ?? index}`,
         name,
+        alignment: meta.alignment,
+        celestial: meta.celestial,
         icon: slot.icon || '',
         pointLabel,
         initial: name.charAt(0) || 'C'
       }
     })
     .filter(slot => slot.icon || slot.pointLabel || slot.name)
+  const coreMatrix = buildCoreMatrix(coreSlots)
 
   const appliedPoints = (passive?.points ?? [])
     .map((point, index) => {
@@ -1272,6 +1336,7 @@ const arkSummary = computed(() => {
     passiveTitle: inlineText(passive?.title),
     slotCount: grid?.slots?.length ?? 0,
     coreSlots,
+    coreMatrix,
     appliedPoints,
     passiveMatrix,
     corePassives
@@ -2004,11 +2069,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .page-header {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); */
+  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 20px;
-  padding: 20px 40px;
+  padding: 10px 20px;
   background: var(--card-bg);
   box-shadow: var(--shadow-sm);
   border-bottom: 1px solid var(--border-color);
@@ -2031,7 +2098,20 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .header-search {
   justify-self: center;
-  width: fit-content;
+  width: min(1100px, 100%);
+}
+
+.header-search__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.header-search__row .search-panel-wrapper {
+  flex: 1 1 340px;
+  min-width: 280px;
 }
 
 .header-search :deep(.autocomplete-container) {
@@ -2039,8 +2119,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .header-right {
-  width: 48px;
-  height: 1px;
+  width: 100%;
 }
 
 .search-container {
@@ -2302,16 +2381,27 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   gap: var(--space-sm);
 }
 
+.view-tabs--header {
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .view-tab-button {
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: var(--font-semibold);
   cursor: pointer;
   transition: all var(--transition-base);
+  word-break: keep-all;
+  white-space: pre-wrap;
+}
+
+.view-tabs--header .view-tab-button {
+  padding: 5px 10px;
 }
 
 .view-tab-button.active {
@@ -2383,6 +2473,35 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   font-weight: 700;
 }
 
+.ark-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+}
+
+.ark-section__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.ark-section__block + .ark-section__block {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-2xl);
+}
+
+.ark-section__subhead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ark-section__title {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
 .summary-chip {
   align-self: center;
   border-radius: var(--radius-full);
@@ -2422,9 +2541,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-list-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 60px 1fr 90px;
+  align-items: center;
   gap: var(--space-md);
   padding: 8px 0;
 }
@@ -2437,6 +2556,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width:100%;
 }
 
 .summary-title {
@@ -2453,8 +2573,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-pill-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  display: flex;
   gap: var(--space-sm);
   margin-bottom: var(--space-sm);
 }
@@ -2580,8 +2699,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-icon--fallback {
-  width: 32px;
-  height: 32px;
+  width: 55px;
+  height: 55px;
   border-radius: 8px;
   background: var(--bg-secondary);
   display: inline-flex;
@@ -2604,6 +2723,90 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   margin-bottom: var(--space-sm);
 }
 
+.ark-core-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ark-core-matrix__header,
+.ark-core-matrix__row {
+  display: grid;
+  grid-template-columns: 40px repeat(var(--ark-core-col-count, 3), minmax(0, 1fr));
+  gap: 10px;
+  align-items: center;
+  justify-items: center;
+}
+
+.ark-core-matrix__header {
+  align-items: center;
+}
+
+.ark-core-matrix__row {
+  align-items: stretch;
+}
+
+.ark-core-matrix__header-cell {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.ark-core-matrix__corner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  position: relative;
+  padding-right: 8px;
+  width: 100%;
+}
+
+.ark-core-matrix__row-label {
+  font-weight: 700;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  font-size: var(--font-xs);
+  position: relative;
+  padding-right: 8px;
+  width: 100%;
+}
+
+.ark-core-matrix__row-label::after,
+.ark-core-matrix__corner::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-color);
+}
+
+.ark-core-matrix__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.ark-core-matrix__cell--empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+
+.ark-core-cell-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: var(--space-sm);
+  width: 100%;
+}
+
 .ark-core {
   display: flex;
   flex-direction: column;
@@ -2613,8 +2816,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ark-core__thumb {
   position: relative;
-  width: 78px;
-  height: 78px;
+  width: 60px;
+  height: 60px;
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   display: flex;
@@ -2646,7 +2849,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   border-radius: var(--radius-full);
   background: var(--quality-badge-bg, rgba(15, 23, 42, 0.333));
   color: var(--primary-color);
-  font-size: var(--font-xs);
+  font-size: var(--font-xxs);
   font-weight: 700;
   text-shadow:
   -1px -1px 0 rgba(255, 255, 255, 0.9),
@@ -2658,7 +2861,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .ark-core__name {
   margin: 0;
   text-align: center;
-  font-size: calc(var(--font-sm) - 1px);
+  font-size: var(--font-xs);
   color: var(--text-secondary);
   line-height: 1.2;
 }
@@ -2675,12 +2878,20 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   gap: 10px;
 }
 
+
+.ark-passive-grid-header{
+  align-items: center;
+}
+
+.ark-passive-grid-row {
+  align-items: stretch;
+}
+
 .ark-passive-grid-header,
 .ark-passive-grid-row {
   display: grid;
   grid-template-columns: 40px repeat(3, 1fr);
   gap: 10px;
-  align-items: stretch;
   justify-items: center;
 }
 
@@ -2886,6 +3097,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   align-items: center;
   gap: 10px;
   padding: 8px 0;
+  min-height:100px;
 }
 
 .equipment-side--bracelet {
@@ -2941,7 +3153,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   padding: 15px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
-  gap: 25px;
+  gap: 15px;
   flex: 0 0 380px;
   height: fit-content;
   overflow: visible;
@@ -3226,7 +3438,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .special-header h3 {
   margin: 0;
-  font-size: calc(1rem - 2px);
+  font-size: calc(0.9rem);
   color: var(--text-secondary);
 }
 
@@ -3386,7 +3598,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .hero-row--profile-stats h3 {
   margin: 0;
-  font-size: calc(1rem - 2px);
+  font-size: calc(0.9rem);
   color: var(--text-secondary);
   text-align: center;
 }
@@ -3716,6 +3928,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
     width: 100%;
   }
 
+  .header-search__row {
+    gap: 10px;
+  }
+
   .header-right {
     display: none;
   }
@@ -3735,7 +3951,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .hero-row--paradise h3 {
   margin: 0;
-  font-size: calc(1rem - 2px);
+  font-size: calc(0.9rem);
   color: var(--text-secondary);
   text-align: center;
 }

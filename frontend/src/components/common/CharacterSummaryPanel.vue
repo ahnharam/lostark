@@ -106,8 +106,8 @@
                     >
                       {{ row.right.quality }}
                     </span>
-                    <span class="equipment-slot-label">{{ row.right.typeLabel }}</span>
                     <span v-if="row.right.itemLevel" class="equipment-item-level">{{ row.right.itemLevel }}</span>
+                    <span class="equipment-slot-label">{{ row.right.typeLabel }}</span>
                   </div>
                   <div class="equipment-badge-stack">
                     <div
