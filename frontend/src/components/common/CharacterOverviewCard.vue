@@ -464,7 +464,7 @@ onBeforeUnmount(() => {
 
 .hero-meta-grid {
   display: grid;
-  gap: 10px;
+  gap: 2px;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
@@ -482,11 +482,11 @@ onBeforeUnmount(() => {
 .profile-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  gap: 2px;
 }
 
 .profile-stat {
-  padding: 12px 10px;
+  padding: 10px;
   border-radius: 12px;
 }
 
@@ -507,7 +507,7 @@ onBeforeUnmount(() => {
 }
 
 .paradise-item {
-  padding: 8px 12px;
+  padding: 10px;
   border-radius: 12px;
 }
 

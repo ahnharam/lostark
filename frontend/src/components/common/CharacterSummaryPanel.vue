@@ -430,14 +430,15 @@ const equipmentRows = computed(() => {
   }))
 })
 
+const qualityBadgeBackground = 'var(--quality-badge-bg, rgba(15, 23, 42, 0.333))'
+
 const qualityStyle = (quality?: number | string) => {
   const num = typeof quality === 'number' ? quality : Number(quality)
   const color = getQualityColor(Number.isFinite(num) ? num : undefined)
   const fallbackText = '#f9fafb'
-  const bg = 'rgba(15, 23, 42, 0.333)'
   return {
     color: color || fallbackText,
-    backgroundColor: bg,
+    backgroundColor: qualityBadgeBackground,
     borderColor: color ? `${color}55` : 'rgba(255,255,255,0.15)'
   }
 }

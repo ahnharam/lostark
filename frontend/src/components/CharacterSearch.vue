@@ -2000,6 +2000,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   flex-direction: column;
   min-height: 100vh;
   background: var(--bg-primary);
+  --quality-badge-bg: rgba(15, 23, 42, 0.333);
 }
 
 .page-header {
@@ -2639,14 +2640,19 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ark-core__point {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
+  right: 5px;
+  bottom: 5px;
   padding: 4px 8px;
   border-radius: var(--radius-full);
-  background: rgba(102, 126, 234, 0.16);
+  background: var(--quality-badge-bg, rgba(15, 23, 42, 0.333));
   color: var(--primary-color);
   font-size: var(--font-xs);
   font-weight: 700;
+  text-shadow:
+  -1px -1px 0 rgba(255, 255, 255, 0.9),
+  1px -1px 0 rgba(255, 255, 255, 0.9),
+  -1px 1px 0 rgba(255, 255, 255, 0.9),
+  1px 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .ark-core__name {
@@ -3737,7 +3743,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .paradise-info {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
+  gap: 2px;
 }
 
 .paradise-item {
