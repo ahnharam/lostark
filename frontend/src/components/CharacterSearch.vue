@@ -1489,9 +1489,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .page-header {
   display: grid;
-  grid-template-columns: auto minmax(320px, 1fr) auto;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   align-items: center;
-  column-gap: 20px;
+  gap: 20px;
   padding: 20px 40px;
   background: var(--card-bg);
   box-shadow: var(--shadow-sm);
@@ -1503,6 +1503,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   align-items: center;
   gap: 16px;
+  width: 100%;
 }
 
 .page-header h1 {
@@ -1514,7 +1515,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .header-search {
   justify-self: center;
-  width: min(720px, 100%);
+  width: fit-content;
 }
 
 .header-search :deep(.autocomplete-container) {
