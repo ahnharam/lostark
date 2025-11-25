@@ -336,7 +336,6 @@ import type {
   Engraving,
   CharacterStat,
   ArkGridResponse,
-  ArkGridEffect,
   ArkPassiveEffect,
   SkillMenuResponse,
   Collectible,
@@ -356,6 +355,7 @@ import CharacterOverviewCard from './common/CharacterOverviewCard.vue'
 import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
 import { cleanTooltipLine, flattenTooltipLines } from '@/utils/tooltipText'
+import { applyEffectAbbreviations } from "@/data/effectAbbreviations"
 
 interface ErrorState {
   message: string
@@ -563,12 +563,96 @@ const matchStatFromLines = (lines: string[], patterns: RegExp[]) => {
 const parseEquipmentMeta = (item: Equipment) => {
   const lines = extractTooltipLines(item.tooltip)
   const itemLevel = matchStatFromLines(lines, [/아이템\s*레벨\s*([0-9.,]+)/i, /iLv\.?\s*([0-9.,]+)/i])
-  const quality = matchStatFromLines(lines, [/품질\s*([0-9]+)/i, /\(품질\)\s*([0-9]+)/i])
-  const transcend = matchStatFromLines(lines, [/초월\s*([0-9]+)/i])
+  let quality = matchStatFromLines(lines, [/품질\s*([0-9]+)/i, /\(품질\)\s*([0-9]+)/i])
   const engravingLine = matchStatFromLines(lines, [/각인\s*효과\s*(.+)/i])
-  const harmony = matchStatFromLines(lines, [/상재\s*([0-9]+)/i, /상급\s*재련\s*([0-9]+)/i])
+  let harmony = matchStatFromLines(lines, [
+    /상재\s*([0-9]+)/i,
+    /상급\s*재련\s*([0-9]+)/i,
+    /상급\s*재련[^0-9]*([0-9]+)/i
+  ])
   const mainStat = matchStatFromLines(lines, [/(힘|민첩|지능)[^0-9+]*([0-9.,]+)/i])
   const craft = matchStatFromLines(lines, [/세공\s*([0-9]+)/i])
+
+  const extractTranscendValue = (): string => {
+    const cleaned = lines.map(line => inlineText(line)).filter(Boolean)
+
+    const extractStageValue = (source?: string) => {
+      if (!source) return ''
+      const match = source.match(/(\d+)\s*(?:단계|단|레벨|lv\.?)\s*([0-9][0-9.,]*)/i)
+      if (match?.[2]) {
+        return match[2].replace(/,/g, '')
+      }
+      return ''
+    }
+
+    const valueLine = cleaned.find(line => /초월\s*(수치|경험|exp|게이지)/i.test(line))
+    const fromValueLine = (source?: string) => {
+      if (!source) return ''
+      const match = source.match(/([0-9][0-9.,]*)/)
+      return match?.[1] ? match[1].replace(/,/g, '') : ''
+    }
+    let value = fromValueLine(valueLine)
+    if (!value) {
+      const stageValueLine = cleaned.find(line => /초월/i.test(line) && /단계|단|레벨|lv\.?/i.test(line))
+      value = extractStageValue(stageValueLine)
+    }
+    if (value) return value
+
+    // fallback: look for standalone 초월 숫자 표기 (비율/확률/소모 등 제외)
+    const blacklist = /(확률|소모|재료|획득|피해|추가|필요|상자|매트릭스|재료|UP|%|\+|-)/i
+    const patterns = [
+      /초월\s*[:\-]?\s*(\d+)\s*(?:단계|단|레벨|lv\.?)/i,
+      /\[?초월\]?\s*(\d+)\s*(?:단계|단|레벨|lv\.?)/i,
+      /^초월\s*(\d+)/i
+    ]
+    for (const line of cleaned) {
+      if (!/초월/i.test(line)) continue
+      if (blacklist.test(line)) continue
+      for (const pattern of patterns) {
+        const match = line.match(pattern)
+        if (match?.[1]) {
+          return match[1]
+        }
+      }
+    }
+    if (item.tooltip) {
+      const rawValueMatch = item.tooltip.match(/초월[^\\n]{0,15}(수치|경험|exp)[^0-9]{0,6}([0-9][0-9.,]*)/i)
+      if (rawValueMatch?.[2]) return rawValueMatch[2].replace(/,/g, '')
+      const rawStageValue = extractStageValue(item.tooltip.match(/초월[^\\n]{0,40}/i)?.[0])
+      if (rawStageValue) return rawStageValue
+    }
+    return ''
+  }
+
+  const transcend = extractTranscendValue()
+
+  if ((!quality || !quality.length) && item.tooltip) {
+    try {
+      const parsed = JSON.parse(item.tooltip)
+      const qualityValue =
+        parsed?.Element_001?.value?.qualityValue ??
+        parsed?.Element_001?.value?.QualityValue ??
+        parsed?.Element_001?.value?.Quality
+      if (qualityValue !== undefined && qualityValue !== null) {
+        quality = String(qualityValue)
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+  if ((!harmony || !harmony.length) && item.tooltip) {
+    const harmonyMatch =
+      item.tooltip.match(/상급\s*재련[^0-9]*([0-9]+)/i) || item.tooltip.match(/상재[^0-9]*([0-9]+)/i)
+    if (harmonyMatch?.[1]) {
+      harmony = harmonyMatch[1]
+    }
+  }
+  if ((!transcend || !transcend.length) && item.tooltip) {
+    const transcendMatch = item.tooltip.match(/초월[^0-9]*([0-9]+)\s*(?:단계|단|레벨|lv\.?)/i)
+    if (transcendMatch?.[1]) {
+      transcend = transcendMatch[1]
+    }
+  }
   return {
     itemLevel: itemLevel ? `iLv. ${itemLevel}` : '',
     quality,
@@ -585,8 +669,17 @@ const isAccessory = (item: Equipment) => {
   return /(목걸이|귀걸이|반지|팔찌|어빌리티|돌)/.test(label)
 }
 
+const isNecklace = (item: Equipment) => /목걸이/i.test(inlineText(item.type))
+const isEarring = (item: Equipment) => /귀걸이/i.test(inlineText(item.type))
+const isRing = (item: Equipment) => /반지/i.test(inlineText(item.type))
 const isBracelet = (item: Equipment) => inlineText(item.type).includes('팔찌')
 const isAbilityStone = (item: Equipment) => /어빌리/i.test(inlineText(item.name) + inlineText(item.type))
+
+const extractEnhancementLevel = (item: Equipment) => {
+  const name = inlineText(item.name)
+  const match = name.match(/\+(\d{1,2})/)
+  return match?.[1] || ''
+}
 
 const equipmentSummary = computed(() => {
   if (!detailEquipment.value.length) {
@@ -609,33 +702,269 @@ const equipmentSummary = computed(() => {
   const stoneCraft = detailEngravings.value.find(eng => typeof eng.abilityStoneLevel === 'number')
     ?.abilityStoneLevel
 
-  detailEquipment.value.forEach((item, index) => {
-    const meta = parseEquipmentMeta(item)
-    const base = {
-      key: `${item.name || 'equipment'}-${index}`,
-      name: inlineText(item.name) || `장비 ${index + 1}`,
-      typeLabel: inlineText(item.type) || '장비',
-      grade: inlineText(item.grade),
-      icon: item.icon || '',
-      itemLevel: meta.itemLevel,
-      quality: meta.quality,
-      transcend: meta.transcend,
-      meta: summarizeEquipmentLine(item)
+  const shouldSkipEffectLabel = (label?: string) => {
+    if (!label) return true
+    const clean = inlineText(label)
+    return /아크\s*패시브\s*포인트|깨달음/i.test(clean)
+  }
+
+  const normalizeHexColor = (value?: string | null) => {
+    if (!value) return null
+    const raw = value.replace(/['"#]/g, '').trim()
+    if (!/^[0-9a-fA-F]{6}$/.test(raw)) return null
+    return `#${raw.toLowerCase()}`
+  }
+
+  const normalizeEffectLabel = (label: string) => inlineText(label).replace(/^>\s*/, '').trim()
+  const abbreviateEffect = (label: string) => applyEffectAbbreviations(normalizeEffectLabel(label))
+
+const formatEffectLabel = (label: string) => {
+  const normalized = normalizeEffectLabel(label)
+  const abbreviated = applyEffectAbbreviations(normalized)
+  return {
+    label: abbreviated,
+    normalized,
+    changed: abbreviated !== normalized
+  }
+}
+
+  const decorateEffect = (effect: { label: string; full?: string }) => {
+    const { label } = formatEffectLabel(effect.label)
+    const { full } = effect
+    if (shouldSkipEffectLabel(label)) return null
+    let hash = 0
+    for (let i = 0; i < label.length; i += 1) {
+      hash = (hash << 5) - hash + label.charCodeAt(i)
+      hash |= 0
+    }
+    const hue = Math.abs(hash) % 360
+    const bgColor = `hsl(${hue}deg 80% 92%)`
+    const textColor = `hsl(${hue}deg 45% 30%)`
+    return { label, full, bgColor, textColor }
+  }
+
+  const extractAccessoryEffects = (item: Equipment) => {
+    const effects: Array<{ label: string; full?: string; bgColor: string; textColor: string }> = []
+
+    const hexToRgba = (hex: string, alpha = 0.16) => {
+      const cleaned = hex.replace('#', '')
+      if (cleaned.length !== 6) return `rgba(0,0,0,${alpha})`
+      const r = parseInt(cleaned.slice(0, 2), 16)
+      const g = parseInt(cleaned.slice(2, 4), 16)
+      const b = parseInt(cleaned.slice(4, 6), 16)
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`
     }
 
-    if (isAccessory(item)) {
-      const special = isAbilityStone(item)
+    const addEffect = (label: string, full?: string, color?: string) => {
+      const cleanedLabel = normalizeEffectLabel(label)
+      const normalizedLabel = formatEffectLabel(cleanedLabel)
+      const key = `${normalizedLabel}|${full || ''}`
+      if (effects.find(e => `${e.label}|${e.full || ''}` === key)) return
+      const hasAbbrev = hasAbbreviationMatch(cleanedLabel)
+      const textColor = color || (hasAbbrev ? 'var(--text-primary)' : '#6b7280')
+      const bgColor = color
+        ? hexToRgba(color, 0.16)
+        : hasAbbrev
+          ? 'var(--bg-secondary)'
+          : 'rgba(107, 114, 128, 0.15)'
+      effects.push({ label: normalizedLabel, full, textColor, bgColor })
+    }
+
+    try {
+      const parsed = JSON.parse(item.tooltip)
+      const raw =
+        parsed?.Element_006?.value?.Element_001 ||
+        parsed?.Element_006?.value?.Element_000 ||
+        ''
+      if (typeof raw === 'string' && raw.length) {
+        const cleaned = raw.replace(/<img[^>]*>/gi, '')
+        const segments = cleaned.split(/<br\s*\/?>/i).map(seg => seg.trim()).filter(Boolean)
+        segments.forEach(seg => {
+          const colorMatch = seg.match(/color=['"]?(#?[0-9a-fA-F]{6})/i)
+          const color = normalizeHexColor(colorMatch?.[1] || null)
+          const label = inlineText(seg.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+          if (!label) return
+          addEffect(label, label, color)
+        })
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    if (!effects.length) {
+      const lines = extractTooltipLines(item.tooltip)
+      const startIndex = lines.findIndex(line => /연마\s*효과/i.test(line))
+      const candidates =
+        startIndex >= 0 ? lines.slice(startIndex + 1) : lines.filter(line => /연마/i.test(line))
+      const effectPattern = /[+]\s*\d|%/
+      const meaningful = candidates.filter(line => effectPattern.test(line))
+      meaningful.forEach(line => {
+        const decorated = decorateEffect({ label: inlineText(line) })
+        if (decorated) effects.push(decorated as any)
+      })
+    }
+
+    return effects.slice(0, 6)
+  }
+
+  const extractStoneEffects = (item: Equipment) => {
+    const lines = extractTooltipLines(item.tooltip)
+    const candidates = lines.filter(
+      line =>
+        (/\[.*\]/.test(line) || /세공|각인/i.test(line)) &&
+        !/세공\s*단계\s*보너스/i.test(line)
+    )
+    return candidates
+      .map(line => decorateEffect({ label: inlineText(line) }))
+      .filter(Boolean)
+      .slice(0, 3) as Array<{ label: string; full?: string; bgColor: string; textColor: string }>
+  }
+
+  const extractBraceletEffects = (item: Equipment) => {
+    const effects: Array<{ label: string; full?: string; bgColor: string; textColor: string }> = []
+
+    const hexToRgba = (hex: string, alpha = 0.16) => {
+      const cleaned = hex.replace('#', '')
+      if (cleaned.length !== 6) return `rgba(0,0,0,${alpha})`
+      const r = parseInt(cleaned.slice(0, 2), 16)
+      const g = parseInt(cleaned.slice(2, 4), 16)
+      const b = parseInt(cleaned.slice(4, 6), 16)
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`
+    }
+
+    const addEffect = (label: string, full?: string, color?: string) => {
+      const cleaned = normalizeEffectLabel(label)
+      const normalizedLabel = abbreviateEffect(cleaned)
+      const key = `${normalizedLabel}|${full || ''}`
+      if (effects.find(e => `${e.label}|${e.full || ''}` === key)) return
+      const hasAbbrev = hasAbbreviationMatch(cleaned)
+      const textColor = color || (hasAbbrev ? 'var(--text-primary)' : '#6b7280')
+      const bgColor = color
+        ? hexToRgba(color, 0.16)
+        : hasAbbrev
+          ? 'var(--bg-secondary)'
+          : 'rgba(107, 114, 128, 0.15)'
+      effects.push({ label: normalizedLabel, full, textColor, bgColor })
+    }
+
+    try {
+      const parsed = JSON.parse(item.tooltip)
+      const raw =
+        parsed?.Element_005?.value?.Element_001 ||
+        parsed?.Element_005?.value?.Element_000 ||
+        ''
+      if (typeof raw === 'string' && raw.length) {
+        const cleaned = raw.replace(/<img[^>]*>/gi, '\r\n')
+        const segments = cleaned
+          .split(/\r?\n/)
+          .map(seg => seg.trim())
+          .filter(Boolean)
+        segments.forEach(seg => {
+          const colorMatch = seg.match(/color=['"]?(#?[0-9a-fA-F]{6})/i)
+          const color = normalizeHexColor(colorMatch?.[1] || null)
+          const label = inlineText(seg.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+          if (!label) return
+          addEffect(label, label, color)
+        })
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    if (!effects.length) {
+      const lines = extractTooltipLines(item.tooltip)
+        .map(line => inlineText(line))
+        .filter(Boolean)
+      const traitKeyword = /(피해|공격|방어|회복|증가|감소|무력|출혈|중첩|발동|생명력|치명|제압|특화|신속|인내|숙련)/i
+      lines.forEach(line => {
+        if (!/[0-9]/.test(line)) return
+        if (!traitKeyword.test(line)) return
+        addEffect(line, line)
+      })
+    }
+
+    return effects.slice(0, 12)
+  }
+
+  detailEquipment.value.forEach((item, index) => {
+    const meta = parseEquipmentMeta(item)
+    const enhancement = extractEnhancementLevel(item)
+    let typeLabel = inlineText(item.type) || '장비'
+    const accessory = isAccessory(item)
+    const bracelet = isBracelet(item)
+    const abilityStone = isAbilityStone(item)
+    if (abilityStone) {
+      typeLabel = '돌'
+    }
+    const fallbackItemLevel = (() => {
+      const parseLevel = (value: unknown) => {
+        if (value === undefined || value === null) return null
+        const numeric = Number(String(value).replace(/,/g, '').trim())
+        if (!Number.isFinite(numeric)) return null
+        return Math.round(numeric)
+      }
+
+      const rawLevel =
+        parseLevel((item as any).itemLevel) ||
+        parseLevel((item as any).ItemLevel)
+
+      if (rawLevel) {
+        return `iLv. ${formatNumberLocalized(rawLevel, 0)}`
+      }
+
+      const tooltipMatch =
+        item.tooltip?.match(/거래\s*제한\s*아이템\s*레벨\s*([0-9.,]+)/i) ||
+        item.tooltip?.match(/아이템\s*레벨\s*([0-9.,]+)/i)
+      const tooltipLevel = parseLevel(tooltipMatch?.[1])
+      if (tooltipLevel) {
+        return `iLv. ${formatNumberLocalized(tooltipLevel, 0)}`
+      }
+
+      return ''
+    })()
+
+    const base = {
+      key: `${item.name || 'equipment'}-${index}`,
+      name: enhancement ? `+${enhancement}` : inlineText(item.name) || `장비 ${index + 1}`,
+      typeLabel,
+      grade: inlineText(item.grade),
+      icon: item.icon || '',
+      itemLevel: abilityStone ? '' : meta.itemLevel || fallbackItemLevel,
+      quality: meta.quality,
+      transcend: accessory ? '' : meta.transcend,
+      harmony: accessory ? '' : meta.harmony,
+      meta: summarizeEquipmentLine(item),
+      isAccessory: accessory,
+      isBracelet: bracelet,
+      isAbilityStone: abilityStone,
+      enhancement
+    }
+
+    let effects: Array<{ label: string; full?: string }> = []
+
+    if (accessory) {
+      const special = abilityStone
         ? stoneCraft
           ? `세공 ${stoneCraft}단`
           : meta.craft
             ? `세공 ${meta.craft}단`
             : meta.engravingLine || '세공 정보'
-        : isBracelet(item)
+        : bracelet
           ? (meta.engravingLine || base.meta || '').slice(0, 14)
           : inlineText(meta.harmony || meta.engravingLine || meta.mainStat)
+      if (isNecklace(item) || isEarring(item) || isRing(item)) {
+        effects = extractAccessoryEffects(item)
+      } else if (abilityStone) {
+        effects = extractStoneEffects(item)
+      } else if (bracelet) {
+        effects = extractBraceletEffects(item)
+      } else {
+        effects = []
+      }
       right.push({
         ...base,
-        special: special || undefined
+        special: special || undefined,
+        effects
       })
     } else {
       left.push(base)
@@ -686,32 +1015,221 @@ const engravingSummary = computed(() => {
   })
 })
 
-const isArkPassiveEffect = (effect: ArkPassiveEffect | ArkGridEffect): effect is ArkPassiveEffect => {
-  return 'description' in effect || 'toolTip' in effect
+const PASSIVE_SECTIONS = [
+  { key: 'evolution', label: '진화', keyword: '진화' },
+  { key: 'realization', label: '깨달음', keyword: '깨달음' },
+  { key: 'leap', label: '도약', keyword: '도약' }
+] as const
+
+type PassiveSectionKey = (typeof PASSIVE_SECTIONS)[number]['key']
+
+const PASSIVE_SECTION_PATTERN = PASSIVE_SECTIONS.map(section => section.keyword).join('|')
+const PASSIVE_SECTION_REGEX = new RegExp(`(${PASSIVE_SECTION_PATTERN})`, 'gi')
+const PASSIVE_SECTION_PREFIX_REGEX = new RegExp(
+  `^\\s*(?:\\[)?(${PASSIVE_SECTION_PATTERN})(?:\\])?\\s*([·:\\-]+)?\\s*`,
+  'gi'
+)
+const PASSIVE_SECTION_SUFFIX_REGEX = new RegExp(
+  `\\s*([·:\\-]+)?\\s*(?:\\[)?(${PASSIVE_SECTION_PATTERN})(?:\\])?$`,
+  'gi'
+)
+
+const ROMAN_NUMERAL_MAP: Record<string, number> = {
+  I: 1,
+  V: 5,
+  X: 10,
+  L: 50,
+  C: 100,
+  D: 500,
+  M: 1000
+}
+
+const stripPassiveStageKeywords = (value?: string | null) => {
+  if (!value) return ''
+  return value
+    .replace(PASSIVE_SECTION_PREFIX_REGEX, ' ')
+    .replace(PASSIVE_SECTION_SUFFIX_REGEX, ' ')
+    .replace(PASSIVE_SECTION_REGEX, ' ')
+    .replace(/[\[\]\(\)]/g, ' ')
+    .replace(/[·:\-]{2,}/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[·:\-\s]+/, '')
+    .replace(/[·:\-\s]+$/, '')
+    .trim()
+}
+
+const parsePassiveTooltip = (tooltip?: string | null) => {
+  const lines = flattenTooltipLines(tooltip, { fallbackBreaks: true })
+  const [title, ...rest] = lines
+  return {
+    title: inlineText(title),
+    lines: rest.map(line => inlineText(line)).filter(Boolean)
+  }
+}
+
+const normalizeTierText = (value?: string | null) => {
+  if (!value) return ''
+  return value
+    .replace(PASSIVE_SECTION_REGEX, ' ')
+    .replace(/[·:]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const romanToNumber = (value: string) => {
+  const chars = value.toUpperCase().split('')
+  if (!chars.every(char => ROMAN_NUMERAL_MAP[char])) {
+    return null
+  }
+  let total = 0
+  let previous = 0
+  for (let i = chars.length - 1; i >= 0; i -= 1) {
+    const char = chars[i]
+    if (!char) continue
+    const current = ROMAN_NUMERAL_MAP[char]
+    if (!current) continue
+    if (current < previous) {
+      total -= current
+    } else {
+      total += current
+      previous = current
+    }
+  }
+  return total
+}
+
+const extractTierGroupLabel = (tierLabel?: string | null, levelLine?: string | null) => {
+  const candidates = [tierLabel, levelLine]
+  for (const candidate of candidates) {
+    const normalized = normalizeTierText(candidate ?? '')
+    if (!normalized) continue
+    const digitMatch = normalized.match(/(\d+)/)
+    if (digitMatch) {
+      return `${digitMatch[1]}티어`
+    }
+    const romanMatch = normalized.match(/\b([IVXLCDM]+)\b/i)
+    if (romanMatch) {
+      const numeral = romanMatch[1] ?? ''
+      const numericValue = numeral ? romanToNumber(numeral) : null
+      if (numericValue) {
+        return `${numericValue}티어`
+      }
+      return `티어 ${numeral.toUpperCase()}`
+    }
+    if (normalized.includes('티어')) {
+      return normalized
+    }
+    if (normalized.includes('계층') || normalized.includes('단계')) {
+      return normalized.replace(/(계층|단계)/g, '티어')
+    }
+    return normalized
+  }
+  return '티어 정보 없음'
+}
+
+interface PassiveSummaryCard {
+  key: string
+  name: string
+  icon: string
+  levelDisplay: string
+  summaryLine: string
+  sectionKey: PassiveSectionKey
+  tierLabel: string
+  levelLine: string
+}
+
+interface PassiveSummaryRow {
+  id: string
+  label: string
+  sections: Array<{
+    key: PassiveSectionKey
+    label: string
+    effects: PassiveSummaryCard[]
+  }>
+}
+
+const buildPassiveCard = (effect: ArkPassiveEffect, index: number): PassiveSummaryCard => {
+  const tooltip = parsePassiveTooltip(effect.toolTip)
+  const tierLabel = inlineText(effect.description)
+  const levelLine =
+    tooltip.lines.find(line => /아크\s*패시브\s*레벨/i.test(line)) || tooltip.title || ''
+  const summaryLine =
+    tooltip.lines.find(line => line && line !== levelLine) || tooltip.title || tierLabel
+  const name = inlineText(effect.name)
+  const displayName = stripPassiveStageKeywords(name) || name || '패시브'
+  const levelValueMatch = levelLine.match(/(\d+)/)
+  const levelDisplay = levelValueMatch ? `Lv.${levelValueMatch[1]}` : ''
+  const section =
+    PASSIVE_SECTIONS.find(section => tierLabel.includes(section.keyword)) ||
+    PASSIVE_SECTIONS.find(section => levelLine.includes(section.keyword)) ||
+    PASSIVE_SECTIONS.find(section => name.includes(section.keyword)) ||
+    PASSIVE_SECTIONS[0]
+
+  return {
+    key: `${displayName || 'passive'}-${index}`,
+    name: displayName,
+    icon: effect.icon || '',
+    levelDisplay,
+    summaryLine: summaryLine || '효과 정보 없음',
+    sectionKey: section.key,
+    tierLabel,
+    levelLine
+  }
+}
+
+const buildArkPassiveMatrix = (effects: ArkPassiveEffect[] = []): PassiveSummaryRow[] => {
+  const rows: PassiveSummaryRow[] = []
+  const rowMap = new Map<string, PassiveSummaryRow>()
+
+  effects.forEach((effect, index) => {
+    const card = buildPassiveCard(effect, index)
+    const rowLabel = extractTierGroupLabel(card.tierLabel, card.levelLine)
+    let row = rowMap.get(rowLabel)
+    if (!row) {
+      row = {
+        id: `${rowLabel}-${rows.length}`,
+        label: rowLabel,
+        sections: PASSIVE_SECTIONS.map(section => ({
+          key: section.key,
+          label: section.label,
+          effects: []
+        }))
+      }
+      rowMap.set(rowLabel, row)
+      rows.push(row)
+    }
+    const targetSection = row.sections.find(section => section.key === card.sectionKey) ?? row.sections[0]
+    targetSection.effects.push(card)
+  })
+
+  const tierValue = (label: string) => {
+    const numericMatch = label.match(/(\d+)/)
+    if (numericMatch) return Number(numericMatch[1])
+    return Number.POSITIVE_INFINITY
+  }
+
+  rows.forEach(row => {
+    const MAX_EFFECTS_PER_ROW = 4
+    let remaining = MAX_EFFECTS_PER_ROW
+    row.sections.forEach(section => {
+      if (remaining <= 0) {
+        section.effects = []
+        return
+      }
+      if (section.effects.length > remaining) {
+        section.effects = section.effects.slice(0, remaining)
+      }
+      remaining -= section.effects.length
+    })
+  })
+
+  return rows.sort((a, b) => tierValue(a.label) - tierValue(b.label))
 }
 
 const arkSummary = computed(() => {
   const passive = arkGridResponse.value?.arkPassive
   const grid = arkGridResponse.value?.arkGrid
-
-  const effectsSource = passive?.effects ?? grid?.effects ?? []
-  const effects = effectsSource
-    .map((effect, index) => {
-      const title = inlineText(effect.name)
-      const subtitle = inlineText(
-        isArkPassiveEffect(effect) ? effect.toolTip ?? effect.description ?? '' : effect.tooltip ?? ''
-      )
-      const levelLabel =
-        !isArkPassiveEffect(effect) && typeof effect.level === 'number' ? `Lv.${effect.level}` : ''
-      return {
-        key: `${title || 'effect'}-${index}`,
-        title: title || '효과',
-        subtitle: subtitle || '효과 설명이 없습니다.',
-        levelLabel,
-        icon: isArkPassiveEffect(effect) ? effect.icon || '' : ''
-      }
-    })
-    .slice(0, 4)
+  const passiveMatrix = buildArkPassiveMatrix(passive?.effects ?? [])
 
   const coreSlots = (grid?.slots ?? [])
     .map((slot, index) => {
@@ -747,18 +1265,14 @@ const arkSummary = computed(() => {
     })
     .filter(point => point.label && point.value)
 
-  const corePassives = effects
-    .filter(effect => /진화|깨달음|도약/i.test(effect.title))
-    .map(effect => ({
-      ...effect,
-      levelLabel: effect.levelLabel || 'Lv.'
-    }))
+  const corePassives = passiveMatrix.flatMap(row => row.sections.flatMap(section => section.effects))
 
   return {
     passiveTitle: inlineText(passive?.title),
     slotCount: grid?.slots?.length ?? 0,
     coreSlots,
     appliedPoints,
+    passiveMatrix,
     corePassives
   }
 })
@@ -1816,7 +2330,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-xl);
+  gap: var(--space-md);
 }
 
 .summary-grid--modules {
@@ -2140,6 +2654,245 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   font-size: calc(var(--font-sm) - 1px);
   color: var(--text-secondary);
   line-height: 1.2;
+}
+
+.ark-passive-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.ark-passive-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ark-passive-grid-header,
+.ark-passive-grid-row {
+  display: grid;
+  grid-template-columns: 40px repeat(3, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  justify-items: center;
+}
+
+.ark-passive-header-cell {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.ark-passive-tier {
+  font-weight: 700;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  font-size: var(--font-xs);
+  position: relative;
+  padding-right: 8px;
+  width:100%;
+}
+
+.ark-passive-header-tier {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding-right: 8px;
+  width:100%;
+}
+
+.ark-passive-tier::after,
+.ark-passive-header-tier::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-color);
+}
+
+.ark-passive-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width:100%;
+}
+
+.ark-passive-cell-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+  gap: 8px 10px;
+  width:100%;
+}
+
+.ark-passive-chip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.ark-passive-chip-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ark-passive-level {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.equipment-icon-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+  position: relative;
+}
+
+.equipment-item-level {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  line-height: 1.1;
+}
+
+.equipment-quality-badge {
+  position: absolute;
+  right: -4px;
+  top: 20px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font-size: var(--font-xxs, var(--font-xs));
+  font-weight: 700;
+  border: 1px solid transparent;
+  line-height: 1;
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.9),
+    1px -1px 0 rgba(255, 255, 255, 0.9),
+    -1px 1px 0 rgba(255, 255, 255, 0.9),
+    1px 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.summary-card--equipment .summary-title,
+.summary-card--equipment .summary-inline,
+.summary-card--equipment .summary-pill {
+  font-size: var(--font-xs);
+}
+
+.summary-card--equipment .summary-inline {
+  margin: 2px 0;
+}
+
+.equipment-slot-label {
+  min-width: 42px;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.equipment-badge-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.equipment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xxs, var(--font-xs));
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  min-width: 42px;
+  width: fit-content;
+}
+
+.equipment-badge--enhance {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.equipment-badge--quality {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.equipment-badge--harmony {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
+.equipment-badge--transcend {
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+.equipment-badge--special {
+  background: rgba(236, 72, 153, 0.12);
+  color: #db2777;
+  border-color: rgba(236, 72, 153, 0.35);
+}
+
+.equipment-badge--effect {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.equipment-effect-badges {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.equipment-row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.equipment-row {
+  display: grid;
+  grid-template-columns: 120px auto;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.equipment-side {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.equipment-side--bracelet {
+  grid-column: 1 / span 2;
+}
+
+.equipment-side--left {
+  border-right: 1px dashed var(--border-color);
+}
+
+.equipment-empty {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--font-xs);
 }
 
 .equipment-grid {
@@ -2655,7 +3408,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .detail-panel {
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 24px;
+  padding: 10px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
 }

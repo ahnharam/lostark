@@ -4,81 +4,98 @@
       <article class="summary-card summary-card--module summary-card--equipment">
         <div class="summary-card__head">
           <p class="summary-eyebrow">장비</p>
-          <h5>무기/방어구</h5>
+          <h5>무기/방어구 | 장신구</h5>
         </div>
         <p v-if="detailLoading" class="summary-note">장비 정보를 정리하는 중입니다...</p>
         <p v-else-if="detailError" class="summary-note summary-note--warning">{{ detailError }}</p>
-        <div v-else class="equipment-grid">
-          <div class="equipment-column">
-            <ul class="summary-list summary-list--flat">
-              <li
-                v-for="item in equipmentSummary.left"
-                :key="item.key"
-                class="summary-list-item summary-list-item--plain"
-              >
-                <LazyImage
-                  :src="item.icon"
-                  :alt="item.name"
-                  width="32"
-                  height="32"
-                  imageClass="summary-icon"
-                  errorIcon="🗡️"
-                  :useProxy="true"
-                />
-                <div class="summary-list-text">
-                  <p class="summary-title">{{ item.name }}</p>
-                  <p class="summary-sub">{{ item.typeLabel }}</p>
-                  <p class="summary-inline">{{ item.meta }}</p>
+        <div v-else class="equipment-row-list">
+          <div
+            v-for="row in equipmentRows"
+            :key="row.key"
+            class="equipment-row"
+          >
+            <div class="equipment-side equipment-side--left">
+              <template v-if="row.left">
+                <div class="equipment-icon-stack">
+                  <LazyImage
+                    :src="row.left.icon"
+                    :alt="row.left.name"
+                    width="32"
+                    height="32"
+                    imageClass="summary-icon"
+                    errorIcon="🗡️"
+                    :useProxy="true"
+                  />
+                  <span
+                    v-if="row.left.quality"
+                    class="equipment-quality-badge"
+                    :style="qualityStyle(row.left.quality)"
+                  >
+                    {{ row.left.quality }}
+                  </span>
+                  <span class="equipment-slot-label">{{ row.left.typeLabel }}</span>
+                  <span v-if="row.left.itemLevel" class="equipment-item-level">{{ row.left.itemLevel }}</span>
                 </div>
-                <div class="summary-pill-col">
-                  <span v-if="item.itemLevel" class="summary-pill summary-pill--primary">
-                    {{ item.itemLevel }}
+                <div class="equipment-badge-stack">
+                  <span v-if="row.left.enhancement" class="equipment-badge equipment-badge--enhance">
+                    강화 {{ row.left.enhancement }}
                   </span>
-                  <span v-if="item.quality" class="summary-pill summary-pill--ghost">
-                    품질 {{ item.quality }}
+                  <span v-if="row.left.harmony" class="equipment-badge equipment-badge--harmony">
+                    상재 {{ row.left.harmony }}
                   </span>
-                  <span v-if="item.transcend" class="summary-pill summary-pill--accent">
-                    초월 {{ item.transcend }}
-                  </span>
-                </div>
-              </li>
-            </ul>
-          </div>
-          <div class="equipment-column">
-            <h5>장신구</h5>
-            <ul class="summary-list summary-list--flat">
-              <li
-                v-for="item in equipmentSummary.right"
-                :key="item.key"
-                class="summary-list-item summary-list-item--plain"
-              >
-                <LazyImage
-                  :src="item.icon"
-                  :alt="item.name"
-                  width="32"
-                  height="32"
-                  imageClass="summary-icon"
-                  errorIcon="💍"
-                  :useProxy="true"
-                />
-                <div class="summary-list-text">
-                  <p class="summary-title">{{ item.name }}</p>
-                  <p class="summary-sub">{{ item.typeLabel }}</p>
-                  <p class="summary-inline">{{ item.meta }}</p>
-                </div>
-                <div class="summary-pill-col">
-                  <span v-if="item.quality" class="summary-pill summary-pill--ghost">
-                    품질 {{ item.quality }}
-                  </span>
-                  <span v-if="item.special" class="summary-pill summary-pill--primary">
-                    {{ item.special }}
-                  </span>
-                  <span v-if="item.transcend" class="summary-pill summary-pill--accent">
-                    초월 {{ item.transcend }}
+                  <span v-if="row.left.transcend" class="equipment-badge equipment-badge--transcend">
+                    초월 {{ row.left.transcend }}
                   </span>
                 </div>
-              </li>
-            </ul>
+              </template>
+              <p v-else class="equipment-empty">—</p>
+            </div>
+
+            <div class="equipment-side">
+              <template v-if="row.right">
+                <div class="equipment-icon-stack">
+                  <LazyImage
+                    :src="row.right.icon"
+                    :alt="row.right.name"
+                    width="32"
+                    height="32"
+                    imageClass="summary-icon"
+                    errorIcon="💍"
+                    :useProxy="true"
+                  />
+                  <span
+                    v-if="row.right.quality && !row.right.isAbilityStone && !row.right.isBracelet"
+                    class="equipment-quality-badge"
+                    :style="qualityStyle(row.right.quality)"
+                  >
+                    {{ row.right.quality }}
+                  </span>
+                  <span class="equipment-slot-label">{{ row.right.typeLabel }}</span>
+                  <span v-if="row.right.itemLevel" class="equipment-item-level">{{ row.right.itemLevel }}</span>
+                </div>
+                <div class="equipment-badge-stack">
+                  <div
+                    v-if="row.right.effects?.length"
+                    class="equipment-effect-badges"
+                    :class="{ 'equipment-effect-badges--grid': row.right.isBracelet }"
+                  >
+                    <span
+                      v-for="(effect, idx) in row.right.effects"
+                      :key="`effect-${row.key}-${idx}`"
+                      class="equipment-badge equipment-badge--effect"
+                      :title="effect.full || effect.label"
+                      :style="{
+                        backgroundColor: effect.bgColor,
+                        color: effect.textColor
+                      }"
+                    >
+                      {{ effect.label }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+              <p v-else class="equipment-empty">—</p>
+            </div>
           </div>
         </div>
       </article>
@@ -141,27 +158,56 @@
             <h4>진화 · 깨달음 · 도약</h4>
           </div>
         </div>
-        <div v-if="arkSummary.corePassives.length" class="summary-list summary-list--flat">
-          <div
-            v-for="effect in arkSummary.corePassives"
-            :key="effect.key"
-            class="summary-list-item summary-list-item--plain"
-          >
-            <LazyImage
-              v-if="effect.icon"
-              :src="effect.icon"
-              :alt="effect.title"
-              width="32"
-              height="32"
-              imageClass="summary-icon"
-              errorIcon="🌟"
-              :useProxy="true"
-            />
-            <div class="summary-list-text">
-              <p class="summary-title">{{ effect.title }}</p>
-              <p class="summary-sub">{{ effect.subtitle }}</p>
+        <div v-if="arkSummary.passiveMatrix?.length" class="ark-passive-summary">
+          <div class="ark-passive-grid">
+            <div class="ark-passive-grid-header">
+              <span class="ark-passive-header-cell ark-passive-header-tier">티어</span>
+              <span
+                v-for="section in arkSummary.passiveMatrix[0].sections"
+                :key="`header-${section.key}`"
+                class="ark-passive-header-cell"
+              >
+                {{ section.label }}
+              </span>
             </div>
-            <span class="summary-pill summary-pill--primary">{{ effect.levelLabel || 'Lv.1' }}</span>
+            <div
+              v-for="row in arkSummary.passiveMatrix.slice(0, 4)"
+              :key="row.id"
+              class="ark-passive-grid-row"
+            >
+              <span class="ark-passive-tier">{{ row.label }}</span>
+              <div
+                v-for="section in row.sections"
+                :key="`${row.id}-${section.key}`"
+                class="ark-passive-cell"
+              >
+                <div v-if="section.effects.length" class="ark-passive-cell-list">
+                  <div
+                    v-for="effect in section.effects"
+                    :key="effect.key"
+                    class="ark-passive-chip"
+                  >
+                    <div class="ark-passive-chip-visual">
+                      <LazyImage
+                        v-if="effect.icon"
+                        :src="effect.icon"
+                        :alt="effect.name"
+                        width="32"
+                        height="32"
+                        imageClass="summary-icon"
+                        errorIcon="🌟"
+                        :useProxy="true"
+                      />
+                      <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">★</div>
+                      <span v-if="effect.levelDisplay" class="ark-passive-level">
+                        {{ effect.levelDisplay }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p v-else class="summary-note">-</p>
+              </div>
+            </div>
           </div>
         </div>
         <p v-else class="summary-note">패시브 정보가 없습니다.</p>
@@ -314,11 +360,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import LazyImage from './LazyImage.vue'
 import EmptyState from './EmptyState.vue'
 import type { CharacterProfile } from '@/api/types'
+import { getQualityColor } from '@/utils/tooltipParser'
 
-defineProps<{
+const props = defineProps<{
   activeCharacter: CharacterProfile | null
   equipmentSummary: any
   detailLoading: boolean
@@ -334,4 +382,27 @@ defineProps<{
   collectiblesLoading: boolean
   collectiblesError: string | null
 }>()
+
+const equipmentRows = computed(() => {
+  const left = props.equipmentSummary?.left || []
+  const right = props.equipmentSummary?.right || []
+  const max = Math.max(left.length, right.length)
+  return Array.from({ length: max }).map((_, index) => ({
+    key: `equipment-row-${index}`,
+    left: left[index],
+    right: right[index]
+  }))
+})
+
+const qualityStyle = (quality?: number | string) => {
+  const num = typeof quality === 'number' ? quality : Number(quality)
+  const color = getQualityColor(Number.isFinite(num) ? num : undefined)
+  const fallbackText = '#f9fafb'
+  const bg = 'rgba(15, 23, 42, 0.75)'
+  return {
+    color: color || fallbackText,
+    backgroundColor: bg,
+    borderColor: color ? `${color}55` : 'rgba(255,255,255,0.15)'
+  }
+}
 </script>
