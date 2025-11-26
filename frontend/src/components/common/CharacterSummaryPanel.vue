@@ -138,6 +138,66 @@
 
       <article class="summary-card summary-card--module summary-card--ark">
         <div class="ark-section">
+          <div class="ark-section__block ark-section__block--passive">
+            <div class="summary-card__head">
+              <p class="summary-eyebrow">아크 패시브</p>
+              <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
+            </div>
+            <div v-if="arkSummary.passiveMatrix?.length" class="ark-passive-summary">
+              <div class="ark-passive-grid">
+                <div class="ark-passive-grid-header">
+                  <span class="ark-passive-header-cell ark-passive-header-tier">티어</span>
+                  <span
+                    v-for="point in arkSummary.appliedPoints"
+                    :key="point.key"
+                    class="ark-passive-header-cell"
+                  >
+                    {{ point.label }} · {{ point.value }}
+                  </span>
+                </div>
+                <div
+                  v-for="row in arkSummary.passiveMatrix.slice(0, 4)"
+                  :key="row.id"
+                  class="ark-passive-grid-row"
+                >
+                  <span class="ark-passive-tier">{{ row.label }}</span>
+                  <div
+                    v-for="section in row.sections"
+                    :key="`${row.id}-${section.key}`"
+                    class="ark-passive-cell"
+                  >
+                    <div v-if="section.effects.length" class="ark-passive-cell-list">
+                      <div
+                        v-for="effect in section.effects"
+                        :key="effect.key"
+                        class="ark-passive-chip"
+                      >
+                        <div class="ark-passive-chip-visual">
+                          <LazyImage
+                            v-if="effect.icon"
+                            :src="effect.icon"
+                            :alt="effect.name"
+                            width="32"
+                            height="32"
+                            imageClass="summary-icon"
+                            errorIcon="🌟"
+                            :useProxy="true"
+                          />
+                          <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">★</div>
+                          <span v-if="effect.levelDisplay" class="ark-passive-level">
+                            {{ effect.levelDisplay }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p v-else class="summary-note"> </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p v-else class="summary-note">패시브 정보가 없습니다.</p>
+          </div>
+
           <div class="ark-section__block">
             <div class="summary-card__head">
               <p class="summary-eyebrow">아크 그리드</p>
@@ -205,66 +265,6 @@
                 표시할 아크 그리드 정보가 없습니다.
               </p>
             </div>
-          </div>
-
-          <div class="ark-section__block ark-section__block--passive">
-            <div class="summary-card__head">
-              <p class="summary-eyebrow">아크 패시브</p>
-              <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
-            </div>
-            <div v-if="arkSummary.passiveMatrix?.length" class="ark-passive-summary">
-              <div class="ark-passive-grid">
-                <div class="ark-passive-grid-header">
-                  <span class="ark-passive-header-cell ark-passive-header-tier">티어</span>
-                  <span
-                    v-for="point in arkSummary.appliedPoints"
-                    :key="point.key"
-                    class="ark-passive-header-cell"
-                  >
-                    {{ point.label }} · {{ point.value }}
-                  </span>
-                </div>
-                <div
-                  v-for="row in arkSummary.passiveMatrix.slice(0, 4)"
-                  :key="row.id"
-                  class="ark-passive-grid-row"
-                >
-                  <span class="ark-passive-tier">{{ row.label }}</span>
-                  <div
-                    v-for="section in row.sections"
-                    :key="`${row.id}-${section.key}`"
-                    class="ark-passive-cell"
-                  >
-                    <div v-if="section.effects.length" class="ark-passive-cell-list">
-                      <div
-                        v-for="effect in section.effects"
-                        :key="effect.key"
-                        class="ark-passive-chip"
-                      >
-                        <div class="ark-passive-chip-visual">
-                          <LazyImage
-                            v-if="effect.icon"
-                            :src="effect.icon"
-                            :alt="effect.name"
-                            width="32"
-                            height="32"
-                            imageClass="summary-icon"
-                            errorIcon="🌟"
-                            :useProxy="true"
-                          />
-                          <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">★</div>
-                          <span v-if="effect.levelDisplay" class="ark-passive-level">
-                            {{ effect.levelDisplay }}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p v-else class="summary-note"> </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p v-else class="summary-note">패시브 정보가 없습니다.</p>
           </div>
         </div>
       </article>
