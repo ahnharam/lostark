@@ -3206,14 +3206,14 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ark-core-card__thumb {
   position: relative;
-  width: 54px;
-  height: 54px;
-  border-radius: var(--radius-lg);
-  background: var(--bg-primary);
+  width: 40px;
+  height: 40px;
+  /* border: 1px solid var(--border-color); */
+  /* border-radius: var(--radius-lg); */
+  /* background: var(--bg-primary); */
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
 }
 
 .ark-core-card__image {
@@ -3232,8 +3232,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ark-core-card__point {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
+  right: -6px;
+  bottom: -6px;
   padding: 3px 6px;
   border-radius: var(--radius-full);
   background: var(--quality-badge-bg, rgba(15, 23, 42, 0.333));
