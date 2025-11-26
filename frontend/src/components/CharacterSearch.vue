@@ -341,7 +341,8 @@ import type {
   ArkPassiveEffect,
   SkillMenuResponse,
   Collectible,
-  CombatSkill
+  CombatSkill,
+  SkillGem
 } from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
@@ -356,7 +357,7 @@ import RankingTab from './ranking/RankingTab.vue'
 import CharacterOverviewCard from './common/CharacterOverviewCard.vue'
 import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
-import { cleanTooltipLine, flattenTooltipLines } from '@/utils/tooltipText'
+import { cleanTooltipLine, flattenTooltipLines, extractTooltipColor } from '@/utils/tooltipText'
 import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbbreviations'
 
 interface ErrorState {
@@ -489,6 +490,57 @@ const normalizeSkillKey = (value?: string | null) =>
     .replace(/[\s\[\]\(\)<>{}]/g, '')
     .toLowerCase()
 
+const formatLevelLabel = (value?: number | string | null) => {
+  const num = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(num)) return ''
+  return `Lv.${num}`
+}
+
+const runeColorFromGrade = (grade?: string | null) => {
+  const g = inlineText(grade).toLowerCase()
+  if (!g) return ''
+  if (g.includes('고대')) return 'var(--rarity-ancient, #eab308)'
+  if (g.includes('유물')) return 'var(--rarity-relic, #f97316)'
+  if (g.includes('전설')) return 'var(--rarity-legendary, #fbbf24)'
+  if (g.includes('영웅')) return 'var(--rarity-heroic, #a78bfa)'
+  if (g.includes('희귀')) return 'var(--rarity-rare, #60a5fa)'
+  if (g.includes('고급') || g.includes('언커먼')) return 'var(--rarity-uncommon, #6ee7b7)'
+  if (g.includes('일반') || g.includes('노말')) return 'var(--text-secondary, #6b7280)'
+  return ''
+}
+
+const extractRuneColor = (tooltip?: string | null, grade?: string | null) => {
+  const scanRaw = (value?: string | null) => {
+    if (!value) return ''
+    const match = String(value).match(/color=['"]?(#?[0-9a-fA-F]{6,8})['"]?/i)
+    if (match?.[1]) {
+      const raw = match[1].startsWith('#') ? match[1] : `#${match[1]}`
+      return raw
+    }
+    return ''
+  }
+
+  const direct = scanRaw(tooltip) || extractTooltipColor(tooltip)
+  if (direct) return direct
+
+  if (tooltip) {
+    try {
+      const parsed = JSON.parse(tooltip)
+      const candidates = Object.values(parsed || {})
+      for (const cand of candidates) {
+        const candidateValue = (cand as any)?.value || cand
+        const found = scanRaw(typeof candidateValue === 'string' ? candidateValue : undefined) ||
+          extractTooltipColor(candidateValue as any)
+        if (found) return found
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  return runeColorFromGrade(grade) || ''
+}
+
 const isAwakeningSkill = (skill: CombatSkill) => {
   const numericType =
     typeof skill.skillType === 'string' ? Number(skill.skillType) : skill.skillType
@@ -501,13 +553,84 @@ const isAwakeningSkill = (skill: CombatSkill) => {
   return candidates.some(value => value.includes('각성'))
 }
 
-const skillGemCountMap = computed(() => {
-  const map = new Map<string, number>()
+type GemEffectPlacement = 'damage' | 'cooldown' | 'unknown'
+
+interface SkillGemSlot {
+  key: string
+  name: string
+  icon?: string
+  label?: string
+  grade?: string
+  levelLabel?: string
+  levelValue: number
+  effectType: GemEffectPlacement
+}
+
+const GEM_DAMAGE_REGEX = /(멸화|겁화|피해|대미지|데미지)/i
+const GEM_COOLDOWN_REGEX = /(홍염|작열|쿨타임|재사용|대기시간)/i
+
+const extractGemLabel = (gem: SkillGem) => {
+  const tooltipText = flattenTooltipLines(gem.tooltip).join(' ')
+  const candidates = [inlineText(gem.name), inlineText(gem.skill?.description), tooltipText]
+    .filter(Boolean)
+    .join(' ')
+  const labelMatch = candidates.match(/(멸화|겁화|홍염|작열)/i)
+  if (labelMatch?.[1]) return labelMatch[1]
+  if (GEM_DAMAGE_REGEX.test(candidates)) return '멸화'
+  if (GEM_COOLDOWN_REGEX.test(candidates)) return '홍염'
+  return ''
+}
+
+const classifyGemEffect = (label: string): GemEffectPlacement => {
+  if (/멸화|겁화/i.test(label)) return 'damage'
+  if (/홍염|작열/i.test(label)) return 'cooldown'
+  return 'unknown'
+}
+
+const pickHigherGem = (current: SkillGemSlot | null, next: SkillGemSlot) => {
+  if (!current) return next
+  return next.levelValue > current.levelValue ? next : current
+}
+
+const skillGemSlotsBySkill = computed(() => {
+  const map = new Map<
+    string,
+    { damage: SkillGemSlot | null; cooldown: SkillGemSlot | null; extras: SkillGemSlot[] }
+  >()
   const gems = skillResponse.value?.skillGems ?? []
-  gems.forEach(gem => {
+  gems.forEach((gem, index) => {
     const key = normalizeSkillKey(gem.skill?.name || gem.skill?.description || gem.name)
     if (!key) return
-    map.set(key, (map.get(key) || 0) + 1)
+    const label = extractGemLabel(gem)
+    const effectType = classifyGemEffect(label)
+    const levelValue = typeof gem.level === 'number' ? gem.level : -1
+    const slot: SkillGemSlot = {
+      key: `${key}-gem-${index}`,
+      name: inlineText(gem.name) || '보석',
+      icon: gem.icon || '',
+      label,
+      grade: inlineText(gem.grade),
+      levelLabel: formatLevelLabel(gem.level),
+      levelValue,
+      effectType
+    }
+    const entry = map.get(key) ?? { damage: null, cooldown: null, extras: [] }
+    if (effectType === 'damage') {
+      entry.damage = pickHigherGem(entry.damage, slot)
+    } else if (effectType === 'cooldown') {
+      entry.cooldown = pickHigherGem(entry.cooldown, slot)
+    } else {
+      entry.extras.push(slot)
+    }
+    map.set(key, entry)
+  })
+  map.forEach(entry => {
+    if (!entry.damage && entry.extras.length) {
+      entry.damage = entry.extras.shift() ?? null
+    }
+    if (!entry.cooldown && entry.extras.length) {
+      entry.cooldown = entry.extras.shift() ?? null
+    }
   })
   return map
 })
@@ -515,7 +638,7 @@ const skillGemCountMap = computed(() => {
 const skillHighlights = computed(() => {
   const skills = skillResponse.value?.combatSkills ?? []
   if (!skills.length) return []
-  const gemCounts = skillGemCountMap.value
+  const gemSlots = skillGemSlotsBySkill.value
   return skills
     .filter(skill => !isAwakeningSkill(skill))
     .sort((a, b) => {
@@ -523,23 +646,82 @@ const skillHighlights = computed(() => {
       const levelB = typeof b.level === 'number' ? b.level : -1
       return levelB - levelA
     })
-    .filter(skill => (skill.skillPoints ?? 0) > 0 || Boolean(skill.rune))
-    .slice(0, 5)
     .map((skill, index) => {
       const key = normalizeSkillKey(skill.name || `skill-${index}`)
-      const gemCount = key ? gemCounts.get(key) || 0 : 0
-      const tripodCount = (skill.tripods ?? []).filter(tripod => tripod.name && tripod.selected !== false).length
+      const gem = key ? gemSlots.get(key) : undefined
+      const runePayload = (skill as any).rune || (skill as any).Rune || skill.rune
+      const runeTooltip = runePayload?.tooltip ?? runePayload?.Tooltip
+      const runeName = runePayload?.name ?? runePayload?.Name
+      const runeGrade = runePayload?.grade ?? runePayload?.Grade
+      const runeIcon = runePayload?.icon ?? runePayload?.Icon
+      const rune = runeName
+        ? {
+          name: inlineText(runeName),
+          icon: runeIcon || '',
+          grade: inlineText(runeGrade),
+          color: extractRuneColor(runeTooltip, runeGrade) || undefined
+        }
+        : null
+      const tripods =
+        skill.tripods
+          ?.filter(tripod => tripod.name && tripod.selected !== false)
+          .map((tripod, tripodIndex) => {
+            const slotIndex =
+              typeof tripod.slot === 'number' && tripod.slot > 0 ? tripod.slot : tripodIndex + 1
+            return {
+              key: `${key || 'skill'}-tripod-${tripodIndex}`,
+              name: inlineText(tripod.name) || `트포 ${tripodIndex + 1}`,
+              icon: tripod.icon || '',
+              slotIndex,
+              slotLabel: `${slotIndex}`,
+              levelLabel: formatLevelLabel(tripod.level)
+            }
+          }) ?? []
+      const skillPointValue = Number(skill.skillPoints ?? 0)
+      const hasSkillPoints = Number.isFinite(skillPointValue) && skillPointValue > 0
+      const hasRune = Boolean(rune)
+      const damageGem = gem?.damage ?? null
+      const cooldownGem = gem?.cooldown ?? null
+      const hasGem = Boolean(damageGem || cooldownGem)
+      if (!hasSkillPoints && !hasRune && !hasGem) {
+        return null
+      }
       return {
         key: key || `skill-${index}`,
         name: inlineText(skill.name) || `스킬 ${index + 1}`,
         icon: skill.icon || '',
-        levelLabel: typeof skill.level === 'number' ? `Lv.${skill.level}` : '',
-        rune: inlineText(skill.rune?.name) || '',
-        gemLabel: gemCount ? `보석 ${gemCount}` : '',
-        tripodLabel: tripodCount ? `트포 ${tripodCount}` : '',
-        pointLabel: skill.skillPoints ?? 0
+        levelLabel: formatLevelLabel(skill.level),
+        pointLabel:
+          hasSkillPoints && Number.isFinite(skillPointValue)
+            ? `${skillPointValue.toLocaleString()}P`
+            : '',
+        rune,
+        tripods,
+        gems: {
+          damage: damageGem,
+          cooldown: cooldownGem
+        },
+        hasGem
       }
     })
+    .filter(Boolean) as Array<{
+      key: string
+      name: string
+      icon: string
+      levelLabel?: string
+      pointLabel?: string
+      rune: { name: string; icon?: string; grade?: string; color?: string } | null
+      tripods: {
+        key: string
+        name: string
+        icon?: string
+        slotIndex: number
+        slotLabel: string
+        levelLabel?: string
+      }[]
+      gems: { damage: SkillGemSlot | null; cooldown: SkillGemSlot | null }
+      hasGem: boolean
+    }>
 })
 
 const summarizeEquipmentLine = (item: Equipment): string => {
@@ -826,6 +1008,7 @@ const formatEffectLabel = (label: string) => {
 
   const extractBraceletEffects = (item: Equipment) => {
     const effects: Array<{ label: string; full?: string; bgColor: string; textColor: string }> = []
+    const combatStatKeywords = /(치명|특화|제압|신속|인내|숙련)/i
 
     const hexToRgba = (hex: string, alpha = 0.16) => {
       const cleaned = hex.replace('#', '')
@@ -887,7 +1070,12 @@ const formatEffectLabel = (label: string) => {
       })
     }
 
-    return effects.slice(0, 12)
+    const prioritized = [
+      ...effects.filter(effect => combatStatKeywords.test(effect.label)),
+      ...effects.filter(effect => !combatStatKeywords.test(effect.label))
+    ]
+
+    return prioritized.slice(0, 12)
   }
 
   detailEquipment.value.forEach((item, index) => {
@@ -2440,13 +2628,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   padding: var(--space-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-sm);
   box-shadow: none;
 }
 
 .summary-card--module {
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
   min-height: 200px;
 }
 
@@ -2476,18 +2664,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .ark-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xl);
+  gap: var(--space-md);
 }
 
 .ark-section__block {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-}
-
-.ark-section__block + .ark-section__block {
-  border-top: 1px solid var(--border-color);
-  padding-top: var(--space-2xl);
 }
 
 .ark-section__subhead {
@@ -2505,8 +2688,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-chip {
   align-self: center;
   border-radius: var(--radius-full);
-  padding: 6px 12px;
-  font-size: var(--font-sm);
+  padding: 2px 6px;
+  font-size: var(--font-xs);
   font-weight: 700;
   background: rgba(102, 126, 234, 0.12);
   color: var(--primary-color);
@@ -2525,11 +2708,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-}
-
-.summary-list--flat {
-  gap: var(--space-sm);
+  gap: var(--space-xs);
 }
 
 .summary-list--split .summary-list-item {
@@ -2542,33 +2721,32 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .summary-list-item {
   display: grid;
-  grid-template-columns: 60px 1fr 90px;
+  grid-template-columns: 50px 1fr 1fr;
   align-items: center;
   gap: var(--space-md);
   padding: 8px 0;
 }
 
 .summary-list-item--plain {
-  padding: 8px 6px;
+  padding: 4px;
 }
 
 .summary-list-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   width:100%;
 }
 
 .summary-title {
   margin: 0;
-  font-size: calc(var(--font-base) - 1px);
+  font-size: var(--font-sm);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .summary-sub {
   margin: 0;
-  font-size: calc(var(--font-sm) - 1px);
+  font-size: var(--font-xs);
   color: var(--text-secondary);
 }
 
@@ -2613,6 +2791,212 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   align-items: flex-end;
 }
 
+.summary-skill-item {
+  align-items: stretch;
+}
+
+.summary-skill-icon-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.summary-skill-icon-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.summary-skill-level-dot {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  /* min-width: 22px; */
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--primary-color);
+  color: #ffffff;
+  font-size: var(--font-xxs, var(--font-xs));
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.summary-skill-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-direction: column;
+}
+
+.summary-skill-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary-sub--point {
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.summary-skill-meta {
+  flex-wrap: wrap;
+}
+
+.summary-pill--icon {
+  gap: 6px;
+}
+
+.summary-pill-icon {
+  border-radius: 6px;
+}
+
+.summary-tripod-icon-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.summary-tripod-icon {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: grid;
+  place-items: center;
+}
+
+.summary-tripod-icon--1 {
+  border-color: #00a1e0;
+  box-shadow: 0 0 0 1px rgba(0, 161, 224, 0.35);
+}
+
+.summary-tripod-icon--2 {
+  border-color: #7cca15;
+  box-shadow: 0 0 0 1px rgba(124, 202, 21, 0.35);
+}
+
+.summary-tripod-icon--3 {
+  border-color: #ff9500;
+  box-shadow: 0 0 0 1px rgba(255, 149, 0, 0.35);
+}
+
+.summary-tripod-img {
+  border-radius: 8px;
+}
+
+.summary-tripod-fallback {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.summary-tripod-slot-dot {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: var(--font-xxs, var(--font-xs));
+  font-weight: 700;
+  color: #ffffff;
+  background: #4b5563;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.summary-tripod-icon--1 .summary-tripod-slot-dot {
+  background: #00a1e0;
+}
+
+.summary-tripod-icon--2 .summary-tripod-slot-dot {
+  background: #7cca15;
+}
+
+.summary-tripod-icon--3 .summary-tripod-slot-dot {
+  background: #ff9500;
+}
+
+.summary-skill-gems {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.summary-gem-grid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 5px;
+}
+
+.summary-gem-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+
+.summary-gem-row--icons .summary-gem-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.summary-gem-icon-stack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-gem-icon-wrapper {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  display: grid;
+  place-items: center;
+}
+
+.summary-gem-icon-wrapper--empty {
+  background: var(--bg-hover);
+}
+
+.summary-gem-empty {
+  font-size: 1rem;
+  color: var(--text-tertiary);
+  line-height: 1;
+}
+
+.summary-gem-label {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.summary-gem-level-dot {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  /* min-width: 22px; */
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--primary-color);
+  color: #ffffff;
+  font-size: var(--font-xxs, var(--font-xs));
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
 .summary-inline {
   margin: 0;
   font-size: var(--font-sm);
@@ -2623,6 +3007,12 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+}
+
+.summary-progress-list.summary-progress-list--dense {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md) var(--space-lg);
 }
 
 .summary-progress {
@@ -2726,7 +3116,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .ark-core-matrix {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .ark-core-matrix__header,
@@ -2787,51 +3177,50 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   background: var(--border-color);
 }
 
-.ark-core-matrix__cell {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-}
-
 .ark-core-matrix__cell--empty {
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary);
+  display: none;
 }
 
-.ark-core-cell-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-  gap: var(--space-sm);
-  width: 100%;
-}
-
-.ark-core {
+.ark-core-card-grid {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  flex-direction: row;
+  gap: var(--space-sm);
 }
 
-.ark-core__thumb {
-  position: relative;
-  width: 60px;
-  height: 60px;
+.ark-core-card-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+
+.ark-core-card-cell {
+  display: contents;
+}
+
+.ark-core-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
+}
+
+.ark-core-card__thumb {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   border: 1px solid var(--border-color);
 }
 
-.ark-core__image {
+.ark-core-card__image {
   border-radius: var(--radius-md);
 }
 
-.ark-core__placeholder {
+.ark-core-card__placeholder {
   width: 100%;
   height: 100%;
   display: grid;
@@ -2841,29 +3230,40 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   font-size: var(--font-lg);
 }
 
-.ark-core__point {
+.ark-core-card__point {
   position: absolute;
-  right: 5px;
-  bottom: 5px;
-  padding: 4px 8px;
+  right: -5px;
+  bottom: -5px;
+  padding: 3px 6px;
   border-radius: var(--radius-full);
   background: var(--quality-badge-bg, rgba(15, 23, 42, 0.333));
   color: var(--primary-color);
   font-size: var(--font-xxs);
   font-weight: 700;
   text-shadow:
-  -1px -1px 0 rgba(255, 255, 255, 0.9),
-  1px -1px 0 rgba(255, 255, 255, 0.9),
-  -1px 1px 0 rgba(255, 255, 255, 0.9),
-  1px 1px 0 rgba(255, 255, 255, 0.9);
+    -1px -1px 0 rgba(255, 255, 255, 0.9),
+    1px -1px 0 rgba(255, 255, 255, 0.9),
+    -1px 1px 0 rgba(255, 255, 255, 0.9),
+    1px 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.ark-core__name {
+.ark-core-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ark-core-card__name {
   margin: 0;
-  text-align: center;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.ark-core-card__meta {
+  margin: 0;
   font-size: var(--font-xs);
   color: var(--text-secondary);
-  line-height: 1.2;
 }
 
 .ark-passive-summary {
@@ -2875,7 +3275,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .ark-passive-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 
@@ -3073,15 +3472,37 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .equipment-effect-badges {
   display: flex;
-  flex-wrap: wrap;
-  flex-direction: row;
+  flex-direction: column;
   gap: 6px;
+}
+
+.equipment-effect-chip {
+  position: relative;
+}
+
+.equipment-effect-chip--tooltip .equipment-effect-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  white-space:none;
+  word-break:none;
+  width: max-content;
+}
+
+.equipment-effect-chip--tooltip:hover .equipment-effect-tooltip,
+.equipment-effect-chip--tooltip:focus-within .equipment-effect-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .equipment-row-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .equipment-row {

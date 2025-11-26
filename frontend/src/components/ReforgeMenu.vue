@@ -524,7 +524,7 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
 
 .equipment-row {
   display: grid;
-  grid-template-columns: 120px 1fr;
+  grid-template-columns: 150px 1fr;
   padding: 10px 12px;
   border: 1px dashed var(--border-color);
   border-radius: 12px;
