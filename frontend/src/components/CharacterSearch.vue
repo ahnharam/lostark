@@ -576,7 +576,7 @@ const extractGemLabel = (gem: SkillGem) => {
     .join(' ')
   const labelMatch = candidates.match(/(멸화|겁화|홍염|작열)/i)
   if (labelMatch?.[1]) return labelMatch[1]
-  if (GEM_DAMAGE_REGEX.test(candidates)) return '멸화'
+  if (GEM_DAMAGE_REGEX.test(candidates)) return '겁화'
   if (GEM_COOLDOWN_REGEX.test(candidates)) return '홍염'
   return ''
 }
