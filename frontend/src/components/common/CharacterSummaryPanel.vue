@@ -25,9 +25,9 @@
                         v-for="(effect, idx) in row.right.effects"
                         :key="`effect-${row.key}-${idx}`"
                         class="bracelet-badge bracelet-badge--effect"
-                        :style="{ backgroundColor: 'transparent', color: effectDisplayColor(effect, row.right) }"
+                        :style="{ backgroundColor: 'transparent', color: effectTextDisplayColor(effect, row.right) }"
                       >
-                        {{ effect.label }}
+                        {{ effectLabelDisplay(effect, row.right) }}
                       </span>
                     </div>
                   </div>
@@ -120,9 +120,9 @@
                           <span
                             v-if="row.right.isBracelet"
                             class="bracelet-badge bracelet-badge--effect"
-                            :style="{ backgroundColor: 'transparent', color: effectDisplayColor(effect, row.right) }"
+                            :style="{ backgroundColor: 'transparent', color: effectTextDisplayColor(effect, row.right) }"
                           >
-                            {{ effect.label }}
+                            {{ effectLabelDisplay(effect, row.right) }}
                           </span>
                           <span
                             v-else
@@ -135,9 +135,9 @@
                               ? null
                               : effect.full || effect.label
                             "
-                            :style="{ backgroundColor: 'transparent', color: effectDisplayColor(effect, row.right) }"
+                            :style="{ backgroundColor: 'transparent', color: effectTextDisplayColor(effect, row.right) }"
                           >
-                            {{ effect.label }}
+                            {{ effectLabelDisplay(effect, row.right) }}
                           </span>
                           <div v-if="row.right.isAccessory && !row.right.isBracelet && !row.right.isAbilityStone"
                             class="popup-surface popup-surface--tooltip equipment-effect-tooltip">
@@ -738,6 +738,26 @@ const effectDisplayColor = (effect: any, item: any) => {
     return direct
   }
   return 'var(--text-primary)'
+}
+
+const effectTierPrefix = (color?: string | null) => {
+  const normalized = (color || '').replace(/\s+/g, '').toLowerCase()
+  if (normalized.includes('rgb(0,181,255)')) return '하 '
+  if (normalized.includes('rgb(206,67,252)')) return '중 '
+  if (normalized.includes('rgb(254,150,0)')) return '상 '
+  return ''
+}
+
+const effectTextDisplayColor = (effect: any, item: any) => {
+  const isAccessory = item?.isAccessory && !item?.isBracelet && !item?.isAbilityStone
+  if (isAccessory) return 'var(--text-primary)'
+  return effectDisplayColor(effect, item)
+}
+
+const effectLabelDisplay = (effect: any, item: any) => {
+  const isAccessory = item?.isAccessory && !item?.isBracelet && !item?.isAbilityStone
+  const prefix = isAccessory ? effectTierPrefix(effectDisplayColor(effect, item)) : ''
+  return `${prefix}${effect.label || ''}`.trim()
 }
 
 const passiveEffectGroups = computed(() => {
