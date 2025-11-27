@@ -917,6 +917,23 @@ const equipmentSummary = computed(() => {
     .map(([grade, count]) => ({ grade, count }))
     .sort((a, b) => b.count - a.count)
 
+  const gearOrder = [
+    ['투구', '헬멧', '머리'],
+    ['어깨'],
+    ['상의', '상체', '갑옷'],
+    ['하의', '바지'],
+    ['장갑'],
+    ['무기']
+  ]
+
+  const gearOrderIndex = (label: string) => {
+    const lower = inlineText(label).toLowerCase()
+    const found = gearOrder.findIndex(group =>
+      group.some(keyword => lower.includes(keyword.toLowerCase()))
+    )
+    return found === -1 ? 99 : found
+  }
+
   const left: any[] = []
   const right: any[] = []
 
@@ -1159,7 +1176,7 @@ const equipmentSummary = computed(() => {
       typeLabel,
       grade: gradeLabel,
       icon: item.icon || '',
-      itemLevel: accessory || bracelet || abilityStone ? gradeLabel : meta.itemLevel || fallbackItemLevel,
+      itemLevel: accessory || bracelet || abilityStone ? '' : meta.itemLevel || fallbackItemLevel,
       quality: meta.quality,
       transcend: accessory ? '' : meta.transcend,
       harmony: accessory ? '' : meta.harmony,
@@ -1197,13 +1214,25 @@ const equipmentSummary = computed(() => {
         effects
       })
     } else {
-      left.push(base)
+      left.push({
+        ...base,
+        orderRank: gearOrderIndex(typeLabel),
+        orderSeq: left.length
+      })
     }
   })
 
+  const sortedLeft = left
+    .slice()
+    .sort(
+      (a, b) =>
+        (a.orderRank ?? 99) - (b.orderRank ?? 99) || (a.orderSeq ?? 0) - (b.orderSeq ?? 0)
+    )
+    .map(({ orderRank, orderSeq, ...rest }) => rest)
+
   return {
     gradeBadges,
-    left: left.slice(0, 6),
+    left: sortedLeft.slice(0, 6),
     right: right.slice(0, 8)
   }
 })
@@ -2870,12 +2899,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-skill-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* justify-content: space-between; */
 }
 
 .summary-skill-level-inline {
   font-size: var(--font-xs);
   color: var(--text-secondary);
+  margin-left:5px;
 }
 
 .summary-skill-title {
@@ -3428,8 +3458,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .ark-passive-grid-header,
 .ark-passive-grid-row {
   display: grid;
-  grid-template-columns: 40px repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: 50px repeat(3, 1fr);
+  gap: 5px;
   justify-items: center;
 }
 
@@ -3466,10 +3496,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   right: 0;
   top: 0;
   bottom: 0;
-  width: 5px;
+  width: 10px;
   /* background: var(--border-color); */
   border-radius: 12px;
-  border-left: 1px solid black;
+  border-left: 1px dashed black;
 }
 
 .ark-passive-cell {
@@ -3577,6 +3607,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .equipment-item-level {
   font-size: var(--font-xs);
   color: var(--text-secondary);
+  font-weight: 600;
   line-height: 1.1;
 }
 
@@ -3624,15 +3655,76 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   margin-top: 6px;
 }
 
+.equipment-info-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.equipment-line {
+  margin: 0;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.equipment-line--quality,
+.equipment-line--transcend {
+  color: var(--text-secondary);
+}
+
+.equipment-progress {
+  position: relative;
+  flex: 0 0 92px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+
+.equipment-progress--transcend {
+  /* background: rgba(94, 234, 212, 0.15); */
+}
+
+.equipment-progress__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(94, 234, 212, 0.5), rgba(59, 130, 246, 0.6));
+}
+
+.equipment-progress--transcend .equipment-progress__fill {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.55), rgba(234, 179, 8, 0.55));
+}
+
+.equipment-progress__label {
+  font-size: var(--font-xxs, var(--font-xs));
+  color: var(--text-secondary);
+}
+
+.equipment-progress__label--inline {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #111827;
+  font-weight: 700;
+}
+
 .equipment-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 2px 8px;
+  justify-content: flex-end;
+  /* padding: 2px 8px; */
   border-radius: var(--radius-sm);
-  font-size: var(--font-xxs, var(--font-xs));
+  font-size: var(--font-xs);
   font-weight: 700;
-  border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-primary);
   min-width: 42px;
@@ -3641,33 +3733,103 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .equipment-badge--enhance {
   background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.4);
 }
 
 .equipment-badge--quality {
   background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.4);
 }
 
 .equipment-badge--harmony {
   background: rgba(14, 165, 233, 0.12);
-  border-color: rgba(14, 165, 233, 0.4);
+}
+
+.equipment-badge--ilevel {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
+}
+
+.bracelet-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  background: rgba(94, 234, 212, 0.14);
+  color: #0f172a;
+  min-width: 42px;
+  width: fit-content;
+}
+
+.bracelet-badge--effect {
+  justify-content: center;
+}
+
+.bracelet-badge--fullrow {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .equipment-badge--transcend {
-  background: rgba(234, 179, 8, 0.15);
-  border-color: rgba(234, 179, 8, 0.35);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(59, 130, 246, 0.16));
+  color: var(--text-primary);
+  gap: 6px;
+  justify-content: flex-start;
+  min-width: 56px;
+}
+
+.equipment-badge--transcend-gold {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(234, 179, 8, 0.2));
+  color: #f59e0b;
 }
 
 .equipment-badge--special {
   background: rgba(236, 72, 153, 0.12);
   color: #db2777;
-  border-color: rgba(236, 72, 153, 0.35);
+}
+
+.transcend-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  background-image: url('https://cdn-lostark.game.onstove.com/2018/obt/assets/images/common/game/ico_tooltip_transcendence.png');
+  background-size: 100%;
+  background-position: center top;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-xs);
+}
+
+.transcend-icon--gold {
+  background-position: center bottom;
+}
+
+.transcend-icon--inline {
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 .equipment-badge--effect {
+  display:inline-block;
   background: var(--bg-secondary);
   color: var(--text-primary);
+  white-space:nowrap;
+  overflow-x:hidden;
+  max-width: 100px;
+  text-overflow: ellipsis;
+}
+
+.equipment-badge__divider {
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  margin: 0 8px;
+  vertical-align: middle;
+}
+
+.equipment-badge__divider--dashed {
+  border-left: 1px dashed currentColor;
+  opacity: 0.65;
 }
 
 .equipment-effect-badges {
@@ -3677,6 +3839,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .equipment-effect-chip {
+  display:flex;
   position: relative;
 }
 
@@ -3707,7 +3870,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .equipment-row {
   display: grid;
-  grid-template-columns: 120px auto;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   align-items: flex-start;
 }
@@ -3723,6 +3886,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .equipment-side--bracelet {
   grid-column: 1 / span 2;
+  border-radius: var(--radius-md);
+  padding: 8px;
 }
 
 .equipment-side--left {

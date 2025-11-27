@@ -13,21 +13,20 @@
               <template v-if="row.right?.isBracelet && !row.left">
                 <div class="equipment-side equipment-side--bracelet">
                   <div class="equipment-icon-stack">
-                    <LazyImage :src="row.right.icon" :alt="row.right.name" width="32" height="32"
+                    <LazyImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
                       imageClass="summary-icon" errorIcon="💍" :useProxy="true" />
-                    <span v-if="row.right.quality && !row.right.isAbilityStone && !row.right.isBracelet"
-                      class="equipment-quality-badge" :style="qualityStyle(row.right.quality)">
-                      {{ row.right.quality }}
-                    </span>
-                    <span class="equipment-slot-label">{{ row.right.typeLabel }}</span>
-                    <span v-if="row.right.itemLevel" class="equipment-item-level">{{ row.right.itemLevel }}</span>
-                  </div>
-                  <div class="equipment-badge-stack">
+                    </div>
+                  <div class="equipment-info-stack">
+                      <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--inline">
+                        {{ row.right.itemLevel }}
+                      </span>
                     <div v-if="row.right.effects?.length" class="equipment-effect-badges equipment-effect-badges--grid">
-                      <span v-for="(effect, idx) in row.right.effects" :key="`effect-${row.key}-${idx}`"
-                        class="equipment-badge equipment-badge--effect" :title="effect.full || effect.label" :style="{
-                          backgroundColor: effect.bgColor,
-                        }">
+                      <span
+                        v-for="(effect, idx) in row.right.effects"
+                        :key="`effect-${row.key}-${idx}`"
+                        class="bracelet-badge bracelet-badge--effect"
+                        :style="{ backgroundColor: 'transparent', color: effectDisplayColor(effect, row.right) }"
+                      >
                         {{ effect.label }}
                       </span>
                     </div>
@@ -38,25 +37,43 @@
                 <div class="equipment-side equipment-side--left">
                   <template v-if="row.left">
                     <div class="equipment-icon-stack">
-                      <LazyImage :src="row.left.icon" :alt="row.left.name" width="32" height="32"
+                      <LazyImage :src="row.left.icon" :alt="row.left.name" width="40" height="40"
                         imageClass="summary-icon" errorIcon="🗡️" :useProxy="true" />
-                      <span v-if="row.left.quality" class="equipment-quality-badge"
-                        :style="qualityStyle(row.left.quality)">
-                        {{ row.left.quality }}
-                      </span>
-                      <span class="equipment-slot-label">{{ row.left.typeLabel }}</span>
-                      <span v-if="row.left.itemLevel" class="equipment-item-level">{{ row.left.itemLevel }}</span>
                     </div>
-                    <div class="equipment-badge-stack">
-                      <span v-if="row.left.enhancement" class="equipment-badge equipment-badge--enhance">
-                        강화 {{ row.left.enhancement }}
+                    <div class="equipment-info-stack">
+                      <span v-if="row.left.itemLevel" class="equipment-item-level equipment-item-level--inline">
+                        {{ row.left.itemLevel }}
                       </span>
-                      <span v-if="row.left.harmony" class="equipment-badge equipment-badge--harmony">
-                        상재 {{ row.left.harmony }}
+                      <p
+                        v-if="formatGearEnhanceLabel(row.left)"
+                        class="equipment-line equipment-line--primary"
+                      >
+                        {{ formatGearEnhanceLabel(row.left) }}
+                      </p>
+                    <div v-if="row.left.transcend && Number(row.left.transcend) !== -1" class="equipment-line equipment-line--transcend">
+                      <span class="equipment-progress equipment-progress--transcend">
+                        <span class="equipment-progress__fill" :style="transcendBarStyle(row.left.transcend)"></span>
+                        <span class="equipment-progress__label equipment-progress__label--inline">
+                          초월 {{ row.left.transcend }}
+                          <span
+                            class="transcend-icon transcend-icon--inline"
+                            :class="{ 'transcend-icon--gold': isTranscendGold(row.left.transcend) }"
+                            aria-hidden="true"
+                          ></span>
+                        </span>
                       </span>
-                      <span v-if="row.left.transcend" class="equipment-badge equipment-badge--transcend">
-                        초월 {{ row.left.transcend }}
+                    </div>
+                    <div
+                      v-if="qualityValue(row.left.quality) !== null && Number(row.left.quality) !== -1"
+                      class="equipment-line equipment-line--quality"
+                    >
+                      <span class="equipment-progress">
+                        <span class="equipment-progress__fill" :style="qualityBarStyle(row.left.quality)"></span>
+                        <span class="equipment-progress__label equipment-progress__label--inline">
+                          품질 {{ row.left.quality }}
+                        </span>
                       </span>
+                    </div>
                     </div>
                   </template>
                   <p v-else class="equipment-empty">—</p>
@@ -65,31 +82,61 @@
                 <div class="equipment-side">
                   <template v-if="row.right">
                     <div class="equipment-icon-stack">
-                      <LazyImage :src="row.right.icon" :alt="row.right.name" width="32" height="32"
+                      <LazyImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
                         imageClass="summary-icon" errorIcon="💍" :useProxy="true" />
-                      <span v-if="row.right.quality && !row.right.isAbilityStone && !row.right.isBracelet"
-                        class="equipment-quality-badge" :style="qualityStyle(row.right.quality)">
-                        {{ row.right.quality }}
-                      </span>
-                      <span class="equipment-slot-label">{{ row.right.typeLabel }}</span>
-                      <span v-if="row.right.itemLevel" class="equipment-item-level">{{ row.right.itemLevel }}</span>
                     </div>
-                    <div class="equipment-badge-stack">
+                    <div class="equipment-info-stack">
+                      <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--inline">
+                        {{ row.right.itemLevel }}
+                      </span>
+                      <p
+                        v-if="formatGearEnhanceLabel(row.right)"
+                        class="equipment-line equipment-line--primary"
+                      >
+                        {{ formatGearEnhanceLabel(row.right) }}
+                      </p>
+                      <div v-if="row.right.transcend && Number(row.right.transcend) !== -1" class="equipment-line equipment-line--transcend">
+                        <span class="equipment-progress equipment-progress--transcend">
+                          <span class="equipment-progress__fill" :style="transcendBarStyle(row.right.transcend)"></span>
+                          <span class="equipment-progress__label equipment-progress__label--inline">
+                            초월 {{ row.right.transcend }}
+                            <span
+                              class="transcend-icon transcend-icon--inline"
+                              :class="{ 'transcend-icon--gold': isTranscendGold(row.right.transcend) }"
+                              aria-hidden="true"
+                            ></span>
+                          </span>
+                        </span>
+                      </div>
                       <div v-if="row.right.effects?.length" class="equipment-effect-badges"
-                        :class="{ 'equipment-effect-badges--grid': row.right.isBracelet }">
-                        <div v-for="(effect, idx) in row.right.effects" :key="`effect-${row.key}-${idx}`"
-                          class="equipment-effect-chip" :class="{
-                            'equipment-effect-chip--tooltip':
-                              row.right.isAccessory && !row.right.isBracelet && !row.right.isAbilityStone,
+                      :class="{ 'equipment-effect-badges--grid': row.right.isBracelet }">
+                      <div v-for="(effect, idx) in row.right.effects" :key="`effect-${row.key}-${idx}`"
+                        class="equipment-effect-chip" :class="{
+                          'equipment-effect-chip--tooltip':
+                            row.right.isAccessory && !row.right.isBracelet && !row.right.isAbilityStone,
                             'equipment-badge--combat': effect.isCombat,
                             'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
                           }">
-                          <span class="equipment-badge equipment-badge--effect" :title="row.right.isAccessory && !row.right.isBracelet && !row.right.isAbilityStone
+                          <span
+                            v-if="row.right.isBracelet"
+                            class="bracelet-badge bracelet-badge--effect"
+                            :style="{ backgroundColor: 'transparent', color: effectDisplayColor(effect, row.right) }"
+                          >
+                            {{ effect.label }}
+                          </span>
+                          <span
+                            v-else
+                            class="equipment-badge equipment-badge--effect"
+                            :class="{
+                              'equipment-badge--combat': effect.isCombat,
+                              'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
+                            }"
+                            :title="row.right.isAccessory && !row.right.isBracelet && !row.right.isAbilityStone
                               ? null
                               : effect.full || effect.label
-                            " :style="{
-                            backgroundColor: effect.bgColor,
-                          }">
+                            "
+                            :style="{ backgroundColor: 'transparent', color: effectDisplayColor(effect, row.right) }"
+                          >
                             {{ effect.label }}
                           </span>
                           <div v-if="row.right.isAccessory && !row.right.isBracelet && !row.right.isAbilityStone"
@@ -98,6 +145,17 @@
                               {{ effect.full || effect.label }}
                             </p>
                           </div>
+                        </div>
+                        <div
+                          v-if="qualityValue(row.right.quality) !== null && Number(row.right.quality) !== -1"
+                          class="equipment-line equipment-line--quality"
+                        >
+                          <span class="equipment-progress">
+                            <span class="equipment-progress__fill" :style="qualityBarStyle(row.right.quality)"></span>
+                            <span class="equipment-progress__label equipment-progress__label--inline">
+                              품질 {{ row.right.quality }}
+                            </span>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -546,6 +604,140 @@ const engravingLevelBadgeSrc = (levelLabel?: string) => {
   const match = levelLabel?.match(/(\d+)/)
   const level = match?.[1] || '0'
   return `/assets/engraving/level-${level}.png`
+}
+
+const gradeColor = (grade?: string | null) => {
+  const g = (grade || '').toLowerCase()
+  if (!g) return ''
+  if (g.includes('고대')) return 'var(--rarity-ancient, #eab308)'
+  if (g.includes('유물')) return 'var(--rarity-relic, #f97316)'
+  if (g.includes('전설')) return 'var(--rarity-legendary, #fbbf24)'
+  if (g.includes('영웅')) return 'var(--rarity-heroic, #a78bfa)'
+  if (g.includes('희귀')) return 'var(--rarity-rare, #60a5fa)'
+  if (g.includes('고급') || g.includes('언커먼')) return 'var(--rarity-uncommon, #6ee7b7)'
+  if (g.includes('일반') || g.includes('노말')) return 'var(--text-secondary, #6b7280)'
+  return ''
+}
+
+const isTranscendGold = (value?: string | number) => {
+  const numeric = Number(String(value ?? '').replace(/,/g, ''))
+  return Number.isFinite(numeric) && numeric >= 21
+}
+
+const qualityValue = (value?: string | number | null) => {
+  if (value === undefined || value === null || value === '') return null
+  const num = Number(String(value).replace(/[^0-9.\-]/g, ''))
+  if (!Number.isFinite(num)) return null
+  return Math.max(0, Math.min(100, num))
+}
+
+type ProgressTier = 'normal' | 'rare' | 'heroic' | 'legendary'
+
+const PROGRESS_COLORS: Record<ProgressTier, string> = {
+  normal: 'rgba(145, 254, 2, 0.16)',
+  rare: 'rgba(0, 181, 255, 0.16)',
+  heroic: 'rgba(206, 67, 252, 0.16)',
+  legendary: 'rgba(254, 150, 0, 0.16)'
+}
+
+const qualityTier = (value?: string | number | null): ProgressTier => {
+  const q = qualityValue(value) ?? 0
+  if (q >= 100) return 'legendary'
+  if (q >= 90) return 'heroic'
+  if (q >= 70) return 'rare'
+  return 'normal'
+}
+
+const qualityBarStyle = (value?: string | number | null) => {
+  const q = qualityValue(value)
+  const percent = q === null ? 0 : q
+  return {
+    width: `${percent}%`,
+    background: PROGRESS_COLORS[qualityTier(value)]
+  }
+}
+
+const transcendBarStyle = (value?: string | number | null) => {
+  if (value === undefined || value === null || value === '') {
+    return { width: '0%', background: PROGRESS_COLORS.normal }
+  }
+  const num = Number(String(value).replace(/[^0-9.\-]/g, ''))
+  const clamped = !Number.isFinite(num) ? 0 : Math.max(0, Math.min(21, num))
+  const percent = (clamped / 21) * 100
+  const tier: ProgressTier =
+    clamped >= 21 ? 'legendary' : clamped >= 16 ? 'heroic' : clamped >= 11 ? 'rare' : 'normal'
+  return {
+    width: `${percent}%`,
+    background: PROGRESS_COLORS[tier]
+  }
+}
+
+const formatGearEnhanceLabel = (item?: any) => {
+  if (!item || item.isAccessory || item.isBracelet || item.isAbilityStone) return ''
+  const toNumber = (val?: string | number | null) => {
+    if (val === null || val === undefined) return null
+    const num = Number(String(val).replace(/[^0-9.\-]/g, ''))
+    return Number.isFinite(num) ? num : null
+  }
+  const enhanceNum = toNumber(item.enhancement)
+  const harmonyNum = toNumber(item.harmony)
+  const harmonyAdjusted = harmonyNum !== null ? (harmonyNum >= 20 ? harmonyNum - 10 : harmonyNum) : null
+
+  const parts: string[] = []
+  if (enhanceNum !== null) parts.push(`+${enhanceNum}`)
+  parts.push(String(item.typeLabel || '').trim())
+  if (harmonyAdjusted !== null) parts.push(`+${harmonyAdjusted}`)
+
+  return parts.filter(Boolean).join(' ')
+}
+
+const enhanceHarmonyParts = (enhancement?: string | number, harmony?: string | number) => {
+  const toNumber = (val?: string | number | null) => {
+    if (val === null || val === undefined) return null
+    const num = Number(String(val).replace(/[^0-9.\-]/g, ''))
+    return Number.isFinite(num) ? num : null
+  }
+
+  const enhanceNum = toNumber(enhancement)
+  const harmonyNum = toNumber(harmony)
+
+  const enhanceLabel = enhanceNum !== null ? `+${enhanceNum}` : ''
+  const harmonyAdjusted = harmonyNum !== null ? (harmonyNum >= 20 ? harmonyNum - 10 : harmonyNum) : null
+  const harmonyLabel = harmonyAdjusted !== null ? `+${harmonyAdjusted}` : ''
+
+  return {
+    enhance: enhanceLabel,
+    harmony: harmonyLabel,
+    hasValue: Boolean(enhanceLabel || harmonyLabel)
+  }
+}
+
+const effectBg = (color?: string | null) => {
+  const cleaned = (color || '').trim()
+  const isNeutral =
+    !cleaned ||
+    /var\(--bg-secondary/i.test(cleaned) ||
+    cleaned.toLowerCase() === 'transparent' ||
+    cleaned === '#ffffff' ||
+    cleaned === '#fff'
+
+  if (!isNeutral) return cleaned
+  return 'rgba(148, 163, 184, 0.18)'
+}
+
+const effectDisplayColor = (effect: any, item: any) => {
+  const direct = (effect?.bgColor || '').trim()
+  if (direct) {
+    const rgbaMatch = direct.match(/rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/i)
+    if (rgbaMatch) {
+      const r = Number(rgbaMatch[1])
+      const g = Number(rgbaMatch[2])
+      const b = Number(rgbaMatch[3])
+      return `rgb(${r}, ${g}, ${b})`
+    }
+    return direct
+  }
+  return 'var(--text-primary)'
 }
 
 const passiveEffectGroups = computed(() => {
