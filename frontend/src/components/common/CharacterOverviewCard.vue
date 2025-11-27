@@ -486,7 +486,7 @@ onBeforeUnmount(() => {
 }
 
 .profile-stat {
-  padding: 10px;
+  padding: 5px 10px;
   border-radius: 12px;
 }
 
@@ -507,7 +507,7 @@ onBeforeUnmount(() => {
 }
 
 .paradise-item {
-  padding: 10px;
+  padding: 5px 10px;
   border-radius: 12px;
 }
 

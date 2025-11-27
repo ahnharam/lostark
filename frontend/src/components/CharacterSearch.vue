@@ -184,6 +184,7 @@
                   :ark-grid-loading="arkGridLoading"
                   :ark-grid-error="arkGridError"
                   :skill-highlights="skillHighlights"
+                  :skill-loose-gems="skillLooseGems"
                   :skill-loading="skillLoading"
                   :skill-error="skillError"
                   :engraving-summary="engravingSummary"
@@ -577,7 +578,7 @@ const extractGemLabel = (gem: SkillGem) => {
   const labelMatch = candidates.match(/(멸화|겁화|홍염|작열)/i)
   if (labelMatch?.[1]) return labelMatch[1]
   if (GEM_DAMAGE_REGEX.test(candidates)) return '겁화'
-  if (GEM_COOLDOWN_REGEX.test(candidates)) return '홍염'
+  if (GEM_COOLDOWN_REGEX.test(candidates)) return '작열'
   return ''
 }
 
@@ -722,6 +723,42 @@ const skillHighlights = computed(() => {
       gems: { damage: SkillGemSlot | null; cooldown: SkillGemSlot | null }
       hasGem: boolean
     }>
+})
+
+const combatSkillKeySet = computed(() => {
+  const set = new Set<string>()
+  const skills = skillResponse.value?.combatSkills ?? []
+  skills.forEach(skill => {
+    const key = normalizeSkillKey(skill.name)
+    if (key) set.add(key)
+  })
+  return set
+})
+
+const skillLooseGems = computed(() => {
+  const gems = skillResponse.value?.skillGems ?? []
+  if (!gems.length) return []
+  const skillKeys = combatSkillKeySet.value
+  return gems
+    .filter(gem => {
+      const key = normalizeSkillKey(gem.skill?.name || gem.skill?.description)
+      if (key && skillKeys.has(key)) return false
+      return true
+    })
+    .map((gem, index) => {
+      const effectLabel = extractGemLabel(gem)
+      const skillName = inlineText(gem.skill?.name || gem.skill?.description)
+      return {
+        key: `${gem.name || 'gem'}-loose-${index}`,
+        name: skillName || inlineText(gem.name) || '보석',
+        skillName,
+        icon: gem.icon || '',
+        levelLabel: formatLevelLabel(gem.level),
+        grade: inlineText(gem.grade),
+        effectLabel: effectLabel || inlineText(gem.skill?.description),
+        typeLabel: inlineText(gem.skill?.name)
+      }
+    })
 })
 
 const summarizeEquipmentLine = (item: Equipment): string => {
@@ -902,15 +939,15 @@ const equipmentSummary = computed(() => {
   const normalizeEffectLabel = (label: string) => inlineText(label).replace(/^>\s*/, '').trim()
   const abbreviateEffect = (label: string) => applyEffectAbbreviations(normalizeEffectLabel(label))
 
-const formatEffectLabel = (label: string) => {
-  const normalized = normalizeEffectLabel(label)
-  const abbreviated = applyEffectAbbreviations(normalized)
-  return {
-    label: abbreviated,
-    normalized,
-    changed: abbreviated !== normalized
+  const formatEffectLabel = (label: string) => {
+    const normalized = normalizeEffectLabel(label)
+    const abbreviated = applyEffectAbbreviations(normalized)
+    return {
+      label: abbreviated,
+      normalized,
+      changed: abbreviated !== normalized
+    }
   }
-}
 
   const decorateEffect = (effect: { label: string; full?: string }) => {
     const { label } = formatEffectLabel(effect.label)
@@ -1260,6 +1297,24 @@ const parsePassiveTooltip = (tooltip?: string | null) => {
   }
 }
 
+const parsePassiveDescription = (description?: string | null) => {
+  const text = inlineText(description)
+  const typeMatch = text.match(/(진화|깨달음|도약)/)
+  const typeLabel = typeMatch?.[1] || '기타'
+  const levelMatch = text.match(/Lv\.?\s*(\d+)/i)
+  const levelLabel = levelMatch?.[1] ? `Lv.${levelMatch[1]}` : ''
+  const tierMatch = text.match(/(\d+)\s*티어/i)
+  const tierValue = tierMatch?.[1] ? Number(tierMatch[1]) : Number.POSITIVE_INFINITY
+  const tierLabel = tierMatch?.[1] ? `${tierMatch[1]}티어` : ''
+  let passiveName = text
+  if (typeMatch?.[0]) passiveName = passiveName.replace(typeMatch[0], ' ')
+  if (tierMatch?.[0]) passiveName = passiveName.replace(tierMatch[0], ' ')
+  if (levelMatch?.[0]) passiveName = passiveName.replace(levelMatch[0], ' ')
+  passiveName = passiveName.replace(/\s+/g, ' ').trim()
+  if (!passiveName) passiveName = typeLabel
+  return { typeLabel, levelLabel, tierLabel, tierValue, passiveName }
+}
+
 const normalizeTierText = (value?: string | null) => {
   if (!value) return ''
   return value
@@ -1329,6 +1384,9 @@ interface PassiveSummaryCard {
   sectionKey: PassiveSectionKey
   tierLabel: string
   levelLine: string
+  tierGroup: string
+  typeLabel: string
+  tierValue: number
 }
 
 interface PassiveSummaryRow {
@@ -1348,8 +1406,9 @@ const buildPassiveCard = (effect: ArkPassiveEffect, index: number): PassiveSumma
     tooltip.lines.find(line => /아크\s*패시브\s*레벨/i.test(line)) || tooltip.title || ''
   const summaryLine =
     tooltip.lines.find(line => line && line !== levelLine) || tooltip.title || tierLabel
+  const descriptor = parsePassiveDescription(effect.description)
   const name = inlineText(effect.name)
-  const displayName = stripPassiveStageKeywords(name) || name || '패시브'
+  const displayName = stripPassiveStageKeywords(descriptor.passiveName) || descriptor.passiveName || name || '패시브'
   const levelValueMatch = levelLine.match(/(\d+)/)
   const levelDisplay = levelValueMatch ? `Lv.${levelValueMatch[1]}` : ''
   const section =
@@ -1358,15 +1417,20 @@ const buildPassiveCard = (effect: ArkPassiveEffect, index: number): PassiveSumma
     PASSIVE_SECTIONS.find(section => name.includes(section.keyword)) ||
     PASSIVE_SECTIONS[0]
 
+  const tierGroup = extractTierGroupLabel(tierLabel, levelLine)
+
   return {
     key: `${displayName || 'passive'}-${index}`,
     name: displayName,
     icon: effect.icon || '',
-    levelDisplay,
+    levelDisplay: descriptor.levelLabel || levelDisplay,
     summaryLine: summaryLine || '효과 정보 없음',
     sectionKey: section.key,
     tierLabel,
-    levelLine
+    levelLine,
+    tierGroup: descriptor.tierLabel || tierGroup,
+    typeLabel: descriptor.typeLabel,
+    tierValue: descriptor.tierValue
   }
 }
 
@@ -1402,17 +1466,9 @@ const buildArkPassiveMatrix = (effects: ArkPassiveEffect[] = []): PassiveSummary
   }
 
   rows.forEach(row => {
-    const MAX_EFFECTS_PER_ROW = 4
-    let remaining = MAX_EFFECTS_PER_ROW
     row.sections.forEach(section => {
-      if (remaining <= 0) {
-        section.effects = []
-        return
-      }
-      if (section.effects.length > remaining) {
-        section.effects = section.effects.slice(0, remaining)
-      }
-      remaining -= section.effects.length
+      // 모든 효과를 노출하도록 제한을 제거
+      section.effects = [...section.effects]
     })
   })
 
@@ -1478,6 +1534,19 @@ const arkSummary = computed(() => {
   const passive = arkGridResponse.value?.arkPassive
   const grid = arkGridResponse.value?.arkGrid
   const passiveMatrix = buildArkPassiveMatrix(passive?.effects ?? [])
+  const passiveEffects =
+    passive?.effects?.map((effect, index) => {
+      const card = buildPassiveCard(effect, index)
+      return {
+        key: card.key,
+        name: card.name,
+        levelLabel: card.levelDisplay,
+        tierGroup: card.tierGroup,
+        typeLabel: card.typeLabel,
+        tierLabel: card.tierLabel,
+        tierValue: card.tierValue
+      }
+    }).filter(effect => effect.name) ?? []
 
   const coreSlots = (grid?.slots ?? [])
     .map((slot, index) => {
@@ -1527,7 +1596,8 @@ const arkSummary = computed(() => {
     coreMatrix,
     appliedPoints,
     passiveMatrix,
-    corePassives
+    corePassives,
+    passiveEffects
   }
 })
 
@@ -2625,17 +2695,11 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   border: none;
   border-radius: var(--radius-lg);
   background: transparent;
-  padding: var(--space-md);
+  /* padding: var(--space-md); */
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-md);
   box-shadow: none;
-}
-
-.summary-card--module {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: var(--space-sm);
-  min-height: 200px;
 }
 
 .summary-card__head {
@@ -2671,6 +2735,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  padding: var(--space-md);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-xl);
 }
 
 .ark-section__subhead {
@@ -2722,13 +2789,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-list-item {
   display: grid;
   grid-template-columns: 50px 1fr 1fr;
-  align-items: center;
-  gap: var(--space-md);
-  padding: 8px 0;
-}
-
-.summary-list-item--plain {
-  padding: 4px;
+  align-items: start;
+  gap: var(--space-xs);
+  padding:4px;
 }
 
 .summary-list-text {
@@ -2757,22 +2820,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: var(--radius-full);
-  background: var(--bg-primary);
-  color: var(--text-primary);
   font-size: var(--font-xs);
-  border: none;
-  white-space: nowrap;
-  justify-content: space-around;
-}
-
-.summary-pill--primary {
-  background: rgba(102, 126, 234, 0.16);
-  color: var(--primary-color);
+  color: var(--text-secondary);
 }
 
 .summary-pill--accent {
@@ -2789,10 +2838,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   flex-direction: column;
   gap: 6px;
   align-items: flex-end;
-}
-
-.summary-skill-item {
-  align-items: stretch;
 }
 
 .summary-skill-icon-stack {
@@ -2824,9 +2869,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .summary-skill-head {
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-skill-level-inline {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
 }
 
 .summary-skill-title {
@@ -2861,11 +2910,11 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .summary-tripod-icon {
   position: relative;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  /* width: 26px;
+  height: 26px; */
+  /* border-radius: 8px; */
+  /* background: var(--bg-secondary); */
+  /* border: 1px solid var(--border-color); */
   display: grid;
   place-items: center;
 }
@@ -2895,9 +2944,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-tripod-slot-dot {
-  position: absolute;
+  /* position: absolute;
   right: -6px;
-  bottom: -6px;
+  bottom: -6px; */
   width: 18px;
   height: 18px;
   display: grid;
@@ -2910,15 +2959,15 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-.summary-tripod-icon--1 .summary-tripod-slot-dot {
+.summary-tripod-icon--1 {
   background: #00a1e0;
 }
 
-.summary-tripod-icon--2 .summary-tripod-slot-dot {
+.summary-tripod-icon--2 {
   background: #7cca15;
 }
 
-.summary-tripod-icon--3 .summary-tripod-slot-dot {
+.summary-tripod-icon--3 {
   background: #ff9500;
 }
 
@@ -2970,6 +3019,13 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   background: var(--bg-hover);
 }
 
+.summary-gem-text {
+  font-size: var(--font-xxs, var(--font-xs));
+  color: var(--text-secondary);
+  padding: 2px 4px;
+  text-align: center;
+}
+
 .summary-gem-empty {
   font-size: 1rem;
   color: var(--text-tertiary);
@@ -2984,17 +3040,99 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-gem-level-dot {
-  position: absolute;
-  right: -6px;
-  bottom: -6px;
-  /* min-width: 22px; */
   padding: 2px 6px;
   border-radius: 999px;
   background: var(--primary-color);
   color: #ffffff;
-  font-size: var(--font-xxs, var(--font-xs));
+  font-size: var(--font-xxs);
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  height: 18px;
+  width: 18px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.summary-loose-gems {
+  margin-top: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.summary-inline--muted {
+  color: var(--text-secondary);
+}
+
+.summary-loose-gem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-sm);
+}
+
+.summary-loose-gem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.summary-loose-gem-body .summary-title {
+  font-size: var(--font-sm);
+}
+
+.summary-engraving-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(auto, 1fr));
+  gap: var(--space-sm);
+}
+
+.summary-engraving-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-secondary);
+}
+
+.engrave-craft-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.engrave-craft-image {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.engrave-craft-text {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summary-engraving-name {
+  text-align: center;
+  width: 100%;
+}
+
+.summary-engrave-meta-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+}
+
+.engrave-level-image {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 .summary-inline {
@@ -3187,6 +3325,19 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   gap: var(--space-sm);
 }
 
+.ark-core-row-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ark-core-row-label {
+  margin: 0;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .ark-core-card-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -3201,7 +3352,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   align-items: center;
   gap: 10px;
-  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
 }
 
 .ark-core-card__thumb {
@@ -3231,20 +3382,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .ark-core-card__point {
-  position: absolute;
-  right: -6px;
-  bottom: -6px;
-  padding: 3px 6px;
-  border-radius: var(--radius-full);
-  background: var(--quality-badge-bg, rgba(15, 23, 42, 0.333));
-  color: var(--primary-color);
-  font-size: var(--font-xxs);
-  font-weight: 700;
-  text-shadow:
-    -1px -1px 0 rgba(255, 255, 255, 0.9),
-    1px -1px 0 rgba(255, 255, 255, 0.9),
-    -1px 1px 0 rgba(255, 255, 255, 0.9),
-    1px 1px 0 rgba(255, 255, 255, 0.9);
+  display: none;
 }
 
 .ark-core-card__body {
@@ -3275,6 +3413,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .ark-passive-grid {
   display: flex;
   flex-direction: column;
+  gap: var(--space-xs);
 }
 
 
@@ -3321,15 +3460,16 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   width:100%;
 }
 
-.ark-passive-tier::after,
-.ark-passive-header-tier::after {
+.ark-passive-tier::after {
   content: '';
   position: absolute;
   right: 0;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: var(--border-color);
+  width: 5px;
+  /* background: var(--border-color); */
+  border-radius: 12px;
+  border-left: 1px solid black;
 }
 
 .ark-passive-cell {
@@ -3344,6 +3484,66 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
   gap: 8px 10px;
   width:100%;
+}
+
+.ark-passive-summary-footer {
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ark-passive-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.ark-passive-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ark-passive-column__title {
+  margin: 0;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ark-passive-column__points {
+  margin-left: 6px;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.ark-passive-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ark-passive-list__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary);
+}
+
+.ark-passive-list__level {
+  font-weight: 700;
+  color: var(--primary-color);
+  font-size: var(--font-xs);
+}
+
+.ark-passive-list__name {
+  font-size: var(--font-xs);
+  color: var(--text-primary);
 }
 
 .ark-passive-chip {
@@ -3824,7 +4024,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .meta-item {
-  padding: 10px;
+  padding: 5px 10px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -4025,7 +4225,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .profile-stat {
-  padding: 10px;
+  padding: 5px 10px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -4384,7 +4584,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .paradise-item {
-  padding: 10px;
+  padding: 5px 10px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
