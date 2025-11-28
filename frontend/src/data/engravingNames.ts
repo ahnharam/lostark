@@ -25,6 +25,7 @@ export const ENGRAVING_NAME_ENTRIES: EngravingNameEntry[] = [
   { full: '바리케이드', short: '바리' },
   { full: '구슬동자', short: '구동' },
   { full: '최대 마나 증가', short: '최마증' },
+  { full: '마나의 흐름', short: '마흐' },
   { full: '안정된 상태', short: '안정' },
   { full: '각성', short: '각성' },
   { full: '중갑 착용', short: '중갑' },
