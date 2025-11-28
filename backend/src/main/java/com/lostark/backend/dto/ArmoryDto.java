@@ -23,4 +23,7 @@ public class ArmoryDto {
 
     @JsonAlias("ArkGrid")
     private ArkGridDto arkGrid;
+
+    @JsonAlias("ArmoryCard")
+    private CardDto card;
 }

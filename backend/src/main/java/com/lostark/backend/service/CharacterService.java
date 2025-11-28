@@ -51,7 +51,8 @@ public class CharacterService {
             boolean needsUpgrade =
                     character.getTitle() == null ||
                     character.getStatsJson() == null ||
-                    character.getCombatPower() == null;
+                    character.getCombatPower() == null ||
+                    character.getHonorPoint() == null;
             
             if (cacheFresh && !needsUpgrade) {
                 log.info("캐시된 데이터 반환: {}", characterName);
@@ -104,6 +105,7 @@ public class CharacterService {
         dto.setPvpGradeName(character.getPvpGradeName());
         dto.setGuildName(character.getGuildName());
         dto.setCombatPower(character.getCombatPower());
+        dto.setHonorPoint(character.getHonorPoint());
         List<CharacterStatDto> stats = parseStats(character.getStatsJson());
         if (stats != null) {
             dto.setStats(stats);
@@ -116,6 +118,9 @@ public class CharacterService {
                 }
                 if (dto.getCombatPower() == null) {
                     dto.setCombatPower(cachedDto.getCombatPower());
+                }
+                if (dto.getHonorPoint() == null) {
+                    dto.setHonorPoint(cachedDto.getHonorPoint());
                 }
             } catch (JsonProcessingException e) {
                 dto.setStats(null);
@@ -160,6 +165,7 @@ public class CharacterService {
         character.setPvpGradeName(dto.getPvpGradeName());
         character.setGuildName(dto.getGuildName());
         character.setCombatPower(dto.getCombatPower());
+        character.setHonorPoint(dto.getHonorPoint());
         character.setCollectionScore(collectionScore);
         try {
             character.setStatsJson(dto.getStats() != null ?

@@ -73,6 +73,7 @@ public class FavoriteService {
                 Integer.parseInt(character.getExpeditionLevel()) : null);
         dto.setPvpGradeName(character.getPvpGradeName());
         dto.setGuildName(character.getGuildName());
+        dto.setHonorPoint(character.getHonorPoint());
         return dto;
     }
 }

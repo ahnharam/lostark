@@ -40,6 +40,9 @@ public class CharacterProfileDto {
     @JsonAlias("PvpGradeName")
     private String pvpGradeName;
 
+    @JsonAlias("HonorPoint")
+    private String honorPoint;
+
     @JsonAlias("GuildName")
     private String guildName;
 

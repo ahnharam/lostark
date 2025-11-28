@@ -161,6 +161,9 @@
                 :display-stats="displayStats"
                 :paradise-info="paradiseInfo"
                 :special-equipments="specialEquipmentsDetailed"
+                :combat-role="combatRole"
+                :combat-role-loading="arkGridLoading"
+                :honor-point="activeCharacter?.honorPoint"
                 :loading="loading"
                 :format-combat-power="formatCombatPower"
                 :format-integer="formatInteger"
@@ -183,15 +186,18 @@
                   :ark-summary="arkSummary"
                   :ark-grid-loading="arkGridLoading"
                   :ark-grid-error="arkGridError"
-                  :skill-highlights="skillHighlights"
-                  :skill-loose-gems="skillLooseGems"
-                  :skill-loading="skillLoading"
-                  :skill-error="skillError"
-                  :engraving-summary="engravingSummary"
-                  :collection-summary="collectionSummary"
-                  :collectibles-loading="collectiblesLoading"
-                  :collectibles-error="collectiblesError"
-                />
+                :skill-highlights="skillHighlights"
+                :skill-loose-gems="skillLooseGems"
+                :skill-loading="skillLoading"
+                :skill-error="skillError"
+                :engraving-summary="engravingSummary"
+                :card-summary="cardSummary"
+                :card-loading="cardLoading"
+                :card-error="cardError"
+                :collection-summary="collectionSummary"
+                :collectibles-loading="collectiblesLoading"
+                :collectibles-error="collectiblesError"
+              />
 
                 <section
                   v-else-if="activeResultTab === 'skills'"
@@ -343,7 +349,8 @@ import type {
   SkillMenuResponse,
   Collectible,
   CombatSkill,
-  SkillGem
+  SkillGem,
+  CardResponse
 } from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
@@ -382,6 +389,8 @@ interface TabPlaceholderCopy {
   title: string
   description: string
 }
+
+type CombatRole = 'dealer' | 'support'
 
 const FAVORITES_STORAGE_KEY = 'loa:favorites'
 const HISTORY_STORAGE_KEY = 'loa:history'
@@ -454,6 +463,10 @@ const arkGridResponse = ref<ArkGridResponse | null>(null)
 const arkGridLoading = ref(false)
 const arkGridError = ref<string | null>(null)
 const arkGridLoadedFor = ref<string | null>(null)
+const cardResponse = ref<CardResponse | null>(null)
+const cardLoading = ref(false)
+const cardError = ref<string | null>(null)
+const cardLoadedFor = ref<string | null>(null)
 const skillResponse = ref<SkillMenuResponse | null>(null)
 const skillLoading = ref(false)
 const skillError = ref<string | null>(null)
@@ -1563,6 +1576,61 @@ const buildCoreMatrix = (coreSlots: Array<{ alignment: string; celestial: string
   return { headers, rows }
 }
 
+const SUPPORT_POINT_KEYWORDS = ['축복의여신', '축복의 여신', '정열의춤사위', '정열의 춤사위']
+const normalizeSupportText = (value?: string | number | null) => inlineText(value).replace(/\s+/g, '')
+
+const combatRole = computed<CombatRole | null>(() => {
+  const passive = arkGridResponse.value?.arkPassive
+  if (!passive) return null
+
+  const points = passive.points ?? []
+
+  const hasSupportPoint = points.some(point => {
+    const pointValue =
+      typeof point.value === 'number'
+        ? point.value
+        : Number(String(point.value ?? '').replace(/,/g, ''))
+    const hasAssignedPoint = Number.isFinite(pointValue) ? pointValue > 0 : Boolean(point.value)
+
+    const normalizedLines = [
+      point.name,
+      point.description,
+      ...(point.tooltip ? flattenTooltipLines(point.tooltip) : [])
+    ]
+      .map(normalizeSupportText)
+      .filter(Boolean)
+
+    if (!normalizedLines.length) return false
+
+    const mentionsSupportKeyword = normalizedLines.some(text =>
+      SUPPORT_POINT_KEYWORDS.some(keyword => text.includes(normalizeSupportText(keyword)))
+    )
+
+    return hasAssignedPoint && mentionsSupportKeyword
+  })
+
+  if (hasSupportPoint) return 'support'
+
+  const effects = passive.effects ?? []
+  const hasSupportEffect = effects.some(effect => {
+    const normalizedLines = [effect.name, effect.description, effect.toolTip]
+      .flatMap(item => (Array.isArray(item) ? item : [item]))
+      .flatMap(item => (item ? flattenTooltipLines(String(item)) : []))
+      .map(normalizeSupportText)
+      .filter(Boolean)
+
+    if (!normalizedLines.length) return false
+
+    return normalizedLines.some(text =>
+      SUPPORT_POINT_KEYWORDS.some(keyword => text.includes(normalizeSupportText(keyword)))
+    )
+  })
+
+  if (hasSupportEffect) return 'support'
+
+  return 'dealer'
+})
+
 const arkSummary = computed(() => {
   const passive = arkGridResponse.value?.arkPassive
   const grid = arkGridResponse.value?.arkGrid
@@ -1631,6 +1699,55 @@ const arkSummary = computed(() => {
     passiveMatrix,
     corePassives,
     passiveEffects
+  }
+})
+
+const cardSummary = computed(() => {
+  const cards =
+    cardResponse.value?.card?.cards
+      ?.filter(card => inlineText(card.name))
+      .map((card, index) => {
+        const awakeCountRaw = Number(card.awakeCount)
+        const awakeTotalRaw = Number(card.awakeTotal)
+        const awakeCount = Number.isFinite(awakeCountRaw) ? awakeCountRaw : null
+        const awakeTotal = Number.isFinite(awakeTotalRaw) ? awakeTotalRaw : null
+        const awakeLabel =
+          awakeCount !== null && awakeTotal !== null ? `${awakeCount}/${awakeTotal}` : null
+        return {
+          key: `card-${card.slot ?? index}`,
+          name: inlineText(card.name),
+          icon: card.icon || '',
+          grade: inlineText(card.grade),
+          awakeLabel,
+          awakeCount,
+          awakeTotal
+        }
+      }) ?? []
+
+  const effects =
+    cardResponse.value?.card?.effects?.map((effect, index) => {
+      const label =
+        effect.items?.map(item => inlineText(item.name)).find(Boolean) ||
+        `세트 효과 ${effect.index ?? index + 1}`
+      const descriptions =
+        effect.items
+          ?.map(item => inlineText(item.description))
+          .filter(Boolean) ?? []
+      const setLabel =
+        effect.cardSlots && effect.cardSlots.length
+          ? `${effect.cardSlots.join(' / ')}세트`
+          : ''
+      return {
+        key: `effect-${effect.index ?? index}`,
+        label,
+        descriptions,
+        setLabel
+      }
+    }) ?? []
+
+  return {
+    cards,
+    effects
   }
 })
 
@@ -1877,7 +1994,7 @@ watch(activeResultTab, async newTab => {
   } else if (newTab === 'collection') {
     await ensureCollectiblesData()
   } else if (newTab === 'summary') {
-    await Promise.all([ensureSkillData(), ensureCollectiblesData(), ensureArkGridData()])
+    await Promise.all([ensureSkillData(), ensureCollectiblesData(), ensureArkGridData(), ensureCardData()])
   }
 })
 
@@ -1911,6 +2028,10 @@ const searchCharacter = async (name: string, options: { forceRefresh?: boolean; 
   arkGridLoadedFor.value = null
   arkGridError.value = null
   arkGridLoading.value = false
+  cardResponse.value = null
+  cardLoadedFor.value = null
+  cardError.value = null
+  cardLoading.value = false
   skillResponse.value = null
   skillLoadedFor.value = null
   skillError.value = null
@@ -1942,7 +2063,8 @@ const searchCharacter = async (name: string, options: { forceRefresh?: boolean; 
       await Promise.allSettled([
         loadSkillData(name, { forceRefresh: true }),
         loadCollectiblesData(name, { forceRefresh: true }),
-        loadArkGridData(name, { forceRefresh: true })
+        loadArkGridData(name, { forceRefresh: true }),
+        loadCardData(name, { forceRefresh: true })
       ])
       await loadHistory({ forceRefresh: true })
     } else {
@@ -1951,7 +2073,8 @@ const searchCharacter = async (name: string, options: { forceRefresh?: boolean; 
     await Promise.allSettled([
       ensureSkillData({ forceRefresh: options.forceRefresh }),
       ensureCollectiblesData({ forceRefresh: options.forceRefresh }),
-      ensureArkGridData({ forceRefresh: options.forceRefresh })
+      ensureArkGridData({ forceRefresh: options.forceRefresh }),
+      ensureCardData({ forceRefresh: options.forceRefresh })
     ])
     activeResultTab.value = DEFAULT_RESULT_TAB
 
@@ -2009,6 +2132,10 @@ const clearSearch = () => {
   arkGridLoadedFor.value = null
   arkGridError.value = null
   arkGridLoading.value = false
+  cardResponse.value = null
+  cardLoadedFor.value = null
+  cardError.value = null
+  cardLoading.value = false
   skillResponse.value = null
   skillLoadedFor.value = null
   skillError.value = null
@@ -2176,6 +2303,14 @@ const ensureCollectiblesData = async (options: { forceRefresh?: boolean } = {}) 
   await loadCollectiblesData(targetName, options)
 }
 
+const ensureCardData = async (options: { forceRefresh?: boolean } = {}) => {
+  const targetName = character.value?.characterName
+  if (!targetName) return
+  if (cardLoading.value) return
+  if (!options.forceRefresh && cardLoadedFor.value === targetName && cardResponse.value) return
+  await loadCardData(targetName, options)
+}
+
 const loadCollectiblesData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
   collectiblesLoading.value = true
   collectiblesError.value = null
@@ -2193,6 +2328,26 @@ const loadCollectiblesData = async (name: string, options: { forceRefresh?: bool
     collectiblesError.value = message
   } finally {
     collectiblesLoading.value = false
+  }
+}
+
+const loadCardData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
+  cardLoading.value = true
+  cardError.value = null
+  try {
+    const response = await lostarkApi.getCards(name, { force: options.forceRefresh })
+    cardResponse.value = response.data
+    cardLoadedFor.value = name
+  } catch (err: any) {
+    cardResponse.value = null
+    cardLoadedFor.value = null
+    const message =
+      err.response?.status === 404
+        ? `'${name}' 캐릭터의 카드 정보를 확인할 수 없어요.`
+        : err.response?.data?.message || '카드 정보를 불러오지 못했어요.'
+    cardError.value = message
+  } finally {
+    cardLoading.value = false
   }
 }
 
@@ -3074,7 +3229,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .summary-gem-level-dot {
-  padding: 2px 6px;
+  padding: 2px;
   border-radius: 999px;
   background: var(--primary-color);
   color: #ffffff;

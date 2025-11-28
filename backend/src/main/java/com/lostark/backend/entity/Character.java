@@ -43,6 +43,8 @@ public class Character {
     
     private String guildName;
 
+    private String honorPoint;
+
     @Column(columnDefinition = "TEXT")
     private String statsJson;
     

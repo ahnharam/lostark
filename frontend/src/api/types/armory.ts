@@ -18,6 +18,7 @@ export interface CharacterProfile {
   title?: string
   stats?: CharacterStat[]
   combatPower?: string | number
+  honorPoint?: string | number
 }
 
 export interface Equipment {
@@ -117,6 +118,11 @@ export interface ArkGridResponse {
   characterName: string
   arkPassive?: ArkPassive
   arkGrid?: ArkGrid
+}
+
+export interface CardResponse {
+  characterName: string
+  card?: ArmoryCard
 }
 
 /**

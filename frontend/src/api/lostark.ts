@@ -12,7 +12,8 @@ import type {
   RankingResponse,
   SearchHistory,
   SkillMenuResponse,
-  SiblingCharacter
+  SiblingCharacter,
+  CardResponse
 } from './types'
 
 const CACHE_TTL = {
@@ -26,6 +27,7 @@ const CACHE_TTL = {
   SKILLS: 5 * 60 * 1000,
   COLLECTIBLES: 5 * 60 * 1000
 } as const
+const CARDS_TTL = 5 * 60 * 1000
 
 const USER_ID_STORAGE_KEY = 'loa:user-id'
 
@@ -82,6 +84,24 @@ export const lostarkApi = {
         return response.data
       },
       CACHE_TTL.CHARACTER,
+      options
+    )
+  },
+
+  async getCards(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<CardResponse>> {
+    return cachedRequest(
+      'cards',
+      { name: characterName },
+      async () => {
+        const response = await apiClient.get<CardResponse>(`/cards/${characterName}`, {
+          params: { force: options?.force }
+        })
+        return response.data
+      },
+      CARDS_TTL,
       options
     )
   },

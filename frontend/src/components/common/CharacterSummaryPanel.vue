@@ -480,6 +480,58 @@
           </div>
           <p v-else class="summary-note">각인 정보가 없습니다.</p>
         </div>
+
+        <div class="ark-section__block ark-section__block--cards">
+          <div class="summary-card__head card-head">
+            <div class="card-head__title">
+              <p class="summary-eyebrow">카드</p>
+              <h4>착용 중인 카드</h4>
+            </div>
+            <div v-if="cardSummary?.effects?.length" class="card-head__effects">
+              <div v-for="effect in cardSummary.effects" :key="effect.key" class="card-head__effect-chip">
+                <span class="card-head__effect-name">{{ effect.label }}</span>
+                <span v-if="effect.setLabel" class="card-head__effect-meta">{{ effect.setLabel }}</span>
+              </div>
+            </div>
+          </div>
+          <p v-if="cardLoading" class="summary-note">카드 정보를 불러오는 중입니다...</p>
+          <p v-else-if="cardError" class="summary-note summary-note--warning">{{ cardError }}</p>
+          <div v-else class="card-strip-shell" :class="{ 'card-strip-shell--empty': !cardSummary?.cards?.length }">
+            <div v-if="cardSummary?.cards?.length" class="card-strip">
+              <article v-for="card in cardSummary.cards" :key="card.key" class="card-slot card-slot--ornate">
+                <div class="card-slot__frame">
+                  <div class="card-slot__thumb">
+                    <LazyImage
+                      v-if="card.icon"
+                      :src="card.icon"
+                      :alt="card.name"
+                      width="100"
+                      height="150"
+                      imageClass="card-slot__icon"
+                      errorIcon="🃏"
+                      :useProxy="true"
+                    />
+                    <div v-else class="card-slot__placeholder" aria-hidden="true">
+                      {{ card.name?.[0] || '?' }}
+                    </div>
+                  </div>
+                  <div class="card-slot__awake-row" v-if="card.awakeTotal">
+                    <span
+                      v-for="orbIndex in card.awakeTotal"
+                      :key="`${card.key}-orb-${orbIndex}`"
+                      class="card-awake-orb"
+                      :class="{ 'card-awake-orb--filled': card.awakeCount !== null && orbIndex <= card.awakeCount }"
+                    ></span>
+                  </div>
+                </div>
+                <div class="card-slot__body">
+                  <p class="card-slot__name">{{ card.name }}</p>
+                </div>
+              </article>
+            </div>
+            <p v-else class="summary-note">카드 정보가 없습니다.</p>
+          </div>
+        </div>
       </article>
 
       <article class="summary-card summary-card--module summary-card--collection">
@@ -543,6 +595,9 @@ const props = defineProps<{
   skillLoading: boolean
   skillError: string | null
   engravingSummary: any[]
+  cardSummary: any
+  cardLoading: boolean
+  cardError: string | null
   collectionSummary: any[]
   collectiblesLoading: boolean
   collectiblesError: string | null
@@ -1023,7 +1078,7 @@ const passiveEffectGroups = computed(() => {
   margin-right:1px;
   /* background-color: lightgray; */
   /* text-shadow: 0 1px 1px white; */
-  text-shadow:0px 1px black;
+  /* text-shadow:0px 1px black; */
 }
 
 .bracelet-effect-sep {
@@ -1038,5 +1093,185 @@ const passiveEffectGroups = computed(() => {
   background-repeat: no-repeat;
   background-position: 0 0;
   border-radius: 4px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card-head__title h4 {
+  margin: 2px 0 0;
+}
+
+.card-head__effects {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.card-head__effect-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-primary);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  font-weight: 700;
+  font-size: var(--font-sm);
+}
+
+.card-head__effect-meta {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.card-strip-shell {
+  background: linear-gradient(135deg, #1d1f2b, #111222);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+  margin-top: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.card-strip-shell--empty {
+  padding: 16px;
+}
+
+.card-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
+  gap: 8px;
+}
+
+.card-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #f8fafc;
+}
+
+.card-slot--ornate {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.35));
+  border-radius: 14px;
+  padding: 4px;
+  border: 1px solid rgba(255, 215, 128, 0.2);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.card-slot__frame {
+  position: relative;
+  padding: 3px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 30% 20%, rgba(255, 215, 128, 0.35), transparent 65%);
+  border: 1px solid rgba(255, 214, 102, 0.35);
+  min-height: 160px;
+}
+
+.card-slot__thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 7 / 10;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.4));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.card-slot__icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-slot__placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+
+.card-slot__awake-row {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 2px;
+  width: 100%;
+  padding: 0 6px;
+}
+
+.card-awake-orb {
+  width: 7px;
+  height: 9px;
+  background: linear-gradient(180deg, #544220, #2c2010);
+  clip-path: polygon(50% 0, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%);
+  opacity: 0.3;
+}
+
+.card-awake-orb--filled {
+  background: linear-gradient(180deg, #ffd166, #b8860b);
+  box-shadow: 0 0 4px rgba(255, 209, 102, 0.8);
+  opacity: 1;
+}
+
+.card-slot__body {
+  text-align: center;
+}
+
+.card-slot__name {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--font-xxs);
+  color: #f8fafc;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.card-effect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.card-effect {
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface-muted, #f9fafb);
+  border: 1px solid var(--border-color);
+}
+
+.card-effect__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-effect__name {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.card-effect__lines {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 </style>

@@ -32,6 +32,14 @@
           <span>원정대 레벨</span>
           <strong>{{ formatInteger(activeCharacter?.expeditionLevel) }}</strong>
         </div>
+        <div class="profile-stat">
+          <span>딜러/서폿</span>
+          <strong :class="combatRoleBadgeClass">{{ combatRoleLabel }}</strong>
+        </div>
+        <div class="profile-stat">
+          <span>명예 점수</span>
+          <strong>{{ honorPointLabel }}</strong>
+        </div>
       </div>
     </div>
 
@@ -203,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, toRefs, watch } from 'vue'
 import LazyImage from './LazyImage.vue'
 import type { CharacterProfile, CharacterStat, Equipment } from '@/api/types'
 
@@ -218,7 +226,7 @@ interface SpecialEquipmentDisplay {
   label: string
 }
 
-defineProps<{
+const props = defineProps<{
   activeCharacter: CharacterProfile | null
   hasCharacterImage: boolean
   isHeroImageLarge: boolean
@@ -227,12 +235,34 @@ defineProps<{
   displayStats: CharacterStat[]
   paradiseInfo: ParadiseInfo
   specialEquipments: SpecialEquipmentDisplay[]
+  combatRole?: 'dealer' | 'support' | null
+  combatRoleLoading?: boolean
+  honorPoint?: string | number | null
   loading: boolean
   formatCombatPower: (value: unknown) => string
   formatInteger: (value: unknown) => string
   formatItemLevel: (value: unknown) => string
   formatProfileStat: (value: unknown) => string
 }>()
+
+const {
+  activeCharacter,
+  hasCharacterImage,
+  isHeroImageLarge,
+  isCharacterFavorite,
+  lastRefreshedLabel,
+  displayStats,
+  paradiseInfo,
+  specialEquipments,
+  combatRole,
+  combatRoleLoading,
+  honorPoint,
+  loading,
+  formatCombatPower,
+  formatInteger,
+  formatItemLevel,
+  formatProfileStat
+} = toRefs(props)
 
 defineEmits<{
   (e: 'refresh'): void
@@ -256,6 +286,21 @@ const tooltipWidthValue = computed(() => {
 const tooltipWidthStyle = computed(() => ({
   '--tooltip-width': `${tooltipWidthValue.value}px`
 }))
+
+const combatRoleLabel = computed(() => {
+  if (combatRoleLoading.value) return '분석 중'
+  if (combatRole.value === 'support') return '서폿'
+  if (combatRole.value === 'dealer') return '딜러'
+  return '정보 없음'
+})
+
+const combatRoleBadgeClass = computed(() => {
+  if (combatRole.value === 'support') return 'role-badge role-badge--support'
+  if (combatRole.value === 'dealer') return 'role-badge role-badge--dealer'
+  return 'role-badge role-badge--unknown'
+})
+
+const honorPointLabel = computed(() => formatInteger.value(honorPoint.value))
 
 const observeWidth = () => {
   if (typeof window === 'undefined') return
@@ -500,6 +545,30 @@ onBeforeUnmount(() => {
   display: block;
   font-size: 0.9rem;
   color: var(--text-primary);
+}
+
+.profile-stat strong.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  font-size: 0.85rem;
+}
+
+.profile-stat strong.role-badge.role-badge--support {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.profile-stat strong.role-badge.role-badge--dealer {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.profile-stat strong.role-badge.role-badge--unknown {
+  color: var(--text-secondary);
 }
 
 .hero-row--paradise h3 {
