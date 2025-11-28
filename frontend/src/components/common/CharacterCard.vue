@@ -27,13 +27,14 @@
         class="engraving-pill"
         :class="{ debuff: eng.isDebuff }"
       >
-        {{ eng.name }}
+        {{ engravingLabel(eng.name) }}
       </span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { getEngravingDisplayName } from '@/data/engravingNames'
 import LazyImage from './LazyImage.vue'
 
 interface Engraving {
@@ -53,6 +54,8 @@ withDefaults(defineProps<Props>(), {
   characterImage: '',
   engravings: () => []
 })
+
+const engravingLabel = (name: string) => getEngravingDisplayName(name)
 </script>
 
 <style scoped>

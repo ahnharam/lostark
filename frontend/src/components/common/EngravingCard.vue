@@ -36,6 +36,7 @@ import { computed } from 'vue'
 import { parseEngravingDescription } from '@/utils/engravingParser'
 import { ENGRAVING_ICON_MAP } from '@/assets/BuffImage'
 import { stripHtml } from '@/utils/tooltipParser'
+import { getEngravingDisplayName } from '@/data/engravingNames'
 import type { Engraving } from '@/api/types'
 import LazyImage from './LazyImage.vue'
 
@@ -47,12 +48,14 @@ const props = defineProps<Props>()
 
 const parsedData = computed(() => parseEngravingDescription(props.engraving.description ?? ''))
 
-const displayName = computed(() => props.engraving.name || parsedData.value.name || '각인')
+const baseName = computed(() => props.engraving.name || parsedData.value.name || '각인')
+
+const displayName = computed(() => getEngravingDisplayName(baseName.value))
 
 const iconSrc = computed(() => {
   const explicit = props.engraving.icon?.trim()
   if (explicit) return explicit
-  const key = displayName.value.trim()
+  const key = baseName.value.trim()
   return key && ENGRAVING_ICON_MAP[key] ? ENGRAVING_ICON_MAP[key] : ''
 })
 

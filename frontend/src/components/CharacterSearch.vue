@@ -360,6 +360,7 @@ import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
 import { cleanTooltipLine, flattenTooltipLines, extractTooltipColor } from '@/utils/tooltipText'
 import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbbreviations'
+import { getEngravingDisplayName } from '@/data/engravingNames'
 
 interface ErrorState {
   message: string
@@ -1262,9 +1263,12 @@ const collectionSummary = computed(() => {
 const engravingSummary = computed(() => {
   return detailEngravings.value.map((engrave, index) => {
     const gradeLabel = inlineText(engrave.grade) || '등급 미상'
+    const rawName = inlineText(engrave.name)
+    const displayName = getEngravingDisplayName(rawName)
     return {
       key: `${engrave.name || 'engrave'}-${index}`,
-      name: inlineText(engrave.name),
+      name: rawName,
+      displayName,
       gradeLabel,
       levelLabel: typeof engrave.level === 'number' ? `Lv.${engrave.level}` : '',
       craftLabel:
@@ -3599,13 +3603,15 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   min-width: 40px;
+  height:65px;
   position: relative;
+  gap:4px;
 }
 
 .equipment-item-level {
-  font-size: var(--font-xs);
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   font-weight: 600;
   line-height: 1.1;
@@ -3658,7 +3664,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .equipment-info-stack {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 6px;
+  min-height:65px;
 }
 
 .equipment-line {
@@ -3668,7 +3676,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .equipment-line--quality,
@@ -3686,7 +3693,10 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .equipment-progress--transcend {
-  /* background: rgba(94, 234, 212, 0.15); */
+  background: transparent;
+  flex: 0 0 auto;
+  height: auto;
+  overflow: visible;
 }
 
 .equipment-progress__fill {
@@ -3700,11 +3710,11 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .equipment-progress--transcend .equipment-progress__fill {
-  background: linear-gradient(90deg, rgba(251, 191, 36, 0.55), rgba(234, 179, 8, 0.55));
+  display: none;
 }
 
 .equipment-progress__label {
-  font-size: var(--font-xxs, var(--font-xs));
+  font-size: var(--font-xs);
   color: var(--text-secondary);
 }
 
@@ -3713,8 +3723,29 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   left: 6px;
   top: 50%;
   transform: translateY(-50%);
-  color: #111827;
+  color: var(--text-primary);
   font-weight: 700;
+}
+
+.equipment-progress--transcend .equipment-progress__label--inline {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.equipment-progress__label--transcend .transcend-icon {
+  margin: 0;
+}
+
+.equipment-transcend-value {
+  font-weight: 700;
+  color: var(--text-secondary);
+  line-height: 1.2;
 }
 
 .equipment-badge {
@@ -3791,8 +3822,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .transcend-icon {
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 21px;
+  height: 21px;
   background-image: url('https://cdn-lostark.game.onstove.com/2018/obt/assets/images/common/game/ico_tooltip_transcendence.png');
   background-size: 100%;
   background-position: center top;
@@ -3814,9 +3845,25 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   background: var(--bg-secondary);
   color: var(--text-primary);
   white-space:nowrap;
-  overflow-x:hidden;
   max-width: 100px;
   text-overflow: ellipsis;
+}
+
+.effect-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px;
+  margin-right: 4px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font-weight: 700;
+  width: 21px;
+  height: 21px;
+}
+
+.effect-prefix--empty {
+  color: transparent;
 }
 
 .equipment-badge__divider {
@@ -3833,9 +3880,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .equipment-effect-badges {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
-  gap: 6px;
+  height:inherit;
 }
 
 .equipment-effect-chip {
@@ -3878,16 +3925,17 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .equipment-side {
   display: grid;
   grid-template-columns: auto 1fr;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 8px 0;
-  min-height:100px;
+  min-height: 100px;
 }
 
 .equipment-side--bracelet {
   grid-column: 1 / span 2;
   border-radius: var(--radius-md);
   padding: 8px;
+  align-items: center;
 }
 
 .equipment-side--left {
