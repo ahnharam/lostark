@@ -481,6 +481,9 @@
           <p v-else class="summary-note">각인 정보가 없습니다.</p>
         </div>
 
+      </article>
+
+      <article class="summary-card summary-card--module summary-card--cards">
         <div class="ark-section__block ark-section__block--cards">
           <div class="summary-card__head card-head">
             <div class="card-head__title">
@@ -508,7 +511,7 @@
                       width="100"
                       height="150"
                       imageClass="card-slot__icon"
-                      errorIcon="🃏"
+                      errorIcon="✨"
                       :useProxy="true"
                     />
                     <div v-else class="card-slot__placeholder" aria-hidden="true">
@@ -533,7 +536,6 @@
           </div>
         </div>
       </article>
-
       <article class="summary-card summary-card--module summary-card--collection">
         <div class="ark-section__block">
           <div class="summary-card__head">
@@ -1132,12 +1134,12 @@ const passiveEffectGroups = computed(() => {
 }
 
 .card-strip-shell {
-  background: linear-gradient(135deg, #1d1f2b, #111222);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-muted, var(--bg-secondary));
+  border: none;
   border-radius: 16px;
   padding: 14px;
   margin-top: 8px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-strip-shell--empty {
@@ -1154,25 +1156,24 @@ const passiveEffectGroups = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .card-slot--ornate {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.35));
+  background: var(--card-bg);
   border-radius: 14px;
-  padding: 4px;
-  border: 1px solid rgba(255, 215, 128, 0.2);
-  box-shadow:
-    0 10px 20px rgba(0, 0, 0, 0.35),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  padding: 6px;
+  border: none;
+  box-shadow: var(--shadow-sm);
 }
 
 .card-slot__frame {
   position: relative;
-  padding: 3px;
+  padding: 4px;
   border-radius: 12px;
-  background: radial-gradient(circle at 30% 20%, rgba(255, 215, 128, 0.35), transparent 65%);
-  border: 1px solid rgba(255, 214, 102, 0.35);
+  background: var(--surface-muted, var(--bg-secondary));
+  border: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
   min-height: 160px;
 }
 
@@ -1182,8 +1183,9 @@ const passiveEffectGroups = computed(() => {
   aspect-ratio: 7 / 10;
   overflow: hidden;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.4));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: var(--card-bg);
+  border: none;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .card-slot__icon {
@@ -1215,14 +1217,15 @@ const passiveEffectGroups = computed(() => {
 .card-awake-orb {
   width: 7px;
   height: 9px;
-  background: linear-gradient(180deg, #544220, #2c2010);
+  background: linear-gradient(180deg, rgba(255, 223, 140, 0.45), rgba(255, 193, 94, 0.6));
   clip-path: polygon(50% 0, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%);
-  opacity: 0.3;
+  opacity: 0.6;
+  box-shadow: 0 0 4px rgba(255, 193, 94, 0.4);
 }
 
 .card-awake-orb--filled {
-  background: linear-gradient(180deg, #ffd166, #b8860b);
-  box-shadow: 0 0 4px rgba(255, 209, 102, 0.8);
+  background: linear-gradient(180deg, var(--warning-color), #f59e0b);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.65);
   opacity: 1;
 }
 
@@ -1234,8 +1237,8 @@ const passiveEffectGroups = computed(() => {
   margin: 0;
   font-weight: 700;
   font-size: var(--font-xxs);
-  color: #f8fafc;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  color: var(--text-primary);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .card-effect-list {
