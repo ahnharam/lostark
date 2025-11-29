@@ -1724,19 +1724,38 @@ const cardSummary = computed(() => {
         }
       }) ?? []
 
+
+  const equippedCount = cards.length
+
   const effects =
     cardResponse.value?.card?.effects?.map((effect, index) => {
+      const slots = effect.cardSlots ?? []
+      const slotWithIndex = slots.map((slot, idx) => ({ slot, idx }))
+      const activeSlot =
+        slotWithIndex
+          .filter(entry => equippedCount >= entry.slot)
+          .reduce((best, entry) => {
+            if (!best) return entry
+            return entry.slot >= best.slot ? entry : best
+          }, null) ?? null
+
+      const activeIndex =
+        activeSlot?.idx ?? (effect.items?.length ? effect.items.length - 1 : 0)
+      const activeItem = effect.items?.[activeIndex]
+
       const label =
+        inlineText(activeItem?.name) ||
         effect.items?.map(item => inlineText(item.name)).find(Boolean) ||
         `세트 효과 ${effect.index ?? index + 1}`
-      const descriptions =
-        effect.items
-          ?.map(item => inlineText(item.description))
-          .filter(Boolean) ?? []
+
+      const descriptions = [inlineText(activeItem?.description)].filter(Boolean)
+
       const setLabel =
-        effect.cardSlots && effect.cardSlots.length
-          ? `${effect.cardSlots.join(' / ')}세트`
-          : ''
+        activeSlot?.slot && activeSlot.slot > 0
+          ? `${activeSlot.slot}세트`
+          : slots.length
+            ? `${slots.join(' / ')}세트`
+            : ''
       return {
         key: `effect-${effect.index ?? index}`,
         label,

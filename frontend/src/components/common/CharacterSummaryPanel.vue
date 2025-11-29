@@ -488,12 +488,11 @@
           <div class="summary-card__head card-head">
             <div class="card-head__title">
               <p class="summary-eyebrow">카드</p>
-              <h4>착용 중인 카드</h4>
             </div>
             <div v-if="cardSummary?.effects?.length" class="card-head__effects">
               <div v-for="effect in cardSummary.effects" :key="effect.key" class="card-head__effect-chip">
                 <span class="card-head__effect-name">{{ effect.label }}</span>
-                <span v-if="effect.setLabel" class="card-head__effect-meta">{{ effect.setLabel }}</span>
+                <!-- <span v-if="effect.setLabel" class="card-head__effect-meta">{{ effect.setLabel }}</span> -->
               </div>
             </div>
           </div>
@@ -508,8 +507,8 @@
                       v-if="card.icon"
                       :src="card.icon"
                       :alt="card.name"
-                      width="100"
-                      height="150"
+                      :width="`inherit - 10px`"
+                      :height="`inherit - 10px`"
                       imageClass="card-slot__icon"
                       errorIcon="✨"
                       :useProxy="true"
@@ -1119,13 +1118,9 @@ const passiveEffectGroups = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.12);
   color: var(--text-primary);
-  border: 1px solid rgba(148, 163, 184, 0.3);
   font-weight: 700;
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
 }
 
 .card-head__effect-meta {
@@ -1137,7 +1132,7 @@ const passiveEffectGroups = computed(() => {
   background: var(--surface-muted, var(--bg-secondary));
   border: none;
   border-radius: 16px;
-  padding: 14px;
+  padding: 12px;
   margin-top: 8px;
   box-shadow: var(--shadow-sm);
 }
@@ -1148,33 +1143,33 @@ const passiveEffectGroups = computed(() => {
 
 .card-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 6px;
 }
 
 .card-slot {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   color: var(--text-primary);
 }
 
 .card-slot--ornate {
   background: var(--card-bg);
   border-radius: 14px;
-  padding: 6px;
+  padding: 4px;
   border: none;
   box-shadow: var(--shadow-sm);
 }
 
 .card-slot__frame {
   position: relative;
-  padding: 4px;
+  padding: 3px;
   border-radius: 12px;
   background: var(--surface-muted, var(--bg-secondary));
   border: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  min-height: 160px;
+  min-height: 140px;
 }
 
 .card-slot__thumb {
@@ -1182,7 +1177,7 @@ const passiveEffectGroups = computed(() => {
   width: 100%;
   aspect-ratio: 7 / 10;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--card-bg);
   border: none;
   box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -1215,8 +1210,8 @@ const passiveEffectGroups = computed(() => {
 }
 
 .card-awake-orb {
-  width: 7px;
-  height: 9px;
+  width: 6px;
+  height: 8px;
   background: linear-gradient(180deg, rgba(255, 223, 140, 0.45), rgba(255, 193, 94, 0.6));
   clip-path: polygon(50% 0, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%);
   opacity: 0.6;
@@ -1238,7 +1233,7 @@ const passiveEffectGroups = computed(() => {
   font-weight: 700;
   font-size: var(--font-xxs);
   color: var(--text-primary);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .card-effect-list {
