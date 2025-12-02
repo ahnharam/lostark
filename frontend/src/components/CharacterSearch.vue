@@ -1779,6 +1779,7 @@ const arkSummary = computed(() => {
       return {
         key: card.key,
         name: card.name,
+        sectionKey: card.sectionKey,
         levelLabel: card.levelDisplay,
         tierGroup: card.tierGroup,
         typeLabel: card.typeLabel,
@@ -1786,6 +1787,40 @@ const arkSummary = computed(() => {
         tierValue: card.tierValue
       }
     }).filter(effect => effect.name) ?? []
+
+  const parseLevelNumeric = (label?: string | null) => {
+    if (!label) return -Infinity
+    const match = String(label).match(/(\d+)/)
+    return match ? Number(match[1]) : -Infinity
+  }
+
+  const bestRankBySection = (sectionKey: PassiveSectionKey) => {
+    const candidatesFromMatrix = passiveMatrix.flatMap(row =>
+      row.sections.find(section => section.key === sectionKey)?.effects ?? []
+    )
+    const candidates =
+      candidatesFromMatrix.length > 0
+        ? candidatesFromMatrix
+        : passiveEffects.filter(effect => effect.sectionKey === sectionKey)
+    if (!candidates.length) return null
+
+    const best = candidates
+      .slice()
+      .sort((a, b) => {
+        const tierA = Number.isFinite((a as any).tierValue) ? (a as any).tierValue : -Infinity
+        const tierB = Number.isFinite((b as any).tierValue) ? (b as any).tierValue : -Infinity
+        if (tierA !== tierB) return tierB - tierA
+        const levelA = parseLevelNumeric((a as any).levelLabel || (a as any).levelDisplay || (a as any).levelLine)
+        const levelB = parseLevelNumeric((b as any).levelLabel || (b as any).levelDisplay || (b as any).levelLine)
+        if (levelA !== levelB) return levelB - levelA
+        return 0
+      })[0]
+    return {
+      name: (best as any).name || '',
+      tier: (best as any).tierLabel || (best as any).tierGroup || (best as any).levelLine || '',
+      level: (best as any).levelLabel || (best as any).levelDisplay || (best as any).levelLine || ''
+    }
+  }
 
   const rawSlots = (grid?.slots ?? (grid as any)?.Slots ?? []) as any[]
   const coreSlots = rawSlots
@@ -1831,23 +1866,35 @@ const arkSummary = computed(() => {
   const appliedPoints = (passive?.points ?? [])
     .map((point, index) => {
       const label = inlineText(point.name) || `포인트 ${index + 1}`
-      let value = ''
-      if (typeof point.value === 'number') {
-        value = `${point.value}P`
-      } else if (point.value !== undefined && point.value !== null) {
-        value = inlineText(point.value)
-      } else if (point.description) {
-        value = inlineText(point.description)
+      const normalizeValue = (): string => {
+        if (typeof point.value === 'number') return `${point.value}P`
+        if (point.value !== undefined && point.value !== null) return inlineText(point.value)
+        if (point.description) return inlineText(point.description)
+        return ''
       }
+      const value = normalizeValue() || '0P'
+      const description = inlineText(point.description) ||
+        (point.tooltip ? flattenTooltipLines(point.tooltip).map(inlineText).filter(Boolean).join(' ') : '')
       return {
         key: `point-${label}-${index}`,
         label,
-        value
+        value,
+        description
       }
     })
-    .filter(point => point.label && point.value)
+    .filter(point => point.label)
 
   const corePassives = passiveMatrix.flatMap(row => row.sections.flatMap(section => section.effects))
+
+  const passiveSectionRanks = PASSIVE_SECTIONS.map(section => {
+    const rank = bestRankBySection(section.key)
+    return {
+      key: section.key,
+      label: section.label,
+      tier: rank?.tier || '',
+      level: rank?.level || ''
+    }
+  })
 
   return {
     passiveTitle: inlineText(passive?.title),
@@ -1857,7 +1904,8 @@ const arkSummary = computed(() => {
     appliedPoints,
     passiveMatrix,
     corePassives,
-    passiveEffects
+    passiveEffects,
+    passiveSectionRanks
   }
 })
 
@@ -2156,7 +2204,7 @@ watch(
   (newCharacter, oldCharacter) => {
     if (newCharacter && typeof newCharacter === 'string' && newCharacter !== oldCharacter) {
       // 현재 보고 있는 캐릭터와 다른 경우에만 로드
-      if (newCharacter !== activeCharacter.value?.characterName) {
+      if (newCharacter !== character.value?.characterName) {
         searchCharacter(newCharacter, { updateUrl: false })
       }
     }
@@ -2571,14 +2619,9 @@ const handleSuggestionSelect = (suggestion: AutocompleteSelectPayload) => {
 }
 
 const viewCharacterDetail = (summary: CharacterProfile | SiblingCharacter) => {
-  if (characterAvailability.value[summary.characterName] === 'loading') return
-  activeResultTab.value = 'detail'
-  const isPrimary = character.value?.characterName === summary.characterName
-  const profile = isPrimary ? character.value ?? undefined : undefined
-  loadCharacterDetails(summary.characterName, { profile })
-
-  // URL 업데이트
-  router.push({ query: { character: summary.characterName } })
+  const targetName = summary.characterName
+  if (!targetName) return
+  searchCharacter(targetName)
 }
 
 const formatItemLevel = (value?: string | number) => {

@@ -273,13 +273,21 @@
               <p class="summary-eyebrow">아크 패시브</p>
               <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
             </div>
-            <div v-if="arkSummary.passiveMatrix?.length" class="ark-passive-summary">
-              <div class="ark-passive-grid">
-                <div class="ark-passive-grid-header">
-                  <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
-                    {{ point.label }}
-                  </span>
-                </div>
+            <div
+              v-if="(arkSummary.passiveMatrix?.length || 0) > 0 || (arkSummary.appliedPoints?.length || 0) > 0"
+              class="ark-passive-summary"
+            >
+                <div class="ark-passive-grid">
+                  <div class="ark-passive-grid-header">
+                    <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
+                      <span class="ark-passive-header-desc" v-if="point.description">{{ point.description }}</span>
+                      <div class="ark-passive-header-title">
+                        <span class="ark-passive-header-label">{{ point.label }}</span>
+                        <span v-if="point.value"> · </span>
+                        <span class="ark-passive-header-value" v-if="point.value">{{ point.value }}</span>
+                      </div>
+                    </span>
+                  </div>
                 <div
                   v-for="(row, rowIndex) in arkSummary.passiveMatrix.slice(0, 4)"
                   :key="row.id"
@@ -1283,6 +1291,56 @@ const coreNameStyle = (slot: any) => {
 
 .bracelet-effect-sep {
   margin-right: 2px;
+}
+
+.ark-passive-header-title{
+  display:flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.ark-passive-header-value {
+  color: var(--primary-color);
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.ark-passive-header-label {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 700;
+  margin-right:4px;
+}
+
+.ark-passive-header-desc {
+  display: block;
+  color: var(--text-primary);
+  font-size: var(--font-xs);
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.ark-passive-rank-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+}
+
+.ark-passive-rank-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ark-passive-rank-value {
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .engrave-level-image {
