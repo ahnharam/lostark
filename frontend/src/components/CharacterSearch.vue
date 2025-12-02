@@ -472,6 +472,7 @@ const skillResponse = ref<SkillMenuResponse | null>(null)
 const skillLoading = ref(false)
 const skillError = ref<string | null>(null)
 const skillLoadedFor = ref<string | null>(null)
+const armoryGemsResponse = ref<any | null>(null)
 const collectibles = ref<Collectible[]>([])
 const collectiblesLoading = ref(false)
 const collectiblesError = ref<string | null>(null)
@@ -823,6 +824,102 @@ const combatSkillKeySet = computed(() => {
 const skillLooseGems = computed(() => {
   const gems = skillResponse.value?.skillGems ?? []
   if (!gems.length) return []
+
+  const parseSkillIconFromTooltip = (tooltip?: string | null): string => {
+    if (!tooltip) return ''
+    try {
+      const parsed = JSON.parse(tooltip)
+      const search = (node: any): string => {
+        if (!node || typeof node !== 'object') return ''
+        const pick = (icon: string) => (icon?.includes('hkf_skill') ? icon : '')
+        if (typeof node.iconPath === 'string' && pick(node.iconPath)) return node.iconPath
+        if (node.slotData && typeof node.slotData.iconPath === 'string' && pick(node.slotData.iconPath)) {
+          return node.slotData.iconPath
+        }
+        for (const value of Object.values(node)) {
+          const found = search(value as any)
+          if (found) return found
+        }
+        return ''
+      }
+      return search(parsed)
+    } catch {
+      return ''
+    }
+  }
+
+  const armoryGemTooltipIconByName = new Map<string, string>()
+  const armorySkillIconBySkillKey = new Map<string, string>()
+  const armorySlotIconBySlot = new Map<number, string>()
+  const armoryGemBySlot = new Map<number, any>()
+  const armorySkillIconByName = new Map<string, string>()
+  const armorySlotIconByName = new Map<string, string>()
+  const armoryGems = armoryGemsResponse.value?.Gems ?? armoryGemsResponse.value?.gems ?? []
+  const armoryGemSlots = armoryGemsResponse.value?.GemSlots ?? armoryGemsResponse.value?.gemSlots ?? []
+  const armoryEffects = armoryGemsResponse.value?.Effects ?? armoryGemsResponse.value?.effects ?? []
+  armoryGems.forEach(gem => {
+    if (typeof gem?.Slot === 'number' && !armoryGemBySlot.has(gem.Slot)) {
+      armoryGemBySlot.set(gem.Slot, gem)
+    }
+    const nameKey = normalizeSkillKey(inlineText(gem?.Name || gem?.name))
+    const tooltipIcon = parseSkillIconFromTooltip(gem?.Tooltip || gem?.tooltip)
+    if (nameKey && tooltipIcon && !armoryGemTooltipIconByName.has(nameKey)) {
+      armoryGemTooltipIconByName.set(nameKey, tooltipIcon)
+    }
+    const tooltipLines = flattenTooltipLines(gem?.Tooltip || gem?.tooltip)
+    tooltipLines.forEach(line => {
+      const cleaned = inlineText(line)
+      const match = cleaned.match(/\]\s*([^\d%]+?)(?:피해|재사용|쿨타임|감소|증가|레벨|Lv\.?)/)
+      const skillName = match?.[1]?.trim()
+      const skillKey = normalizeSkillKey(skillName)
+      if (skillKey && tooltipIcon && !armorySkillIconBySkillKey.has(skillKey)) {
+        armorySkillIconBySkillKey.set(skillKey, tooltipIcon)
+      }
+    })
+  })
+  armoryGemSlots.forEach(slot => {
+    const skillKey = normalizeSkillKey(inlineText(slot?.Name || slot?.name))
+    const slotIcon = typeof slot?.Icon === 'string' && slot.Icon.includes('hkf_skill') ? slot.Icon : ''
+    const slotIndex = typeof slot?.GemSlot === 'number' ? slot.GemSlot : typeof slot?.Slot === 'number' ? slot.Slot : null
+    const nameKey = normalizeSkillKey(slot?.Name || slot?.name)
+    if (nameKey && slotIcon && !armorySkillIconByName.has(nameKey)) {
+      armorySkillIconByName.set(nameKey, slotIcon)
+    }
+    if (nameKey && slotIcon && !armorySlotIconByName.has(nameKey)) {
+      armorySlotIconByName.set(nameKey, slotIcon)
+    }
+    if (skillKey && slotIcon && !armorySkillIconBySkillKey.has(skillKey)) {
+      armorySkillIconBySkillKey.set(skillKey, slotIcon)
+    }
+    if (slotIndex !== null && slotIcon && !armorySlotIconBySlot.has(slotIndex)) {
+      armorySlotIconBySlot.set(slotIndex, slotIcon)
+    }
+  })
+  armoryEffects.forEach((eff: any) => {
+    const nameKey = normalizeSkillKey(eff?.Name || eff?.name)
+    const icon = typeof eff?.Icon === 'string' && eff.Icon.includes('hkf_skill') ? eff.Icon : ''
+    if (nameKey && icon && !armorySkillIconByName.has(nameKey)) {
+      armorySkillIconByName.set(nameKey, icon)
+    }
+    if (Array.isArray(eff?.Skills)) {
+      eff.Skills.forEach((sk: any) => {
+        const skKey = normalizeSkillKey(sk?.Name || sk?.name)
+        const skIcon = typeof sk?.Icon === 'string' && sk.Icon.includes('hkf_skill') ? sk.Icon : icon
+        if (skKey && skIcon && !armorySkillIconByName.has(skKey)) {
+          armorySkillIconByName.set(skKey, skIcon)
+        }
+      })
+    }
+  })
+
+  const skillIconByKey = new Map<string, string>()
+  const skills = skillResponse.value?.combatSkills ?? []
+  skills.forEach(skill => {
+    const key = normalizeSkillKey(skill.name)
+    if (key && !skillIconByKey.has(key)) {
+      if (skill.icon) skillIconByKey.set(key, skill.icon)
+    }
+  })
   const skillKeys = combatSkillKeySet.value
   return gems
     .filter(gem => {
@@ -833,11 +930,38 @@ const skillLooseGems = computed(() => {
     .map((gem, index) => {
       const effectLabel = extractGemLabel(gem)
       const skillName = inlineText(gem.skill?.name || gem.skill?.description)
+      const normalizedKey = normalizeSkillKey(gem.skill?.name || gem.skill?.description)
+      const armoryGem = typeof (gem as any).Slot === 'number' ? armoryGemBySlot.get((gem as any).Slot) : undefined
+      const candidateKeys = [
+        normalizedKey,
+        normalizeSkillKey(effectLabel),
+        normalizeSkillKey(armoryGem?.Name || armoryGem?.name)
+      ].filter(Boolean) as string[]
+      const pickIconFromKeys = (keys: string[], ...maps: Array<Map<string, string>>) => {
+        for (const key of keys) {
+          for (const map of maps) {
+            const hit = map.get(key)
+            if (hit) return hit
+          }
+        }
+        return ''
+      }
+      const skillIcon = pickIconFromKeys(candidateKeys, skillIconByKey)
+      const tooltipIcon = parseSkillIconFromTooltip(
+        (gem as any).tooltip || (gem as any).Tooltip || armoryGem?.Tooltip || armoryGem?.tooltip
+      )
+      const armoryIcon =
+        pickIconFromKeys(candidateKeys, armorySkillIconBySkillKey, armorySkillIconByName, armoryGemTooltipIconByName) ||
+        pickIconFromKeys(candidateKeys, armorySlotIconByName) ||
+        (typeof (gem as any).Slot === 'number' ? armorySlotIconBySlot.get((gem as any).Slot) : undefined) ||
+        (typeof (gem as any).GemSlot === 'number' ? armorySlotIconBySlot.get((gem as any).GemSlot) : undefined) ||
+        ''
       return {
         key: `${gem.name || 'gem'}-loose-${index}`,
         name: skillName || inlineText(gem.name) || '보석',
         skillName,
-        icon: gem.icon || '',
+        icon: skillIcon || tooltipIcon || armoryIcon || gem.icon || '',
+        skillIcon: skillIcon || tooltipIcon || armoryIcon,
         levelLabel: formatLevelLabel(gem.level),
         grade: inlineText(gem.grade),
         effectLabel: effectLabel || inlineText(gem.skill?.description),
@@ -2505,9 +2629,13 @@ const loadSkillData = async (name: string, options: { forceRefresh?: boolean } =
   skillLoading.value = true
   skillError.value = null
   try {
-    const response = await lostarkApi.getSkills(name, { force: options.forceRefresh })
-    skillResponse.value = response.data
+    const [skillRes, armoryGemRes] = await Promise.all([
+      lostarkApi.getSkills(name, { force: options.forceRefresh }),
+      lostarkApi.getArmoryGems(name, { force: options.forceRefresh }).catch(() => null)
+    ])
+    skillResponse.value = skillRes.data
     skillLoadedFor.value = name
+    armoryGemsResponse.value = armoryGemRes?.data ?? null
   } catch (err: any) {
     skillResponse.value = null
     skillLoadedFor.value = null
@@ -3198,7 +3326,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-list-item {
   display: grid;
   grid-template-columns: 50px 1fr 1fr;
-  align-items: start;
+  align-items: center;
   gap: var(--space-xs);
   padding:4px;
 }
@@ -3206,7 +3334,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-list-text {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   width:100%;
+  height: 100%;
 }
 
 .summary-title {

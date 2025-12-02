@@ -18,10 +18,8 @@
                     <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--stacked">
                       {{ row.right.itemLevel }}
                     </span>
-                    <div
-                      v-if="qualityValue(row.right.quality) !== null && Number(row.right.quality) !== -1"
-                      class="equipment-quality equipment-quality--stacked"
-                    >
+                    <div v-if="qualityValue(row.right.quality) !== null && Number(row.right.quality) !== -1"
+                      class="equipment-quality equipment-quality--stacked">
                       <span class="equipment-progress">
                         <span class="equipment-progress__fill" :style="qualityBarStyle(row.right.quality)"></span>
                         <span class="equipment-progress__label equipment-progress__label--inline">
@@ -32,32 +30,23 @@
                   </div>
                   <div class="equipment-info-stack">
                     <div v-if="row.right.effects?.length" class="equipment-effect-badges equipment-effect-badges--grid">
-                      <span
-                        v-for="(effect, idx) in effectsForDisplay(row.right.effects, row.right)"
-                        :key="`effect-${row.key}-${idx}`"
-                        class="bracelet-badge bracelet-badge--effect"
-                        :style="{ backgroundColor: 'transparent', color: braceletEffectParts(effect, row.right).nameColor }"
-                      >
+                      <span v-for="(effect, idx) in effectsForDisplay(row.right.effects, row.right)"
+                        :key="`effect-${row.key}-${idx}`" class="bracelet-badge bracelet-badge--effect"
+                        :style="{ backgroundColor: 'transparent', color: braceletEffectParts(effect, row.right).nameColor }">
                         <template v-if="braceletEffectParts(effect, row.right).prefix">
-                          <span class="bracelet-effect-prefix" :style="{ color: effectDisplayColor(effect, row.right) }">
+                          <span class="bracelet-effect-prefix"
+                            :style="{ color: effectDisplayColor(effect, row.right) }">
                             {{ braceletEffectParts(effect, row.right).prefix }}
                           </span>
                         </template>
                         <span class="bracelet-effect-name" :style="{ fontWeight: effectFontWeight(effect, row.right) }">
-                          <span
-                            v-if="braceletEffectParts(effect, row.right).richLabel"
-                            v-html="braceletEffectParts(effect, row.right).richLabel"
-                          ></span>
+                          <span v-if="braceletEffectParts(effect, row.right).richLabel"
+                            v-html="braceletEffectParts(effect, row.right).richLabel"></span>
                           <template v-else>
-                            <template
-                              v-for="(segment, segIdx) in braceletEffectParts(effect, row.right).labelSegments"
-                              :key="`bracelet-inline-seg-${row.key}-${idx}-${segIdx}`"
-                            >
-                              <span
-                                v-if="segment.isValue"
-                                class="bracelet-effect-value"
-                                :style="{ color: braceletEffectParts(effect, row.right).valueColor, fontWeight: 700 }"
-                              >
+                            <template v-for="(segment, segIdx) in braceletEffectParts(effect, row.right).labelSegments"
+                              :key="`bracelet-inline-seg-${row.key}-${idx}-${segIdx}`">
+                              <span v-if="segment.isValue" class="bracelet-effect-value"
+                                :style="{ color: braceletEffectParts(effect, row.right).valueColor, fontWeight: 700 }">
                                 {{ segment.text }}
                               </span>
                               <span v-else>
@@ -77,51 +66,43 @@
                     <div class="equipment-icon-stack">
                       <LazyImage :src="row.left.icon" :alt="row.left.name" width="40" height="40"
                         imageClass="summary-icon" errorIcon="🗡️" :useProxy="true" />
-                      <div
-                      v-if="qualityValue(row.left.quality) !== null && Number(row.left.quality) !== -1"
-                      class="equipment-quality equipment-quality--stacked"
-                    >
-                      <span class="equipment-progress">
-                        <span class="equipment-progress__fill" :style="qualityBarStyle(row.left.quality)"></span>
-                        <span class="equipment-progress__label equipment-progress__label--inline">
-                          {{ row.left.quality }}
+                      <div v-if="qualityValue(row.left.quality) !== null && Number(row.left.quality) !== -1"
+                        class="equipment-quality equipment-quality--stacked">
+                        <span class="equipment-progress">
+                          <span class="equipment-progress__fill" :style="qualityBarStyle(row.left.quality)"></span>
+                          <span class="equipment-progress__label equipment-progress__label--inline">
+                            {{ row.left.quality }}
+                          </span>
                         </span>
-                      </span>
+                      </div>
                     </div>
-                  </div>
                     <div class="equipment-info-stack">
                       <span v-if="row.left.itemLevel" class="equipment-item-level equipment-item-level--inline">
                         {{ row.left.itemLevel }}
                       </span>
-                      <p
-                        v-if="gearEnhanceParts(row.left).hasValue"
-                        class="equipment-line equipment-line--primary"
-                      >
+                      <p v-if="gearEnhanceParts(row.left).hasValue" class="equipment-line equipment-line--primary">
                         <span v-if="gearEnhanceParts(row.left).typeLabel" class="gear-enhance-part">
                           {{ gearEnhanceParts(row.left).typeLabel }}
                         </span>
                         <span v-if="gearEnhanceParts(row.left).enhanceLabel" class="gear-enhance-part">
                           {{ gearEnhanceParts(row.left).enhanceLabel }}
                         </span>
-                        <span
-                          v-if="gearEnhanceParts(row.left).harmonyLabel"
-                          class="gear-enhance-part gear-enhance-part--harmony"
-                        >
+                        <span v-if="gearEnhanceParts(row.left).harmonyLabel"
+                          class="gear-enhance-part gear-enhance-part--harmony">
                           {{ gearEnhanceParts(row.left).harmonyLabel }}
                         </span>
                       </p>
-                      <div v-if="row.left.transcend && Number(row.left.transcend) !== -1" class="equipment-line equipment-line--transcend">
+                      <div v-if="row.left.transcend && Number(row.left.transcend) !== -1"
+                        class="equipment-line equipment-line--transcend">
                         <!-- <span class="equipment-progress equipment-progress--transcend equipment-progress--bare">
                           <span class="equipment-progress__fill" :style="transcendBarStyle(row.left.transcend)"></span>
                           <span class="equipment-progress__label equipment-progress__label--inline equipment-progress__label--transcend">
                           </span>
                         </span> -->
-                        <span
-                          class="transcend-icon transcend-icon--inline"
+                        <span class="transcend-icon transcend-icon--inline"
                           :class="{ 'transcend-icon--gold': isTranscendGold(row.left.transcend) }"
-                          aria-hidden="true"
-                        ></span>
-                      <span class="equipment-transcend-value">{{ row.left.transcend }}</span>
+                          aria-hidden="true"></span>
+                        <span class="equipment-transcend-value">{{ row.left.transcend }}</span>
                       </div>
                     </div>
                   </template>
@@ -136,86 +117,67 @@
                       <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--stacked">
                         {{ row.right.itemLevel }}
                       </span>
-                      <div
-                      v-if="qualityValue(row.right.quality) !== null && Number(row.right.quality) !== -1"
-                      class="equipment-quality equipment-quality--stacked"
-                    >
-                      <span class="equipment-progress">
-                        <span class="equipment-progress__fill" :style="qualityBarStyle(row.right.quality)"></span>
-                        <span class="equipment-progress__label equipment-progress__label--inline">
-                          {{ row.right.quality }}
+                      <div v-if="qualityValue(row.right.quality) !== null && Number(row.right.quality) !== -1"
+                        class="equipment-quality equipment-quality--stacked">
+                        <span class="equipment-progress">
+                          <span class="equipment-progress__fill" :style="qualityBarStyle(row.right.quality)"></span>
+                          <span class="equipment-progress__label equipment-progress__label--inline">
+                            {{ row.right.quality }}
+                          </span>
                         </span>
-                      </span>
-                    </div>
+                      </div>
                     </div>
                     <div class="equipment-info-stack">
-                      <p
-                        v-if="gearEnhanceParts(row.right).hasValue"
-                        class="equipment-line equipment-line--primary"
-                      >
+                      <p v-if="gearEnhanceParts(row.right).hasValue" class="equipment-line equipment-line--primary">
                         <span v-if="gearEnhanceParts(row.right).typeLabel" class="gear-enhance-part">
                           {{ gearEnhanceParts(row.right).typeLabel }}
                         </span>
                         <span v-if="gearEnhanceParts(row.right).enhanceLabel" class="gear-enhance-part">
                           {{ gearEnhanceParts(row.right).enhanceLabel }}
                         </span>
-                        <span
-                          v-if="gearEnhanceParts(row.right).harmonyLabel"
-                          class="gear-enhance-part gear-enhance-part--harmony"
-                        >
+                        <span v-if="gearEnhanceParts(row.right).harmonyLabel"
+                          class="gear-enhance-part gear-enhance-part--harmony">
                           {{ gearEnhanceParts(row.right).harmonyLabel }}
                         </span>
                       </p>
-                      <div v-if="row.right.transcend && Number(row.right.transcend) !== -1" class="equipment-line equipment-line--transcend">
+                      <div v-if="row.right.transcend && Number(row.right.transcend) !== -1"
+                        class="equipment-line equipment-line--transcend">
                         <span class="equipment-progress equipment-progress--transcend equipment-progress--bare">
                           <span class="equipment-progress__fill" :style="transcendBarStyle(row.right.transcend)"></span>
-                          <span class="equipment-progress__label equipment-progress__label--inline equipment-progress__label--transcend">
-                            <span
-                              class="transcend-icon transcend-icon--inline"
+                          <span
+                            class="equipment-progress__label equipment-progress__label--inline equipment-progress__label--transcend">
+                            <span class="transcend-icon transcend-icon--inline"
                               :class="{ 'transcend-icon--gold': isTranscendGold(row.right.transcend) }"
-                              aria-hidden="true"
-                            ></span>
+                              aria-hidden="true"></span>
                             <span class="equipment-transcend-value">{{ row.right.transcend }}</span>
                           </span>
                         </span>
                       </div>
-                      <div
-                        v-if="row.right.effects?.length"
-                        class="equipment-effect-badges equipment-effect-badges--with-tooltip"
-                        :class="{
+                      <div v-if="row.right.effects?.length"
+                        class="equipment-effect-badges equipment-effect-badges--with-tooltip" :class="{
                           'equipment-effect-badges--grid': row.right.isBracelet,
                           'equipment-effect-badges--stone': row.right.isAbilityStone
-                        }"
-                      >
-                        <div
-                          v-for="(effect, idx) in effectsForDisplay(row.right.effects, row.right)"
-                          :key="`effect-${row.key}-${idx}`"
-                        class="equipment-effect-chip"
-                        :class="{
-                          'equipment-badge--combat': effect.isCombat,
-                          'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
-                        }"
-                        >
-                          <span
-                            v-if="row.right.isBracelet"
-                            class="bracelet-badge bracelet-badge--effect"
-                            :style="{ backgroundColor: 'transparent', color: braceletEffectParts(effect, row.right).nameColor }"
-                          >
+                        }">
+                        <div v-for="(effect, idx) in effectsForDisplay(row.right.effects, row.right)"
+                          :key="`effect-${row.key}-${idx}`" class="equipment-effect-chip" :class="{
+                            'equipment-badge--combat': effect.isCombat,
+                            'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
+                          }">
+                          <span v-if="row.right.isBracelet" class="bracelet-badge bracelet-badge--effect"
+                            :style="{ backgroundColor: 'transparent', color: braceletEffectParts(effect, row.right).nameColor }">
                             <template v-if="braceletEffectParts(effect, row.right).prefix">
-                              <span class="bracelet-effect-prefix" :style="{ color: effectDisplayColor(effect, row.right) }">
+                              <span class="bracelet-effect-prefix"
+                                :style="{ color: effectDisplayColor(effect, row.right) }">
                                 {{ braceletEffectParts(effect, row.right).prefix }}
                               </span>
                             </template>
-                            <span class="bracelet-effect-name" :style="{ fontWeight: effectFontWeight(effect, row.right) }">
+                            <span class="bracelet-effect-name"
+                              :style="{ fontWeight: effectFontWeight(effect, row.right) }">
                               <template
                                 v-for="(segment, segIdx) in braceletEffectParts(effect, row.right).labelSegments"
-                                :key="`bracelet-seg-${row.key}-${idx}-${segIdx}`"
-                              >
-                                <span
-                                  v-if="segment.isValue"
-                                  class="bracelet-effect-value"
-                                  :style="{ color: braceletEffectParts(effect, row.right).valueColor, fontWeight: 700 }"
-                                >
+                                :key="`bracelet-seg-${row.key}-${idx}-${segIdx}`">
+                                <span v-if="segment.isValue" class="bracelet-effect-value"
+                                  :style="{ color: braceletEffectParts(effect, row.right).valueColor, fontWeight: 700 }">
                                   {{ segment.text }}
                                 </span>
                                 <span v-else>
@@ -224,21 +186,14 @@
                               </template>
                             </span>
                           </span>
-                          <span
-                            v-else
-                            class="equipment-badge equipment-badge--effect"
-                            :class="{
-                              'equipment-badge--combat': effect.isCombat,
-                              'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
-                            }"
-                            :style="{ backgroundColor: 'transparent', color: effectTextDisplayColor(effect, row.right) }"
-                          >
-                            <span
-                              v-if="isAccessoryItem(row.right)"
-                              class="effect-prefix"
+                          <span v-else class="equipment-badge equipment-badge--effect" :class="{
+                            'equipment-badge--combat': effect.isCombat,
+                            'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
+                          }"
+                            :style="{ backgroundColor: 'transparent', color: effectTextDisplayColor(effect, row.right) }">
+                            <span v-if="isAccessoryItem(row.right)" class="effect-prefix"
                               :class="{ 'effect-prefix--empty': !effectPrefixLabel(effect, row.right) }"
-                              :style="{ color: effectDisplayColor(effect, row.right) }"
-                            >
+                              :style="{ color: effectDisplayColor(effect, row.right) }">
                               {{ effectPrefixLabel(effect, row.right) || '무' }}
                             </span>
                             <span :style="{ fontWeight: effectFontWeight(effect, row.right) }">
@@ -246,16 +201,12 @@
                             </span>
                           </span>
                         </div>
-                        <div
-                          v-if="row.right.isAccessory && !row.right.isBracelet"
-                          class="popup-surface popup-surface--tooltip equipment-effect-tooltip"
-                        >
-                          <p
-                            v-for="(effLine, effIdx) in effectsForDisplay(row.right.effects, row.right)"
-                            :key="`acc-tooltip-${row.key}-${effIdx}`"
-                            class="popup-surface__body"
-                          >
-                            {{ expandEffectTooltipText(effLine.full || effLine.label) || effLine.full || effLine.label }}
+                        <div v-if="row.right.isAccessory && !row.right.isBracelet"
+                          class="popup-surface popup-surface--tooltip equipment-effect-tooltip">
+                          <p v-for="(effLine, effIdx) in effectsForDisplay(row.right.effects, row.right)"
+                            :key="`acc-tooltip-${row.key}-${effIdx}`" class="popup-surface__body">
+                            {{ expandEffectTooltipText(effLine.full || effLine.label) || effLine.full || effLine.label
+                            }}
                           </p>
                         </div>
                       </div>
@@ -276,27 +227,21 @@
               <p class="summary-eyebrow">아크 패시브</p>
               <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
             </div>
-            <div
-              v-if="(arkSummary.passiveMatrix?.length || 0) > 0 || (arkSummary.appliedPoints?.length || 0) > 0"
-              class="ark-passive-summary"
-            >
-                <div class="ark-passive-grid">
-                  <div class="ark-passive-grid-header">
-                    <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
-                      <span class="ark-passive-header-desc" v-if="point.description">{{ point.description }}</span>
-                      <div class="ark-passive-header-title">
-                        <span class="ark-passive-header-label">{{ point.label }}</span>
-                        <span v-if="point.value"> · </span>
-                        <span class="ark-passive-header-value" v-if="point.value">{{ point.value }}</span>
-                      </div>
-                    </span>
-                  </div>
-                <div
-                  v-for="(row, rowIndex) in arkSummary.passiveMatrix.slice(0, 4)"
-                  :key="row.id"
-                  class="ark-passive-grid-row"
-                  :class="{ 'ark-passive-grid-row--with-divider': rowIndex > 0 }"
-                >
+            <div v-if="(arkSummary.passiveMatrix?.length || 0) > 0 || (arkSummary.appliedPoints?.length || 0) > 0"
+              class="ark-passive-summary">
+              <div class="ark-passive-grid">
+                <div class="ark-passive-grid-header">
+                  <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
+                    <span class="ark-passive-header-desc" v-if="point.description">{{ point.description }}</span>
+                    <div class="ark-passive-header-title">
+                      <span class="ark-passive-header-label">{{ point.label }}</span>
+                      <span v-if="point.value"> · </span>
+                      <span class="ark-passive-header-value" v-if="point.value">{{ point.value }}</span>
+                    </div>
+                  </span>
+                </div>
+                <div v-for="(row, rowIndex) in arkSummary.passiveMatrix.slice(0, 4)" :key="row.id"
+                  class="ark-passive-grid-row" :class="{ 'ark-passive-grid-row--with-divider': rowIndex > 0 }">
                   <div v-for="section in row.sections" :key="`${row.id}-${section.key}`" class="ark-passive-cell">
                     <div v-if="section.effects.length" class="ark-passive-cell-list">
                       <div v-for="effect in section.effects" :key="effect.key" class="ark-passive-chip">
@@ -331,26 +276,14 @@
             <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
             <div v-else class="ark-core-layout">
               <div v-if="arkSummary.coreMatrix.rows.length" class="ark-core-card-grid">
-                <div
-                  v-for="row in arkSummary.coreMatrix.rows"
-                  :key="`core-row-${row.key}`"
-                  class="ark-core-row-group"
-                >
+                <div v-for="row in arkSummary.coreMatrix.rows" :key="`core-row-${row.key}`" class="ark-core-row-group">
                   <p class="ark-core-row-label">{{ row.label }}</p>
                   <div class="ark-core-card-row">
                     <div v-for="cell in row.cells" :key="`core-cell-${cell.key}`" class="ark-core-card-cell">
                       <article v-for="slot in cell.slots" :key="slot.key" class="ark-core-card">
                         <div class="ark-core-card__thumb">
-                          <LazyImage
-                            v-if="slot.icon"
-                            :src="slot.icon"
-                            :alt="slot.name"
-                            width="40"
-                            height="40"
-                            imageClass="ark-core-card__image"
-                            errorIcon="🧩"
-                            :useProxy="true"
-                          />
+                          <LazyImage v-if="slot.icon" :src="slot.icon" :alt="slot.name" width="40" height="40"
+                            imageClass="ark-core-card__image" errorIcon="🧩" :useProxy="true" />
                           <div v-else class="ark-core-card__placeholder" aria-hidden="true">
                             {{ slot.initial }}
                           </div>
@@ -379,8 +312,8 @@
           </div>
           <p v-if="skillLoading" class="summary-note">스킬 정보를 불러오는 중입니다...</p>
           <p v-else-if="skillError" class="summary-note summary-note--warning">{{ skillError }}</p>
-          <ul v-else-if="skillHighlights.length" class="summary-list summary-list--flat summary-skill-list">
-            <li v-for="skill in skillHighlights" :key="skill.key"
+          <ul v-else-if="displaySkillHighlights.length" class="summary-list summary-list--flat summary-skill-list">
+            <li v-for="skill in displaySkillHighlights" :key="skill.key"
               class="summary-list-item summary-list-item--plain summary-skill-item"
               :class="{ 'summary-skill-item--with-gems': skill.hasGem || skill.rune }">
               <div class="summary-skill-icon-stack">
@@ -400,7 +333,8 @@
                   <!-- <div v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="summary-tripod-icon"
                     :class="`summary-tripod-icon--${index + 1}`" :title="tripod.name">
                   </div> -->
-                  <span v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="summary-tripod-slot-dot" :class="`summary-tripod-icon--${index + 1}`">{{ tripod.slotLabel }}</span>
+                  <span v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="summary-tripod-slot-dot"
+                    :class="`summary-tripod-icon--${index + 1}`">{{ tripod.slotLabel }}</span>
                 </div>
               </div>
               <div v-if="skill.hasGem || skill.rune" class="summary-skill-gems">
@@ -409,7 +343,7 @@
                     <div class="summary-gem-row summary-gem-row--label">
                       <span class="summary-gem-label" :title="skill.rune?.name || ''"
                         :style="{ color: skill.rune?.color || undefined }">
-                        {{ skill.rune?.name || '룬' }}
+                        {{ skill.rune?.name || '' }}
                       </span>
                       <span class="summary-gem-label" :title="skill.gems.damage?.name || ''">
                         {{ skill.gems.damage?.label || skill.gems.damage?.name || '' }}
@@ -419,45 +353,24 @@
                       </span>
                     </div>
                   </div>
-                <div class="summary-gem-row summary-gem-row--icons">
-                  <div class="summary-gem-cell">
+                  <div class="summary-gem-row summary-gem-row--icons">
+                    <div class="summary-gem-cell">
+                    </div>
+                    <div class="summary-gem-cell">
+                      <span v-if="skill.gems.damage?.label != undefined" class="summary-gem-level-dot">
+                        {{ skill.gems.damage?.levelLabel?.replace('Lv.', '') || '-' }}
+                      </span>
+                    </div>
+                    <div v-if="skill.gems.cooldown?.label != undefined" class="summary-gem-cell">
+                      <span class="summary-gem-level-dot">
+                        {{ skill.gems.cooldown?.levelLabel?.replace('Lv.', '') || '-' }}
+                      </span>
+                    </div>
                   </div>
-                  <div class="summary-gem-cell">
-                    <span v-if="skill.gems.damage?.label != undefined" class="summary-gem-level-dot">
-                      {{ skill.gems.damage?.levelLabel?.replace('Lv.', '') || '-' }}
-                    </span>
-                  </div>
-                  <div v-if="skill.gems.cooldown?.label != undefined" class="summary-gem-cell">
-                    <span class="summary-gem-level-dot">
-                      {{ skill.gems.cooldown?.levelLabel?.replace('Lv.', '') || '-' }}
-                    </span>
-                  </div>
-                </div>
                 </div>
               </div>
             </li>
           </ul>
-              <div v-if="(skillLooseGems?.length || 0) > 0" class="summary-loose-gems">
-                <p class="summary-inline summary-inline--muted">장착되지 않은 보석</p>
-                <div class="summary-loose-gem-grid">
-                  <div v-for="gem in skillLooseGems" :key="gem.key" class="summary-loose-gem">
-                    <div class="summary-gem-icon-stack">
-                      <div class="summary-gem-icon-wrapper summary-gem-icon-wrapper--empty">
-                        <span class="summary-gem-text">{{ gem.skillName?.[0] || '보석' }}</span>
-                      </div>
-                      <span class="summary-gem-level-dot">
-                        {{ gem.levelLabel?.replace('Lv.', '') || '-' }}
-                      </span>
-                    </div>
-                <div class="summary-loose-gem-body">
-                  <p class="summary-title">{{ gem.skillName || gem.name }}</p>
-                  <p class="summary-sub">
-                    {{ gem.grade || gem.typeLabel || gem.effectLabel || '' }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
           <!-- <p v-else class="summary-note">요약할 스킬 정보가 없습니다.</p> -->
         </div>
         <div class="ark-section__block ark-section__block--engravings">
@@ -467,16 +380,9 @@
           <div v-if="engravingSummary.length" class="summary-engraving-grid">
             <div v-for="engrave in engravingSummary" :key="engrave.key" class="summary-engraving-card">
               <div class="summary-engraving-icon">
-                <LazyImage
-                  v-if="engrave.icon || engravingIcon(engrave.name)"
-                  :src="engrave.icon || engravingIcon(engrave.name)"
-                  :alt="engrave.displayName || engrave.name"
-                  width="40"
-                  height="40"
-                  imageClass="summary-icon"
-                  errorIcon="🔮"
-                  :useProxy="true"
-                />
+                <LazyImage v-if="engrave.icon || engravingIcon(engrave.name)"
+                  :src="engrave.icon || engravingIcon(engrave.name)" :alt="engrave.displayName || engrave.name"
+                  width="40" height="40" imageClass="summary-icon" errorIcon="🔮" :useProxy="true" />
                 <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">
                   {{ engrave.gradeLabel?.[0] || 'E' }}
                 </div>
@@ -485,11 +391,8 @@
                 {{ engrave.displayName || formatEngravingName(engrave.name) }}
               </p>
               <div class="summary-engrave-meta-row">
-                <span
-                  v-if="engrave.levelLabel"
-                  class="engrave-level-image engrave-level-image--sprite"
-                  :style="engravingLevelBadgeStyle(engrave)"
-                ></span>
+                <span v-if="engrave.levelLabel" class="engrave-level-image engrave-level-image--sprite"
+                  :style="engravingLevelBadgeStyle(engrave)"></span>
                 <span v-if="engrave.levelLabel" class="summary-pill summary-pill--primary">
                   {{ engrave.levelLabel }}
                 </span>
@@ -527,36 +430,20 @@
               <article v-for="card in cardSummary.cards" :key="card.key" class="card-slot card-slot--ornate">
                 <div class="card-slot__frame">
                   <div class="card-slot__thumb">
-                    <LazyImage
-                      v-if="card.icon"
-                      :src="card.icon"
-                      :alt="card.name"
-                      :width="`inherit - 10px`"
-                      :height="`inherit - 10px`"
-                      imageClass="card-slot__icon"
-                      errorIcon="✨"
-                      :useProxy="true"
-                    />
+                    <LazyImage v-if="card.icon" :src="card.icon" :alt="card.name" :width="`inherit - 10px`"
+                      :height="`inherit - 10px`" imageClass="card-slot__icon" errorIcon="✨" :useProxy="true" />
                     <div v-else class="card-slot__placeholder" aria-hidden="true">
                       {{ card.name?.[0] || '?' }}
                     </div>
                   </div>
-                    <div class="card-slot__awake-row" v-if="card.awakeTotal">
-                      <span
-                        v-for="orbIndex in card.awakeTotal"
-                        :key="`${card.key}-orb-${orbIndex}`"
-                        class="card-awake-orb"
-                        :style="awakeOrbSize"
-                      >
-                      <span
-                        class="card-awake-orb__layer card-awake-orb__layer--slot"
-                        :style="awakeSpriteStyle(orbIndex, 'slot')"
-                      ></span>
-                      <span
-                        v-if="card.awakeCount !== null && orbIndex <= card.awakeCount"
+                  <div class="card-slot__awake-row" v-if="card.awakeTotal">
+                    <span v-for="orbIndex in card.awakeTotal" :key="`${card.key}-orb-${orbIndex}`"
+                      class="card-awake-orb" :style="awakeOrbSize">
+                      <span class="card-awake-orb__layer card-awake-orb__layer--slot"
+                        :style="awakeSpriteStyle(orbIndex, 'slot')"></span>
+                      <span v-if="card.awakeCount !== null && orbIndex <= card.awakeCount"
                         class="card-awake-orb__layer card-awake-orb__layer--fill"
-                        :style="awakeSpriteStyle(orbIndex, 'fill')"
-                      ></span>
+                        :style="awakeSpriteStyle(orbIndex, 'fill')"></span>
                     </span>
                   </div>
                 </div>
@@ -640,6 +527,32 @@ const props = defineProps<{
   collectiblesError: string | null
   combatRole?: 'dealer' | 'support' | null
 }>()
+
+const displaySkillHighlights = computed(() => {
+  const base = props.skillHighlights || []
+  const loose = (props.skillLooseGems || []).map(gem => {
+    const name = gem.skillName || gem.name || '보석'
+    const levelLabel = gem.levelLabel || ''
+    const label = gem.effectLabel || gem.typeLabel || ''
+    return {
+      key: gem.key || `gem-only-${name}`,
+      name,
+      icon: gem.icon || '',
+      levelLabel: '',
+      pointLabel: '',
+      rune: null,
+      tripods: [],
+      gems: {
+        damage: label
+          ? { label, levelLabel }
+          : null,
+        cooldown: null
+      },
+      hasGem: true
+    }
+  })
+  return [...base, ...loose]
+})
 
 const equipmentRows = computed(() => {
   const left = props.equipmentSummary?.left || []
@@ -1216,6 +1129,7 @@ const coreNameStyle = (slot: any) => {
 .equipment-progress--bare {
   background: transparent;
 }
+
 .equipment-quality--stacked .equipment-progress__label--inline {
   left: 50%;
   transform: translate(-50%, -50%);
@@ -1289,8 +1203,8 @@ const coreNameStyle = (slot: any) => {
 
 .bracelet-effect-value {
   font-weight: 700;
-  margin-left:1px;
-  margin-right:1px;
+  margin-left: 1px;
+  margin-right: 1px;
   /* background-color: lightgray; */
   /* text-shadow: 0 1px 1px white; */
   /* text-shadow:0px 1px black; */
@@ -1300,8 +1214,8 @@ const coreNameStyle = (slot: any) => {
   margin-right: 2px;
 }
 
-.ark-passive-header-title{
-  display:flex;
+.ark-passive-header-title {
+  display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
@@ -1317,7 +1231,7 @@ const coreNameStyle = (slot: any) => {
   display: block;
   color: var(--text-primary);
   font-weight: 700;
-  margin-right:4px;
+  margin-right: 4px;
 }
 
 .ark-passive-header-desc {
