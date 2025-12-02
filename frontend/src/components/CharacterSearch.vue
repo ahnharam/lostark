@@ -397,13 +397,13 @@ const FAVORITES_STORAGE_KEY = 'loa:favorites'
 const HISTORY_STORAGE_KEY = 'loa:history'
 const DEFAULT_RESULT_TAB: ResultTabKey = 'summary'
 const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
-  { key: 'summary', label: '내 정보 간소화' },
-  { key: 'skills', label: '스킬' },
+  { key: 'summary', label: '통합' },
   { key: 'detail', label: '장비' },
+  { key: 'arkGrid', label: '아크' },
+  { key: 'skills', label: '스킬' },
   { key: 'collection', label: '수집' },
   { key: 'ranking', label: '랭킹' },
-  { key: 'arkGrid', label: '아크 그리드' },
-  { key: 'expedition', label: '보유 캐릭터' }
+  { key: 'expedition', label: '원정대' }
 ]
 const tabPlaceholderCopy: Record<ResultTabKey, TabPlaceholderCopy | null> = {
   summary: null,
