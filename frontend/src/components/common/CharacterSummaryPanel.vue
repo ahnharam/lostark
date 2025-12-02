@@ -182,7 +182,10 @@
                       <div
                         v-if="row.right.effects?.length"
                         class="equipment-effect-badges equipment-effect-badges--with-tooltip"
-                        :class="{ 'equipment-effect-badges--grid': row.right.isBracelet }"
+                        :class="{
+                          'equipment-effect-badges--grid': row.right.isBracelet,
+                          'equipment-effect-badges--stone': row.right.isAbilityStone
+                        }"
                       >
                         <div
                           v-for="(effect, idx) in effectsForDisplay(row.right.effects, row.right)"
@@ -570,7 +573,6 @@
         <div class="ark-section__block">
           <div class="summary-card__head">
             <p class="summary-eyebrow">수집</p>
-            <h4>주요 포인트</h4>
           </div>
           <p v-if="collectiblesLoading" class="summary-note">수집 정보를 정리하는 중입니다...</p>
           <p v-else-if="collectiblesError" class="summary-note summary-note--warning">
@@ -1243,6 +1245,11 @@ const coreNameStyle = (slot: any) => {
 
 .equipment-effect-badges {
   position: relative;
+}
+
+.equipment-effect-badges--stone .equipment-effect-chip,
+.equipment-effect-badges--stone .equipment-badge {
+  font-weight: 400;
 }
 
 .equipment-effect-tooltip {

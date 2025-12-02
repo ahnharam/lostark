@@ -3211,7 +3211,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .summary-title {
   margin: 0;
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -4175,7 +4175,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: var(--font-xs);
-  font-weight: 700;
   background: rgba(94, 234, 212, 0.14);
   color: #0f172a;
   min-width: 42px;

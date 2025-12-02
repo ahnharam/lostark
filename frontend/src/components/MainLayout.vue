@@ -176,6 +176,7 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
 
 .menu-trigger__icon {
   line-height: 1;
+  color: var(--text-primary, #111827);
 }
 
 .main-brand {
