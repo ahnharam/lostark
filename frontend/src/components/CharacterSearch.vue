@@ -197,6 +197,7 @@
                 :collection-summary="collectionSummary"
                 :collectibles-loading="collectiblesLoading"
                 :collectibles-error="collectiblesError"
+                :combat-role="combatRole"
               />
 
                 <section
@@ -500,10 +501,80 @@ const inlineText = (value?: string | number | null) => {
   return cleanTooltipLine(String(value)).replace(/\s+/g, ' ').trim()
 }
 
+const normalizeHexColor = (value?: string | null) => {
+  if (!value) return ''
+  const normalized = String(value).trim().toUpperCase()
+  if (!normalized) return ''
+  return normalized.startsWith('#') ? normalized : `#${normalized}`
+}
+
+const extractColorFromFontString = (text?: string | null) => {
+  if (!text) return ''
+  const match = String(text).match(/color=['"]?([#\w]+)['"]?/i)
+  const raw = match?.[1]
+  return raw ? normalizeHexColor(raw) : ''
+}
+
+const scanTooltipForColor = (node: unknown): string => {
+  if (!node) return ''
+  if (typeof node === 'string') return extractColorFromFontString(node)
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = scanTooltipForColor(item)
+      if (found) return found
+    }
+    return ''
+  }
+  if (typeof node === 'object') {
+    const record = node as Record<string, unknown>
+    // Element_000.value에 우선 접근
+    if (record.Element_000 && typeof record.Element_000 === 'object') {
+      const valueField = (record.Element_000 as any).value
+      const fromElement = scanTooltipForColor(valueField)
+      if (fromElement) return fromElement
+    }
+    for (const child of Object.values(record)) {
+      const found = scanTooltipForColor(child)
+      if (found) return found
+    }
+  }
+  return ''
+}
+
+const coreNameColorFromTooltip = (tooltip?: unknown) => {
+  if (!tooltip) return ''
+  if (typeof tooltip === 'string') {
+    try {
+      const parsed = JSON.parse(tooltip)
+      const fromParsed = scanTooltipForColor(parsed)
+      if (fromParsed) return fromParsed
+    } catch {
+      // 문자열 자체에서 검색
+    }
+    const direct = extractColorFromFontString(tooltip)
+    if (direct) return direct
+    return scanTooltipForColor(tooltip)
+  }
+  return scanTooltipForColor(tooltip)
+}
+
 const normalizeSkillKey = (value?: string | null) =>
   inlineText(value)
     .replace(/[\s\[\]\(\)<>{}]/g, '')
     .toLowerCase()
+
+const coreGradeColor = (grade?: string | null) => {
+  const g = inlineText(grade).toLowerCase()
+  if (!g) return ''
+  if (g.includes('고대') || g.includes('ancient')) return '#eab308'
+  if (g.includes('유물') || g.includes('relic')) return '#f97316'
+  if (g.includes('전설') || g.includes('legend')) return '#fbbf24'
+  if (g.includes('영웅') || g.includes('hero')) return '#a78bfa'
+  if (g.includes('희귀') || g.includes('rare')) return '#60a5fa'
+  if (g.includes('고급') || g.includes('언커먼') || g.includes('uncommon')) return '#6ee7b7'
+  if (g.includes('일반') || g.includes('노말') || g.includes('common')) return '#6b7280'
+  return ''
+}
 
 const formatLevelLabel = (value?: number | string | null) => {
   const num = typeof value === 'number' ? value : Number(value)
@@ -963,8 +1034,15 @@ const equipmentSummary = computed(() => {
   const normalizeHexColor = (value?: string | null) => {
     if (!value) return null
     const raw = value.replace(/['"#]/g, '').trim()
-    if (!/^[0-9a-fA-F]{6}$/.test(raw)) return null
-    return `#${raw.toLowerCase()}`
+    if (!/^[0-9a-fA-F]{3,4}$/.test(raw) && !/^[0-9a-fA-F]{6}$/.test(raw) && !/^[0-9a-fA-F]{8}$/.test(raw)) {
+      return null
+    }
+    const expand = (hex: string) => (hex.length === 1 ? hex.repeat(2) : hex)
+    const normalized =
+      raw.length === 3 || raw.length === 4
+        ? raw.split('').map(expand).join('').slice(0, 6)
+        : raw.slice(0, 6)
+    return `#${normalized.toLowerCase()}`
   }
 
   const normalizeEffectLabel = (label: string) => inlineText(label).replace(/^>\s*/, '').trim()
@@ -1087,7 +1165,64 @@ const equipmentSummary = computed(() => {
       return `rgba(${r}, ${g}, ${b}, ${alpha})`
     }
 
-    const addEffect = (label: string, full?: string, color?: string) => {
+    const tierBases = [
+      { r: 0, g: 181, b: 255 }, // 하
+      { r: 206, g: 67, b: 252 }, // 중
+      { r: 254, g: 150, b: 0 } // 상
+    ]
+
+    const hexToRgb = (hex?: string | null) => {
+      const normalized = normalizeHexColor(hex)
+      if (!normalized) return null
+      const cleaned = normalized.replace('#', '')
+      const r = parseInt(cleaned.slice(0, 2), 16)
+      const g = parseInt(cleaned.slice(2, 4), 16)
+      const b = parseInt(cleaned.slice(4, 6), 16)
+      return { r, g, b }
+    }
+
+    const colorTierDistance = (hex?: string | null) => {
+      const rgb = hexToRgb(hex)
+      if (!rgb) return Infinity
+      const distance = (a: typeof rgb, b: typeof rgb) => {
+        const dr = a.r - b.r
+        const dg = a.g - b.g
+        const db = a.b - b.b
+        return Math.sqrt(dr * dr + dg * dg + db * db)
+      }
+      return Math.min(...tierBases.map(base => distance(rgb, base)))
+    }
+
+    const pickTierAlignedColor = (colors: string[]) => {
+      if (!colors.length) return null
+      let best: { color: string; dist: number } | null = null
+      colors.forEach(color => {
+        const dist = colorTierDistance(color)
+        if (best === null || dist < best.dist) {
+          best = { color, dist }
+        }
+      })
+      return best?.color || colors[0]
+    }
+
+    const sanitizeColoredText = (value?: string | null) => {
+      if (!value) return ''
+      const withoutImgs = value.replace(/<img[^>]*>/gi, '')
+      let html = withoutImgs.replace(
+        /<font[^>]*color=['"]?([^'" >]+)['"]?[^>]*>(.*?)<\/font>/gi,
+        (_m, color, inner) => `<span style="color:${color}">${inner}</span>`
+      )
+      html = html.replace(
+        /<span[^>]*style=["'][^"']*color\s*:\s*([^;"']+)[^"']*["'][^>]*>(.*?)<\/span>/gi,
+        (_m, color, inner) => `<span style="color:${color}">${inner}</span>`
+      )
+      html = html
+        .replace(/<br\s*\/?>/gi, '<br />')
+        .replace(/<(?!br\s*\/?|span\b|\/span\b)[^>]+>/gi, '')
+      return html.trim()
+    }
+
+    const addEffect = (label: string, full?: string, color?: string, richLabel?: string) => {
       const cleaned = normalizeEffectLabel(label)
       const normalizedLabel = abbreviateEffect(cleaned)
       const key = `${normalizedLabel}|${full || ''}`
@@ -1099,7 +1234,7 @@ const equipmentSummary = computed(() => {
         : hasAbbrev
           ? 'var(--bg-secondary)'
           : 'rgba(107, 114, 128, 0.15)'
-      effects.push({ label: normalizedLabel, full, textColor, bgColor })
+      effects.push({ label: normalizedLabel, full: richLabel || full || normalizedLabel, richLabel, textColor, bgColor })
     }
 
     try {
@@ -1115,11 +1250,14 @@ const equipmentSummary = computed(() => {
           .map(seg => seg.trim())
           .filter(Boolean)
         segments.forEach(seg => {
-          const colorMatch = seg.match(/color=['"]?(#?[0-9a-fA-F]{6})/i)
-          const color = normalizeHexColor(colorMatch?.[1] || null)
+          const colorMatches = Array.from(seg.matchAll(/color=['"]?(#?[0-9a-fA-F]{3,8})/gi))
+            .map(match => normalizeHexColor(match[1] || null))
+            .filter(Boolean) as string[]
+          const color = pickTierAlignedColor(colorMatches)
           const label = inlineText(seg.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
           if (!label) return
-          addEffect(label, label, color)
+          const richLabel = sanitizeColoredText(seg)
+          addEffect(label, label, color, richLabel)
         })
       }
     } catch {
@@ -1649,19 +1787,40 @@ const arkSummary = computed(() => {
       }
     }).filter(effect => effect.name) ?? []
 
-  const coreSlots = (grid?.slots ?? [])
+  const rawSlots = (grid?.slots ?? (grid as any)?.Slots ?? []) as any[]
+  const coreSlots = rawSlots
     .map((slot, index) => {
-      const rawName = inlineText(slot.name) || `코어 ${slot.index ?? index + 1}`
+      const getField = (...keys: string[]) => {
+        for (const key of keys) {
+          if (slot[key] !== undefined && slot[key] !== null && slot[key] !== '') return slot[key]
+        }
+        return null
+      }
+
+      const rawName =
+        inlineText(getField('name', 'Name')) || `코어 ${getField('index', 'Index') ?? index + 1}`
       const meta = parseCoreMeta(rawName)
       const name = meta.displayName
-      const pointLabel =
-        slot.point !== undefined && slot.point !== null ? `${slot.point}P` : ''
+      const gradeLabel = inlineText(getField('grade', 'Grade', 'gradeName', 'GradeName'))
+      const tooltipRaw = getField('tooltip', 'Tooltip')
+      const nameColor = coreNameColorFromTooltip(tooltipRaw) || extractTooltipColor(tooltipRaw)
+      const gradeColor =
+        nameColor ||
+        coreGradeColor(gradeLabel) ||
+        (meta.alignment === 'order' ? '#e11d48' : meta.alignment === 'chaos' ? '#2563eb' : '')
+      const pointValue = getField('point', 'Point')
+      const pointLabel = pointValue !== null && pointValue !== undefined ? `${pointValue}P` : ''
+      const icon = getField('icon', 'Icon') || ''
       return {
-        key: `slot-${slot.index ?? index}`,
+        key: `slot-${getField('index', 'Index') ?? index}`,
         name,
         alignment: meta.alignment,
         celestial: meta.celestial,
-        icon: slot.icon || '',
+        icon,
+        grade: gradeLabel,
+        gradeColor,
+        nameColor,
+        tooltip: tooltipRaw || '',
         pointLabel,
         initial: name.charAt(0) || 'C'
       }
@@ -3358,14 +3517,14 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .summary-progress-list.summary-progress-list--dense {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md) var(--space-lg);
+  gap: var(--space-sm) var(--space-lg);
 }
 
 .summary-progress {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 0;
+  gap: 2px;
+  padding: 5px 2px;
 }
 
 .summary-progress__head {
@@ -3529,8 +3688,21 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ark-core-card-grid {
   display: flex;
-  flex-direction: row;
+  /* flex-direction: row; */
   gap: var(--space-sm);
+  position: relative;
+  justify-content: space-between;
+}
+
+.ark-core-card-grid::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 1px dashed var(--border-color, rgba(148, 163, 184, 0.4));
+  pointer-events: none;
 }
 
 .ark-core-row-group {
@@ -3541,19 +3713,21 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ark-core-row-label {
   margin: 0;
-  font-size: var(--font-xs);
+  font-size: var(--font-sm);
   font-weight: 700;
   color: var(--text-primary);
+  padding: 0px 10px;
 }
 
 .ark-core-card-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
+  padding: 0px 10px;
 }
 
 .ark-core-card-cell {
-  display: contents;
+  display: flex;
 }
 
 .ark-core-card {
@@ -3624,7 +3798,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   gap: var(--space-xs);
 }
 
-
 .ark-passive-grid-header{
   align-items: center;
 }
@@ -3636,48 +3809,15 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .ark-passive-grid-header,
 .ark-passive-grid-row {
   display: grid;
-  grid-template-columns: 50px repeat(3, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   justify-items: center;
 }
 
 .ark-passive-header-cell {
   font-size: var(--font-xs);
   color: var(--text-secondary);
-}
-
-.ark-passive-tier {
   font-weight: 700;
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  font-size: var(--font-xs);
-  position: relative;
-  padding-right: 8px;
-  width:100%;
-}
-
-.ark-passive-header-tier {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding-right: 8px;
-  width:100%;
-}
-
-.ark-passive-tier::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 10px;
-  /* background: var(--border-color); */
-  border-radius: 12px;
-  border-left: 1px dashed black;
 }
 
 .ark-passive-cell {
@@ -3685,13 +3825,25 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   flex-direction: column;
   gap: 6px;
   width:100%;
+  position: relative;
 }
 
 .ark-passive-cell-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
-  gap: 8px 10px;
+  grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+  gap: 10px;
+  justify-items: center;
   width:100%;
+}
+
+.ark-passive-cell:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  border-left: 1px dashed var(--border-color, rgba(148, 163, 184, 0.4));
+  pointer-events: none;
 }
 
 .ark-passive-summary-footer {
@@ -3756,21 +3908,41 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .ark-passive-chip {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  padding: 6px 0;
+  justify-content: flex-start;
+  border-radius: 12px;
 }
 
 .ark-passive-chip-visual {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  min-height: 48px;
 }
 
-.ark-passive-level {
+.ark-passive-chip-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.ark-passive-chip-level {
   font-size: var(--font-xs);
   color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.ark-passive-chip-name {
+  font-size: var(--font-xs);
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  word-break: keep-all;
 }
 
 .equipment-icon-stack {
@@ -4057,6 +4229,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: inline-flex;
   flex-direction: column;
   height:inherit;
+  gap:2px;
 }
 
 .equipment-effect-chip {
@@ -4102,13 +4275,12 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   align-items: flex-start;
   gap: 10px;
   padding: 8px 0;
-  min-height: 100px;
+  min-height: 80px;
 }
 
 .equipment-side--bracelet {
   grid-column: 1 / span 2;
   border-radius: var(--radius-md);
-  padding: 8px;
   align-items: center;
 }
 
@@ -4139,10 +4311,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   flex-direction: column;
   gap: 6px;
   align-items: flex-end;
-}
-
-.summary-progress-list--dense .summary-progress {
-  padding: 8px 0;
 }
 
 .placeholder-panel {

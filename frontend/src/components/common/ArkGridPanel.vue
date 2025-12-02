@@ -119,7 +119,9 @@
                   <p class="slot-card-grade" :style="{ color: slot.gradeColor || undefined }">{{ slot.grade || '등급 미상' }}</p>
                   <span v-if="slot.point !== undefined" class="slot-card-point">{{ slot.point }}P</span>
                 </div>
-                <strong class="slot-card-name">{{ slot.name }}</strong>
+                <strong class="slot-card-name" :style="{ color: slot.nameColor || slot.gradeColor || undefined }">
+                  {{ slot.name }}
+                </strong>
               </div>
             </header>
             <!-- <p v-if="slot.tooltipTitle" class="slot-card-title">{{ slot.tooltipTitle }}</p> -->
@@ -736,7 +738,8 @@ const slotCards = computed(() => {
       tooltipTitle: tooltip.title,
       tooltipLines,
       gemCards,
-      gradeColor: slotColor
+      gradeColor: slotColor,
+      nameColor: slotColor
     }
   })
 })

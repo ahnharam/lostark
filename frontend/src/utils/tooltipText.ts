@@ -152,15 +152,20 @@ export function extractTooltipColor(tooltip?: string | null): string | null {
   }
 
   try {
-    const parsed = JSON.parse(String(tooltip))
-    return searchColor(parsed)
+    const parsed =
+      typeof tooltip === 'string' ? JSON.parse(String(tooltip)) : tooltip
+    const found = searchColor(parsed)
+    if (found) return found
   } catch {
-    const directMatch = tooltip.match(/color=['"]?([#\\w]+)['"]?/i)
-    const raw = directMatch?.[1]
-    if (raw) {
-      const normalized = raw.toUpperCase()
-      return normalized.startsWith('#') ? normalized : `#${normalized}`
-    }
-    return null
+    // fallthrough to direct string search
   }
+
+  const directMatch = String(tooltip).match(/color=['"]?([#\\w]+)['"]?/i)
+  const raw = directMatch?.[1]
+  if (raw) {
+    const normalized = raw.toUpperCase()
+    return normalized.startsWith('#') ? normalized : `#${normalized}`
+  }
+
+  return searchColor(tooltip)
 }

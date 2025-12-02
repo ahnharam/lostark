@@ -209,9 +209,7 @@
                         </div>
 
                         <div class="skill-main-destruction">
-                          <p v-if="skill.description" class="skill-description">
-                            {{ skill.description }}
-                          </p>
+                          <p v-if="skill.description" class="skill-description" v-html="skill.description"></p>
                         </div>
                       </div>
 
@@ -289,9 +287,7 @@
                           class="skill-icon-tooltip popup-surface popup-surface--tooltip"
                         >
                           <p class="popup-surface__title skill-tooltip-title">{{ skill.name }}</p>
-                          <p v-if="skill.description" class="popup-surface__body skill-tooltip-desc">
-                            {{ skill.description }}
-                          </p>
+                          <p v-if="skill.description" class="popup-surface__body skill-tooltip-desc" v-html="skill.description"></p>
                         </div>
                       </div>
                       <p class="skill-card-name">{{ skill.name }}</p>
@@ -486,6 +482,32 @@ const resolveGemBadgesForSkill = (skillName: string, map: Map<string, SkillGemBa
  * @returns HEX 색상 코드 (예: "#FF0000")
  */
 const extractFontColor = (value?: string | null) => extractTooltipColor(value) || ''
+
+const sanitizeWithColors = (value?: string | null) => {
+  if (!value) return ''
+  const normalized = String(value).replace(/\r\n|\n|\r/g, ' ')
+  // 1) font color -> span color
+  let html = normalized.replace(
+    /<font[^>]*color=['"]?([^'" >]+)['"]?[^>]*>(.*?)<\/font>/gi,
+    (_match, color, inner) => {
+      const safeInner = inner.replace(/<(?!br\s*\/?)[^>]+>/gi, '')
+      return `<span style="color:${color}">${safeInner}</span>`
+    }
+  )
+  // 2) span style color keep, drop other tags
+  html = html.replace(
+    /<span[^>]*style=["'][^"']*color\s*:\s*([^;"']+)[^"']*["'][^>]*>(.*?)<\/span>/gi,
+    (_match, color, inner) => {
+      const safeInner = inner.replace(/<(?!br\s*\/?)[^>]+>/gi, '')
+      return `<span style="color:${color}">${safeInner}</span>`
+    }
+  )
+  // 3) allow <br>, strip the rest
+  html = html
+    .replace(/<br\s*\/?\s*>/gi, '<br />')
+    .replace(/<(?!br\s*\/?|span\b|\/span\b)[^>]+>/gi, '')
+  return html.trim()
+}
 
 /**
  * 각성기 페어 제목 추출 (콜론 앞부분 또는 "(클론" 앞부분)
@@ -771,7 +793,7 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
 
     // 1순위: Element_005에서 추출 (일반적으로 스킬 설명이 위치)
     if (parsed.Element_005?.value) {
-      let desc = sanitizeInline(parsed.Element_005.value)
+      let desc = sanitizeWithColors(parsed.Element_005.value)
       // 메타 정보가 포함된 부분 제거 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
       desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
       if (desc && desc.length >= 10) {
@@ -782,7 +804,7 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
     // 2순위: SingleTextBox 타입의 Element 찾기
     for (const element of Object.values(parsed) as any[]) {
       if (element?.type === 'SingleTextBox' && element?.value) {
-        let desc = sanitizeInline(element.value)
+        let desc = sanitizeWithColors(element.value)
         // 메타 정보 제거
         desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
         if (desc && desc.length >= 10) {
@@ -810,7 +832,13 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
     return true
   })
 
-  return description ?? fallback
+  if (description) return sanitizeWithColors(description)
+
+  // 최종 폴백: 전체 툴팁에서 색상만 보존해 리턴
+  const colored = sanitizeWithColors(tooltip)
+  if (colored) return colored
+
+  return fallback
 }
 
 /**

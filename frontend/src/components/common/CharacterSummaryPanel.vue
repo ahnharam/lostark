@@ -44,20 +44,26 @@
                           </span>
                         </template>
                         <span class="bracelet-effect-name" :style="{ fontWeight: effectFontWeight(effect, row.right) }">
-                          <template
-                            v-for="(segment, segIdx) in braceletEffectParts(effect, row.right).labelSegments"
-                            :key="`bracelet-inline-seg-${row.key}-${idx}-${segIdx}`"
-                          >
-                            <span
-                              v-if="segment.isValue"
-                              class="bracelet-effect-value"
-                              :style="{ color: braceletEffectParts(effect, row.right).valueColor, fontWeight: 700 }"
+                          <span
+                            v-if="braceletEffectParts(effect, row.right).richLabel"
+                            v-html="braceletEffectParts(effect, row.right).richLabel"
+                          ></span>
+                          <template v-else>
+                            <template
+                              v-for="(segment, segIdx) in braceletEffectParts(effect, row.right).labelSegments"
+                              :key="`bracelet-inline-seg-${row.key}-${idx}-${segIdx}`"
                             >
-                              {{ segment.text }}
-                            </span>
-                            <span v-else>
-                              {{ segment.text }}
-                            </span>
+                              <span
+                                v-if="segment.isValue"
+                                class="bracelet-effect-value"
+                                :style="{ color: braceletEffectParts(effect, row.right).valueColor, fontWeight: 700 }"
+                              >
+                                {{ segment.text }}
+                              </span>
+                              <span v-else>
+                                {{ segment.text }}
+                              </span>
+                            </template>
                           </template>
                         </span>
                       </span>
@@ -88,10 +94,21 @@
                         {{ row.left.itemLevel }}
                       </span>
                       <p
-                        v-if="formatGearEnhanceLabel(row.left)"
+                        v-if="gearEnhanceParts(row.left).hasValue"
                         class="equipment-line equipment-line--primary"
                       >
-                        {{ formatGearEnhanceLabel(row.left) }}
+                        <span v-if="gearEnhanceParts(row.left).typeLabel" class="gear-enhance-part">
+                          {{ gearEnhanceParts(row.left).typeLabel }}
+                        </span>
+                        <span v-if="gearEnhanceParts(row.left).enhanceLabel" class="gear-enhance-part">
+                          {{ gearEnhanceParts(row.left).enhanceLabel }}
+                        </span>
+                        <span
+                          v-if="gearEnhanceParts(row.left).harmonyLabel"
+                          class="gear-enhance-part gear-enhance-part--harmony"
+                        >
+                          {{ gearEnhanceParts(row.left).harmonyLabel }}
+                        </span>
                       </p>
                       <div v-if="row.left.transcend && Number(row.left.transcend) !== -1" class="equipment-line equipment-line--transcend">
                         <!-- <span class="equipment-progress equipment-progress--transcend equipment-progress--bare">
@@ -133,10 +150,21 @@
                     </div>
                     <div class="equipment-info-stack">
                       <p
-                        v-if="formatGearEnhanceLabel(row.right)"
+                        v-if="gearEnhanceParts(row.right).hasValue"
                         class="equipment-line equipment-line--primary"
                       >
-                        {{ formatGearEnhanceLabel(row.right) }}
+                        <span v-if="gearEnhanceParts(row.right).typeLabel" class="gear-enhance-part">
+                          {{ gearEnhanceParts(row.right).typeLabel }}
+                        </span>
+                        <span v-if="gearEnhanceParts(row.right).enhanceLabel" class="gear-enhance-part">
+                          {{ gearEnhanceParts(row.right).enhanceLabel }}
+                        </span>
+                        <span
+                          v-if="gearEnhanceParts(row.right).harmonyLabel"
+                          class="gear-enhance-part gear-enhance-part--harmony"
+                        >
+                          {{ gearEnhanceParts(row.right).harmonyLabel }}
+                        </span>
                       </p>
                       <div v-if="row.right.transcend && Number(row.right.transcend) !== -1" class="equipment-line equipment-line--transcend">
                         <span class="equipment-progress equipment-progress--transcend equipment-progress--bare">
@@ -153,7 +181,7 @@
                       </div>
                       <div
                         v-if="row.right.effects?.length"
-                        class="equipment-effect-badges"
+                        class="equipment-effect-badges equipment-effect-badges--with-tooltip"
                         :class="{ 'equipment-effect-badges--grid': row.right.isBracelet }"
                       >
                         <div
@@ -161,11 +189,9 @@
                           :key="`effect-${row.key}-${idx}`"
                         class="equipment-effect-chip"
                         :class="{
-                          'equipment-effect-chip--tooltip':
-                              row.right.isAccessory && !row.right.isBracelet,
-                            'equipment-badge--combat': effect.isCombat,
-                            'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
-                          }"
+                          'equipment-badge--combat': effect.isCombat,
+                          'equipment-badge--fullrow': !effect.isCombat && row.right.isBracelet
+                        }"
                         >
                           <span
                             v-if="row.right.isBracelet"
@@ -216,14 +242,18 @@
                               {{ effectDisplayLabel(effect, row.right) }}
                             </span>
                           </span>
-                          <div
-                            v-if="row.right.isAccessory && !row.right.isBracelet"
-                            class="popup-surface popup-surface--tooltip equipment-effect-tooltip"
+                        </div>
+                        <div
+                          v-if="row.right.isAccessory && !row.right.isBracelet"
+                          class="popup-surface popup-surface--tooltip equipment-effect-tooltip"
+                        >
+                          <p
+                            v-for="(effLine, effIdx) in effectsForDisplay(row.right.effects, row.right)"
+                            :key="`acc-tooltip-${row.key}-${effIdx}`"
+                            class="popup-surface__body"
                           >
-                            <p class="popup-surface__body">
-                              {{ expandEffectTooltipText(effect.full || effect.label) || effect.full || effect.label }}
-                            </p>
-                          </div>
+                            {{ expandEffectTooltipText(effLine.full || effLine.label) || effLine.full || effLine.label }}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -246,23 +276,31 @@
             <div v-if="arkSummary.passiveMatrix?.length" class="ark-passive-summary">
               <div class="ark-passive-grid">
                 <div class="ark-passive-grid-header">
-                  <span class="ark-passive-header-cell ark-passive-header-tier">티어</span>
                   <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
                     {{ point.label }}
                   </span>
                 </div>
-                <div v-for="row in arkSummary.passiveMatrix.slice(0, 4)" :key="row.id" class="ark-passive-grid-row">
-                  <span class="ark-passive-tier">{{ row.label }}</span>
+                <div
+                  v-for="(row, rowIndex) in arkSummary.passiveMatrix.slice(0, 4)"
+                  :key="row.id"
+                  class="ark-passive-grid-row"
+                  :class="{ 'ark-passive-grid-row--with-divider': rowIndex > 0 }"
+                >
                   <div v-for="section in row.sections" :key="`${row.id}-${section.key}`" class="ark-passive-cell">
                     <div v-if="section.effects.length" class="ark-passive-cell-list">
                       <div v-for="effect in section.effects" :key="effect.key" class="ark-passive-chip">
                         <div class="ark-passive-chip-visual">
-                          <LazyImage v-if="effect.icon" :src="effect.icon" :alt="effect.name" width="32" height="32"
+                          <LazyImage v-if="effect.icon" :src="effect.icon" :alt="effect.name" width="30" height="30"
                             imageClass="summary-icon" errorIcon="🌟" :useProxy="true" />
                           <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">★</div>
-                          <!-- <span v-if="effect.levelDisplay" class="ark-passive-level">
-                            {{ effect.levelDisplay }}
-                          </span> -->
+                        </div>
+                        <div class="ark-passive-chip-labels">
+                          <span v-if="effect.levelDisplay || effect.levelLine" class="ark-passive-chip-level">
+                            {{ effect.levelDisplay || effect.levelLine }}
+                          </span>
+                          <span class="ark-passive-chip-name">
+                            {{ effect.name }}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -272,31 +310,6 @@
               </div>
             </div>
             <div v-else class="summary-note">패시브 정보가 없습니다.</div>
-            <div v-if="arkSummary.passiveEffects?.length" class="ark-passive-summary-footer">
-              <p class="summary-inline">투자된 패시브</p>
-              <div class="ark-passive-columns">
-                <div
-                  v-for="group in passiveEffectGroups"
-                  :key="group.key"
-                  class="ark-passive-column"
-                >
-                  <p class="ark-passive-column__title">
-                    {{ group.label }}
-                    <span v-if="group.pointLabel" class="ark-passive-column__points">· {{ group.pointLabel }}</span>
-                  </p>
-                  <ul class="ark-passive-list">
-                    <li
-                      v-for="effect in group.items"
-                      :key="effect.key"
-                      class="ark-passive-list__item"
-                    >
-                      <span class="ark-passive-list__level">{{ effect.levelLabel }}</span>
-                      <span class="ark-passive-list__name">{{ effect.name }}</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="ark-section__block">
@@ -332,7 +345,7 @@
                           </div>
                         </div>
                         <div class="ark-core-card__body">
-                          <p class="ark-core-card__name">{{ slot.name }}</p>
+                          <p class="ark-core-card__name" :style="coreNameStyle(slot)">{{ slot.name }}</p>
                           <p v-if="slot.pointLabel" class="ark-core-card__meta">{{ slot.pointLabel }}</p>
                         </div>
                       </article>
@@ -517,13 +530,23 @@
                       {{ card.name?.[0] || '?' }}
                     </div>
                   </div>
-                  <div class="card-slot__awake-row" v-if="card.awakeTotal">
-                    <span
-                      v-for="orbIndex in card.awakeTotal"
-                      :key="`${card.key}-orb-${orbIndex}`"
-                      class="card-awake-orb"
-                      :class="{ 'card-awake-orb--filled': card.awakeCount !== null && orbIndex <= card.awakeCount }"
-                    ></span>
+                    <div class="card-slot__awake-row" v-if="card.awakeTotal">
+                      <span
+                        v-for="orbIndex in card.awakeTotal"
+                        :key="`${card.key}-orb-${orbIndex}`"
+                        class="card-awake-orb"
+                        :style="awakeOrbSize"
+                      >
+                      <span
+                        class="card-awake-orb__layer card-awake-orb__layer--slot"
+                        :style="awakeSpriteStyle(orbIndex, 'slot')"
+                      ></span>
+                      <span
+                        v-if="card.awakeCount !== null && orbIndex <= card.awakeCount"
+                        class="card-awake-orb__layer card-awake-orb__layer--fill"
+                        :style="awakeSpriteStyle(orbIndex, 'fill')"
+                      ></span>
+                    </span>
                   </div>
                 </div>
                 <div class="card-slot__body">
@@ -573,6 +596,7 @@ import LazyImage from './LazyImage.vue'
 import EmptyState from './EmptyState.vue'
 import type { CharacterProfile } from '@/api/types'
 import { getQualityColor } from '@/utils/tooltipParser'
+import { extractTooltipColor } from '@/utils/tooltipText'
 import { getEngravingIcon } from '@/assets/BuffImage'
 import { getEngravingDisplayName, ENGRAVING_NAME_ENTRIES } from '@/data/engravingNames'
 import {
@@ -580,7 +604,9 @@ import {
   hasAbbreviationMatch,
   EFFECT_ABBREVIATION_REPLACEMENTS,
   abbreviationCategory,
-  expandDemeritAbbreviation
+  expandDemeritAbbreviation,
+  DEALER_ABBREVIATIONS,
+  SUPPORT_ABBREVIATIONS
 } from '@/data/effectAbbreviations'
 
 const props = defineProps<{
@@ -602,6 +628,7 @@ const props = defineProps<{
   collectionSummary: any[]
   collectiblesLoading: boolean
   collectiblesError: string | null
+  combatRole?: 'dealer' | 'support' | null
 }>()
 
 const equipmentRows = computed(() => {
@@ -695,6 +722,32 @@ const CRAFT_BADGE_STYLE = {
   backgroundPosition: '-3% 0%'
 }
 
+const CARD_AWAKE_SPRITE =
+  'https://cdn-lostark.game.onstove.com/2018/obt/assets/images/pc/profile/img_profile_awake.png?565e26c78052c03041e3'
+const AWAKE_SPRITE_WIDTH = 80
+const AWAKE_SPRITE_HEIGHT = 60
+const AWAKE_FRAME_COUNT = 5
+const AWAKE_FRAME_WIDTH = AWAKE_SPRITE_WIDTH / AWAKE_FRAME_COUNT
+const AWAKE_ROW_HEIGHT = AWAKE_SPRITE_HEIGHT / 2
+const awakeOrbSize = {
+  width: `${AWAKE_FRAME_WIDTH}px`,
+  height: `${AWAKE_ROW_HEIGHT}px`
+}
+
+const awakeSpriteStyle = (index: number, layer: 'slot' | 'fill') => {
+  const frameIndex = Math.max(0, Math.min(AWAKE_FRAME_COUNT - 1, index - 1))
+  const x = -frameIndex * AWAKE_FRAME_WIDTH
+  const y = layer === 'slot' ? 0 : -AWAKE_ROW_HEIGHT
+  return {
+    width: `${AWAKE_FRAME_WIDTH}px`,
+    height: `${AWAKE_ROW_HEIGHT}px`,
+    backgroundImage: `url('${CARD_AWAKE_SPRITE}')`,
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: `${AWAKE_SPRITE_WIDTH}px ${AWAKE_SPRITE_HEIGHT}px`,
+    backgroundPosition: `${x}px ${y}px`
+  }
+}
+
 const isTranscendGold = (value?: string | number) => {
   const numeric = Number(String(value ?? '').replace(/,/g, ''))
   return Number.isFinite(numeric) && numeric >= 21
@@ -760,8 +813,8 @@ const formatGearEnhanceLabel = (item?: any) => {
   const harmonyAdjusted = harmonyNum !== null ? (harmonyNum >= 20 ? harmonyNum - 10 : harmonyNum) : null
 
   const parts: string[] = []
-  if (enhanceNum !== null) parts.push(`+${enhanceNum}`)
   parts.push(String(item.typeLabel || '').trim())
+  if (enhanceNum !== null) parts.push(`+${enhanceNum}`)
   if (harmonyAdjusted !== null) parts.push(`+${harmonyAdjusted}`)
 
   return parts.filter(Boolean).join(' ')
@@ -785,6 +838,23 @@ const enhanceHarmonyParts = (enhancement?: string | number, harmony?: string | n
     enhance: enhanceLabel,
     harmony: harmonyLabel,
     hasValue: Boolean(enhanceLabel || harmonyLabel)
+  }
+}
+
+const gearEnhanceParts = (item?: any) => {
+  if (!item || item.isAccessory || item.isBracelet || item.isAbilityStone) {
+    return { typeLabel: '', enhanceLabel: '', harmonyLabel: '', hasValue: false }
+  }
+  const typeLabel = String(item.typeLabel ?? '').trim()
+  const { enhance: enhanceLabel, harmony: harmonyLabel, hasValue } = enhanceHarmonyParts(
+    item.enhancement,
+    item.harmony
+  )
+  return {
+    typeLabel,
+    enhanceLabel,
+    harmonyLabel,
+    hasValue: Boolean(typeLabel || hasValue)
   }
 }
 
@@ -817,12 +887,68 @@ const effectDisplayColor = (effect: any, item: any) => {
   return 'var(--text-primary)'
 }
 
+const parseRgbColor = (value?: string | null) => {
+  const color = (value || '').trim()
+  if (!color) return null
+
+  const rgbaMatch = color.match(/rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i)
+  if (rgbaMatch) {
+    return {
+      r: Number(rgbaMatch[1]),
+      g: Number(rgbaMatch[2]),
+      b: Number(rgbaMatch[3])
+    }
+  }
+
+  const hexMatch = color.match(/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i)
+  if (hexMatch) {
+    const hex = hexMatch[1]
+    const toChannel = (chunk: string) => parseInt(chunk.length === 1 ? chunk.repeat(2) : chunk, 16)
+
+    if (hex.length === 3 || hex.length === 4) {
+      return {
+        r: toChannel(hex[0]),
+        g: toChannel(hex[1]),
+        b: toChannel(hex[2])
+      }
+    }
+
+    return {
+      r: toChannel(hex.slice(0, 2)),
+      g: toChannel(hex.slice(2, 4)),
+      b: toChannel(hex.slice(4, 6))
+    }
+  }
+
+  return null
+}
+
 const effectTierPrefix = (color?: string | null) => {
-  const normalized = (color || '').replace(/\s+/g, '').toLowerCase()
-  if (normalized.includes('rgb(0,181,255)')) return '하 '
-  if (normalized.includes('rgb(206,67,252)')) return '중 '
-  if (normalized.includes('rgb(254,150,0)')) return '상 '
-  return ''
+  const rgb = parseRgbColor(color)
+  if (!rgb) return ''
+
+  const tiers = [
+    { label: '하 ', r: 0, g: 181, b: 255 },
+    { label: '중 ', r: 206, g: 67, b: 252 },
+    { label: '상 ', r: 254, g: 150, b: 0 }
+  ]
+
+  const distance = (a: typeof rgb, b: typeof rgb) => {
+    const dr = a.r - b.r
+    const dg = a.g - b.g
+    const db = a.b - b.b
+    return Math.sqrt(dr * dr + dg * dg + db * db)
+  }
+
+  const closest = tiers
+    .map(tier => ({ tier, dist: distance(rgb, tier) }))
+    .sort((a, b) => a.dist - b.dist)[0]
+
+  // 색상이 너무 멀면 (예: 폰트 색상만 있고 등급색이 아닌 경우) 접두사 표시 안 함
+  const MAX_DISTANCE = 40
+  if (!closest || closest.dist > MAX_DISTANCE) return ''
+
+  return closest.tier.label
 }
 
 const effectLabelText = (effect: any) => effect?.label || ''
@@ -850,11 +976,41 @@ const accessoryDisplayLabel = (effect: any, item: any) => {
 const effectDisplayLabel = (effect: any, item: any) =>
   isAccessoryItem(item) ? accessoryDisplayLabel(effect, item) : effectLabelText(effect)
 
+const normalizeRoleLabel = (value?: string | null) => (value || '').toLowerCase().trim()
+
+const detectEffectRole = (effect: any, item: any): 'dealer' | 'support' | null => {
+  if (!isAccessoryItem(item)) return null
+  const rawLabel = effectDisplayLabel(effect, item)
+  const hasPercent = /%/.test(rawLabel)
+  const label = normalizeRoleLabel(rawLabel).replace(/[\d.+%\s]/g, '')
+  if (!label) return null
+  // 무공 % 만 볼드 처리: 퍼센트가 없으면 무시
+  if (hasPercent && label.includes('무공')) {
+    const combatRole = normalizeRoleLabel(props.combatRole)
+    if (combatRole === 'support') return 'support'
+    if (combatRole === 'dealer') return 'dealer'
+  }
+  // 아공강/아피강은 서폿 전용
+  if (label.includes('아공강') || label.includes('아피강')) {
+    return 'support'
+  }
+  // 딜러/서폿 약어는 퍼센트가 있어야만 볼드 판정
+  if (hasPercent && DEALER_ABBREVIATIONS.some(keyword => label.includes(normalizeRoleLabel(keyword)))) return 'dealer'
+  if (hasPercent && SUPPORT_ABBREVIATIONS.some(keyword => label.includes(normalizeRoleLabel(keyword)))) return 'support'
+  return null
+}
+
 const effectFontWeight = (effect: any, item: any) => {
   if (!isAccessoryItem(item)) return undefined
-  const hasPercent =
-    effectHasPercent(effect) || /%/.test(effectDisplayLabel(effect, item))
-  return hasPercent ? 700 : 400
+  const display = effectDisplayLabel(effect, item)
+  if (display === '잡옵') return 400
+  const role = detectEffectRole(effect, item)
+  const combatRole = normalizeRoleLabel(props.combatRole)
+  if (role && combatRole) {
+    return role === combatRole ? 700 : 400
+  }
+  // 역할을 특정하지 못한 장신구 옵션은 굵게 표시하지 않음
+  return 400
 }
 
 const isAccessoryItem = (item?: any) =>
@@ -862,8 +1018,13 @@ const isAccessoryItem = (item?: any) =>
 
 const BRACELET_COMBAT_STATS = ['치명', '특화', '제압', '신속', '인내', '숙련']
 
-const isBraceletCombatStat = (label?: string) =>
-  BRACELET_COMBAT_STATS.some(stat => (label || '').includes(stat))
+const isBraceletCombatStat = (label?: string) => {
+  const normalized = (label || '').replace(/\s+/g, '')
+  // 전투 특성 단일 라벨(또는 숫자/기호와 함께 시작)만 전투 특성으로 취급
+  return BRACELET_COMBAT_STATS.some(
+    stat => new RegExp(`^${stat}(\\+|\\s|$)`).test(normalized)
+  )
+}
 
 const effectPrefixLabel = (effect: any, item: any) => {
   if (!isAccessoryItem(item)) return ''
@@ -937,6 +1098,7 @@ const braceletEffectParts = (effect: any, item: any) => {
     labelSegments,
     prefix,
     valueColor: effectDisplayColor(effect, item),
+    richLabel: effect.richLabel,
     nameColor: 'var(--text-primary)'
   }
 }
@@ -955,67 +1117,73 @@ const expandEffectTooltipText = (text?: string) => {
   return expandDemeritAbbreviation(base)
 }
 
-const passiveEffectGroups = computed(() => {
-  const typeOrder = ['진화', '깨달음', '도약']
-  const normalizeLabel = (label?: string | null) => (label || '').replace(/\s+/g, '')
-  const appliedPointValueFor = (label: string) => {
-    const normalizedLabel = normalizeLabel(label)
-    if (!normalizedLabel) return ''
-    const matched = (props.arkSummary?.appliedPoints ?? []).find(point => {
-      const normalizedPoint = normalizeLabel(point.label)
-      if (!normalizedPoint) return false
-      return (
-        normalizedPoint === normalizedLabel ||
-        normalizedPoint.endsWith(normalizedLabel) ||
-        normalizedLabel.endsWith(normalizedPoint)
-      )
-    })
-    return matched?.value || ''
+const normalizeHexColor = (value?: string | null) => {
+  if (!value) return ''
+  const normalized = String(value).trim().toUpperCase()
+  return normalized.startsWith('#') ? normalized : `#${normalized}`
+}
+
+const extractColorFromFontString = (text?: string | null) => {
+  if (!text) return ''
+  const match = String(text).match(/color=['"]?([#\w]+)['"]?/i)
+  const raw = match?.[1]
+  return raw ? normalizeHexColor(raw) : ''
+}
+
+const scanTooltipForCoreColor = (node: unknown): string => {
+  if (!node) return ''
+  if (typeof node === 'string') return extractColorFromFontString(node)
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = scanTooltipForCoreColor(item)
+      if (found) return found
+    }
+    return ''
   }
-  const effects = (props.arkSummary?.passiveEffects ?? []).map(effect => {
-    const tierValueMatch = effect.tierLabel?.match(/(\d+)/)
-    const tierValue = tierValueMatch?.[1] ? Number(tierValueMatch[1]) : Number.POSITIVE_INFINITY
-    return {
-      ...effect,
-      typeLabel: effect.typeLabel || '기타',
-      tierLabel: effect.tierLabel || '',
-      tierValue
+  if (typeof node === 'object') {
+    const record = node as Record<string, unknown>
+    if (record.Element_000 && typeof record.Element_000 === 'object') {
+      const valueField = (record.Element_000 as any).value
+      const fromElement = scanTooltipForCoreColor(valueField)
+      if (fromElement) return fromElement
     }
-  })
-
-  const groupMap = new Map<
-    string,
-    { key: string; label: string; items: typeof effects; pointLabel?: string }
-  >()
-  const ensureGroup = (label: string) => {
-    const key = label
-    if (!groupMap.has(key)) {
-      groupMap.set(key, { key, label, items: [] })
+    for (const child of Object.values(record)) {
+      const found = scanTooltipForCoreColor(child)
+      if (found) return found
     }
-    return groupMap.get(key)!
   }
+  return ''
+}
 
-  effects.forEach(effect => {
-    const groupLabel = typeOrder.includes(effect.typeLabel) ? effect.typeLabel : '기타'
-    ensureGroup(groupLabel).items.push(effect)
-  })
-
-  const groups = Array.from(groupMap.values()).sort((a, b) => {
-    const ai = typeOrder.indexOf(a.label)
-    const bi = typeOrder.indexOf(b.label)
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
-  })
-
-  groups.forEach(group => {
-    const pointLabel = appliedPointValueFor(group.label)
-    if (pointLabel) {
-      group.pointLabel = pointLabel
+const coreNameColorFromTooltip = (tooltip?: unknown) => {
+  if (!tooltip) return ''
+  if (typeof tooltip === 'string') {
+    try {
+      const parsed = JSON.parse(tooltip)
+      const fromParsed = scanTooltipForCoreColor(parsed)
+      if (fromParsed) return fromParsed
+    } catch {
+      // ignore parse error and keep scanning
     }
-    group.items.sort((a, b) => a.tierValue - b.tierValue || a.name.localeCompare(b.name))
-  })
+    const direct = extractColorFromFontString(tooltip)
+    if (direct) return direct
+    return scanTooltipForCoreColor(tooltip)
+  }
+  return scanTooltipForCoreColor(tooltip)
+}
 
-  return groups
-})
+const coreNameStyle = (slot: any) => {
+  const gradeText = slot?.grade || slot?.gradeLabel || slot?.gradeName
+  const color =
+    slot?.nameColor ||
+    coreNameColorFromTooltip(slot?.tooltip) ||
+    slot?.gradeColor ||
+    extractTooltipColor(slot?.tooltip) ||
+    engravingColor(gradeText) ||
+    ''
+  return color ? { color } : undefined
+}
+
 </script>
 
 <style scoped>
@@ -1052,8 +1220,39 @@ const passiveEffectGroups = computed(() => {
   font-size: var(--font-xs);
 }
 
+.gear-enhance-part {
+  margin-right: 6px;
+  font-weight: 700;
+}
+
+.gear-enhance-part--harmony {
+  color: var(--rarity-legendary, #fbbf24);
+}
+
 .equipment-transcend-value {
   font-weight: 700;
+}
+
+.equipment-effect-badges {
+  position: relative;
+}
+
+.equipment-effect-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  top: calc(100% + 6px);
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  min-width: 220px;
+}
+
+.equipment-effect-badges--with-tooltip:hover .equipment-effect-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .bracelet-effect-prefix {
@@ -1129,12 +1328,8 @@ const passiveEffectGroups = computed(() => {
 }
 
 .card-strip-shell {
-  background: var(--surface-muted, var(--bg-secondary));
   border: none;
-  border-radius: 16px;
-  padding: 12px;
   margin-top: 8px;
-  box-shadow: var(--shadow-sm);
 }
 
 .card-strip-shell--empty {
@@ -1154,19 +1349,15 @@ const passiveEffectGroups = computed(() => {
   color: var(--text-primary);
 }
 
-.card-slot--ornate {
-  background: var(--card-bg);
-  border-radius: 14px;
-  padding: 4px;
-  border: none;
-  box-shadow: var(--shadow-sm);
-}
-
 .card-slot__frame {
   position: relative;
   padding: 3px;
-  border-radius: 12px;
+  /* border-radius: 12px; */
   background: var(--surface-muted, var(--bg-secondary));
+  background-image: url('https://cdn-lostark.game.onstove.com/2018/obt/assets/images/pc/profile/img_card_grade_tooltip4.png?a9467e903872aa545f4e');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
   border: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
   min-height: 140px;
@@ -1199,29 +1390,33 @@ const passiveEffectGroups = computed(() => {
 
 .card-slot__awake-row {
   position: absolute;
-  bottom: 4px;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 2px;
-  width: 100%;
+  display: inline-flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 4px;
+  width: calc(100% - 12px);
   padding: 0 6px;
 }
 
 .card-awake-orb {
-  width: 6px;
-  height: 8px;
-  background: linear-gradient(180deg, rgba(255, 223, 140, 0.45), rgba(255, 193, 94, 0.6));
-  clip-path: polygon(50% 0, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%);
-  opacity: 0.6;
-  box-shadow: 0 0 4px rgba(255, 193, 94, 0.4);
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: flex-end;
 }
 
-.card-awake-orb--filled {
-  background: linear-gradient(180deg, var(--warning-color), #f59e0b);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.65);
-  opacity: 1;
+.card-awake-orb__layer {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.card-awake-orb__layer--fill {
+  filter: drop-shadow(0 0 4px rgba(255, 193, 94, 0.4));
 }
 
 .card-slot__body {

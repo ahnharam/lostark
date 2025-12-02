@@ -47,7 +47,7 @@ const SUPPORT_RULES: EffectAbbreviationRule[] = [
   // 귀걸이
   { pattern: /파티원\s*보호막\s*효과/gi, replace: '보호막' },
   { pattern: /파티원\s*회복\s*효과/gi, replace: '회복' },
-  { pattern: /무기\s*공격력/gi, replace: '무공' },
+  { pattern: /무기\s*공격력/gi, replace: '무공'  },
 
   // 반지
   { pattern: /아군\s*공격력\s*강화\s*효과/gi, replace: '아공강' },
@@ -68,6 +68,14 @@ const RULES: EffectAbbreviationRule[] = [
   ...DEALER_RULES,
   ...COMMON_RULES
 ]
+
+export const DEALER_ABBREVIATIONS = Array.from(
+  new Set(DEALER_RULES.map(rule => rule.replace).filter(Boolean))
+)
+
+export const SUPPORT_ABBREVIATIONS = Array.from(
+  new Set(SUPPORT_RULES.map(rule => rule.replace).filter(Boolean))
+)
 
 export const EFFECT_ABBREVIATION_REPLACEMENTS = Array.from(
   new Set(RULES.map(rule => rule.replace).filter(Boolean))
