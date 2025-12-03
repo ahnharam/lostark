@@ -24,3 +24,14 @@ lostark:
 
 server:
   port: 8080
+
+# Discord Bot
+discord:
+  bot:
+    token: ${DISCORD_BOT_TOKEN:}
+
+# Kakao OAuth2 (선택)
+kakao:
+  client:
+    id: ${KAKAO_CLIENT_ID:}
+    secret: ${KAKAO_CLIENT_SECRET:}

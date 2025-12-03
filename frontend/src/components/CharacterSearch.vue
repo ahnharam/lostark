@@ -2425,10 +2425,8 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 }
 
 .page-header {
-  /* display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); */
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   align-items: center;
   gap: 20px;
   padding: 10px 20px;
@@ -2454,7 +2452,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 
 .header-search {
   justify-self: center;
-  width: min(1100px, 100%);
 }
 
 .header-search__row {
@@ -3425,7 +3422,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   /* flex-direction: row; */
   gap: var(--space-sm);
   position: relative;
-  justify-content: space-between;
+  justify-content: space-around;
 }
 
 .ark-core-card-grid::before {
@@ -3863,7 +3860,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: var(--font-xs);
   background: rgba(94, 234, 212, 0.14);
@@ -4775,35 +4771,27 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
     grid-template-columns: 1fr;
   }
 
+  .summary-grid--stacked {
+    grid-template-columns: repeat(2, minmax(300px, 1fr))
+  }
 }
 
 @media (max-width: 640px) {
   .page-header {
-    padding: 15px 20px;
-    grid-template-columns: 1fr;
     gap: 12px;
   }
 
   .header-left {
+    display:block;
     text-align: center;
-    width: 350px;
-    justify-content: space-between;
   }
 
-  .page-header h1 {
-    font-size: calc(1.2rem - 2px);
-  }
-
-  .header-search {
-    width: 100%;
+  .header-right{
+    width:unset;
   }
 
   .header-search__row {
     gap: 10px;
-  }
-
-  .header-right {
-    display: none;
   }
 
   .hero-row--levels .hero-levels {
@@ -4814,8 +4802,16 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
+  .summary-grid--stacked {
+    grid-template-columns: repeat(1, minmax(300px, 1fr))
+  }
+
   .search-panel-dropdown {
     padding: 16px;
+  }
+
+  .equipment-side{
+    grid-template-columns: 90px 1fr;
   }
 }
 

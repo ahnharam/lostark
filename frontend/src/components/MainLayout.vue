@@ -381,4 +381,15 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
     min-height: 120px;
   }
 }
+
+@media (max-width: 600px) {
+  .layout-body {
+    display: block;
+    padding: 0px;
+  }
+
+  .ad-slot {
+    min-height: 120px;
+  }
+}
 </style>
