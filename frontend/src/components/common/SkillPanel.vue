@@ -1656,6 +1656,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   white-space: pre-wrap;
   flex: 1 1 auto;
   height: fit-content;
+  flex-wrap: wrap;
 }
 
 .skill-card-icon {
