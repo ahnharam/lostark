@@ -9,6 +9,7 @@ import com.lostark.backend.dto.GemsResponseDto;
 import com.lostark.backend.dto.LeaderboardEntryDto;
 import com.lostark.backend.dto.SkillGemDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -93,6 +94,13 @@ public class LostArkApiClient {
                 .retrieve()
                 .bodyToMono(GemsResponseDto.class)
                 .map(response -> response.getGems() != null ? response.getGems() : java.util.Collections.emptyList());
+    }
+
+    public Mono<JsonNode> getCharacterGemsRaw(String characterName) {
+        return webClient.get()
+                .uri("/armories/characters/{characterName}/gems", characterName)
+                .retrieve()
+                .bodyToMono(JsonNode.class);
     }
 
     public Mono<EngravingResponseDto> getCharacterEngravings(String characterName) {

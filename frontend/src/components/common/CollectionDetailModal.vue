@@ -4,7 +4,7 @@
       <div class="modal-container" @click.stop>
         <div class="modal-header">
           <div class="modal-title-section">
-            <LazyImage
+            <IconImage
               v-if="collection.icon"
               :src="collection.icon"
               :alt="collection.type || '수집품'"
@@ -149,7 +149,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import LazyImage from '@/components/common/LazyImage.vue'
+import IconImage from '@/components/common/IconImage.vue'
 import type { Collectible, CollectiblePoint } from '@/api/types'
 
 const props = defineProps<{
@@ -700,4 +700,11 @@ const handleOverlayClick = () => {
     max-height: 300px;
   }
 }
+
+@media (max-width: 768px) {
+  .collection-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 </style>

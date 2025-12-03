@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { enqueueImageRequest } from '@/utils/imageQueue'
 
 /**
  * 이미지 URL을 프록시 URL로 변환
@@ -76,6 +77,8 @@ interface Props {
   lazy?: boolean
   referrerPolicy?: ReferrerPolicy
   useProxy?: boolean
+  useQueue?: boolean
+  logErrors?: boolean
   crossOrigin?: '' | 'anonymous' | 'use-credentials'
 }
 
@@ -90,6 +93,8 @@ const props = withDefaults(defineProps<Props>(), {
   lazy: false,  // lazy를 false로 변경하여 즉시 로드
   referrerPolicy: 'no-referrer',
   useProxy: true,
+  useQueue: true,
+  logErrors: false,
   crossOrigin: ''
 })
 
@@ -99,6 +104,9 @@ const isLoading = ref(true)
 const hasError = ref(false)
 const currentSrc = ref(props.placeholder || '')
 const observer = ref<IntersectionObserver | null>(null)
+let loadToken = 0
+let lastDirectSrc = ''
+const queueFallbackTried = ref(false)
 
 const formatSize = (value?: string | number) => {
   if (typeof value === 'number') {
@@ -130,7 +138,19 @@ const normalizeSrc = (value: string) => {
   return normalized
 }
 
+const markLoadedIfReady = () => {
+  const img = imgRef.value
+  if (img && img.complete && img.naturalWidth > 0) {
+    isLoading.value = false
+    hasError.value = false
+  }
+}
+
 const loadImage = () => {
+  const currentRequest = ++loadToken
+  isLoading.value = true
+  hasError.value = false
+  queueFallbackTried.value = false
 
   if (!props.src) {
     console.warn('[loadImage] No src provided, setting error')
@@ -151,17 +171,38 @@ const loadImage = () => {
   // 로컬 이미지나 data URL은 프록시 없이 사용
   if (processedSrc.startsWith('/') || processedSrc.startsWith('data:')) {
     currentSrc.value = processedSrc
+    markLoadedIfReady()
     return
   }
 
-  // 프록시 사용 여부 확인
-  if (props.useProxy) {
-    processedSrc = getProxyImageUrl(processedSrc)
-  } else {
-    processedSrc = normalizeSrc(processedSrc)
+  const targetSrc = props.useProxy ? getProxyImageUrl(processedSrc) : normalizeSrc(processedSrc)
+  lastDirectSrc = targetSrc
+
+  if (currentSrc.value === targetSrc && !hasError.value) {
+    markLoadedIfReady()
+    return
   }
 
-  currentSrc.value = processedSrc
+  if (props.useQueue) {
+    enqueueImageRequest(targetSrc)
+      .then(blobUrl => {
+        if (currentRequest !== loadToken) return
+        currentSrc.value = blobUrl
+        markLoadedIfReady()
+      })
+      .catch(err => {
+        if (currentRequest !== loadToken) return
+        if (props.logErrors) {
+          console.error('Image load error via queue:', targetSrc, err)
+        }
+        isLoading.value = false
+        hasError.value = true
+      })
+    return
+  }
+
+  currentSrc.value = targetSrc
+  markLoadedIfReady()
 }
 
 const onLoad = () => {
@@ -170,7 +211,17 @@ const onLoad = () => {
 }
 
 const onError = (event: Event) => {
-  console.error('Image load error:', currentSrc.value, event)
+  if (props.logErrors) {
+    console.error('Image load error:', currentSrc.value, event)
+  }
+  // Blob/object URL이 실패했을 때 원본 URL로 한 번 더 시도
+  if (props.useQueue && !queueFallbackTried.value && lastDirectSrc) {
+    queueFallbackTried.value = true
+    isLoading.value = true
+    hasError.value = false
+    currentSrc.value = lastDirectSrc
+    return
+  }
   isLoading.value = false
   hasError.value = true
 }
@@ -233,6 +284,7 @@ watch(
   () => {
     isLoading.value = true
     hasError.value = false
+    queueFallbackTried.value = false
     currentSrc.value = props.placeholder || ''
     setupObserver()
   }

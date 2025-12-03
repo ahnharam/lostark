@@ -130,21 +130,4 @@ const formatPercent = (value: number) => {
   flex-direction: column;
   gap: 0.4rem;
 }
-
-.skeleton-line {
-  height: 14px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--panel-bg, rgba(255, 255, 255, 0.05)), var(--accent-soft-bg, rgba(255, 255, 255, 0.15)), var(--panel-bg, rgba(255, 255, 255, 0.05)));
-  background-size: 200% 100%;
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
 </style>

@@ -29,7 +29,7 @@
           <!-- 좌측: 슬롯/아이콘/베이스스펙 -->
           <div class="left-section">
             <div class="item-header">
-              <LazyImage
+              <IconImage
                 v-if="equipment.icon"
                 :src="equipment.icon"
                 :alt="equipment.name"
@@ -112,7 +112,7 @@
                   class="effect-item engraving"
                 >
                   <div class="engraving-icon-wrapper">
-                    <LazyImage
+                    <IconImage
                       v-if="effect.icon"
                       :src="effect.icon"
                       :alt="effect.name || '각인 아이콘'"
@@ -148,7 +148,7 @@
               class="effect-item engraving"
             >
               <div class="engraving-icon-wrapper">
-                <LazyImage
+                <IconImage
                   v-if="effect.icon"
                   :src="effect.icon"
                   :alt="effect.name || '각인 아이콘'"
@@ -200,7 +200,7 @@
 import { ref, computed } from 'vue'
 import { parseTooltip, getQualityColor, getGradeColor, type ParsedTooltip } from '@/utils/tooltipParser'
 import { ENGRAVING_ICON_MAP } from '@/assets/BuffImage'
-import LazyImage from './LazyImage.vue'
+import IconImage from './IconImage.vue'
 import type { Equipment } from '@/api/types'
 
 interface Props {
@@ -1016,4 +1016,11 @@ const engravingEffectItems = computed<EngravingEffectItem[]>(() => {
     font-size: 0.8rem;
   }
 }
+
+@media (max-width: 768px) {
+  .equipment-modal__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 </style>

@@ -277,3 +277,16 @@
   width: fit-content;
   overflow-x: visible;
 }
+
+/* tooltip placement helpers (set data-placement="top" or "bottom") */
+.popup-surface--tooltip[data-placement='bottom'] {
+  top: calc(100% + var(--tooltip-gap, 8px));
+  bottom: auto;
+  transform: translate(-50%, var(--tooltip-gap, 8px));
+}
+
+.popup-surface--tooltip[data-placement='top'] {
+  bottom: calc(100% + var(--tooltip-gap, 8px));
+  top: auto;
+  transform: translate(-50%, calc(var(--tooltip-gap, 8px) * -1));
+}

@@ -40,18 +40,12 @@
 
 <script setup lang="ts">
 import type { RankingEntry } from '@/api/types'
+import { formatItemLevel } from '@/utils/format'
 
 defineProps<{
   entries: RankingEntry[]
   loading: boolean
 }>()
-
-const formatItemLevel = (value?: string) => {
-  if (!value) return '-'
-  const numeric = Number(value.replace(/[^0-9.]/g, ''))
-  if (Number.isNaN(numeric)) return value
-  return numeric.toFixed(2)
-}
 </script>
 
 <style scoped>
@@ -98,22 +92,4 @@ thead {
   padding: 0.5rem 0.75rem;
 }
 
-.skeleton-line {
-  display: block;
-  width: 100%;
-  height: 16px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--panel-bg, rgba(255, 255, 255, 0.04)), var(--accent-soft-bg, rgba(255, 255, 255, 0.15)), var(--panel-bg, rgba(255, 255, 255, 0.04)));
-  background-size: 200% 100%;
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
 </style>

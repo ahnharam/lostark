@@ -1,5 +1,6 @@
 package com.lostark.backend.lostark.domain;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.lostark.backend.dto.ArmoryDto;
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.CombatSkillDto;
@@ -107,6 +108,19 @@ public class LostArkProfileDomainService {
             return Collections.emptyList();
         } catch (Exception e) {
             throw new ApiException("스킬 보석 정보를 불러오는 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    public JsonNode fetchArmoryGemsRaw(String characterName) {
+        try {
+            return lostArkApiClient.getCharacterGemsRaw(characterName)
+                    .blockOptional()
+                    .orElse(null);
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("스킬 보석(원본) 정보를 찾을 수 없습니다: {}", characterName);
+            return null;
+        } catch (Exception e) {
+            throw new ApiException("스킬 보석(원본) 정보를 불러오는 중 오류가 발생했습니다.", e);
         }
     }
 

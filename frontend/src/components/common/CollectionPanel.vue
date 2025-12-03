@@ -79,7 +79,7 @@
           @click="openDetailModal(item)"
         >
           <div class="collection-card-header">
-            <LazyImage
+            <IconImage
               :src="item.icon || ''"
               :alt="item.label"
               width="48"
@@ -128,7 +128,7 @@ import { computed, ref } from 'vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import LazyImage from '@/components/common/LazyImage.vue'
+import IconImage from '@/components/common/IconImage.vue'
 import CollectionDetailModal from '@/components/common/CollectionDetailModal.vue'
 import type { Collectible } from '@/api/types'
 
@@ -485,4 +485,20 @@ const closeDetailModal = () => {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 }
+
+@media (max-width: 600px) {
+  .collection-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .collection-summary-card {
+    padding: 0.85rem;
+  }
+
+  .summary-value {
+    font-size: 1.4rem;
+  }
+}
+
 </style>

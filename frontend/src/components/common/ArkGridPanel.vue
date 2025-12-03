@@ -67,7 +67,7 @@
               >
                 <div class="passive-card-head">
                   <div class="passive-card-visual">
-                    <LazyImage
+                    <IconImage
                       v-if="effect.icon"
                       :src="effect.icon"
                       :alt="effect.name || '아크 패시브 아이콘'"
@@ -75,7 +75,6 @@
                       height="44"
                       imageClass="passive-card-icon"
                       errorIcon="✨"
-                      :useProxy="true"
                     />
                     <span v-if="effect.levelDisplay" class="passive-card-level">{{ effect.levelDisplay }}</span>
                     <div class="passive-tooltip popup-surface popup-surface--tooltip">
@@ -104,7 +103,7 @@
         <div class="slot-card-grid">
           <article v-for="slot in slotCards" :key="slot.index" class="slot-card">
             <header class="slot-card-head">
-              <LazyImage
+              <IconImage
                 v-if="slot.icon"
                 :src="slot.icon"
                 :alt="slot.name || '아크 코어'"
@@ -112,7 +111,6 @@
                 height="45"
                 imageClass="slot-card-icon"
                 errorIcon="🧱"
-                :useProxy="true"
               />
               <div class="slot-card-head-title">
                 <div class="slot-card-type">
@@ -142,7 +140,7 @@
             <div v-if="slot.gemCards.length" class="slot-gem-stack">
               <div v-for="gem in slot.gemCards" :key="`gem-${slot.index}-${gem.index}`" class="gem-card">
                 <div class="gem-card-head">
-                  <LazyImage
+                  <IconImage
                     v-if="gem.icon"
                     :src="gem.icon"
                     :alt="gem.title || '젬'"
@@ -150,7 +148,6 @@
                     height="30"
                     imageClass="gem-card-icon"
                     errorIcon="💠"
-                    :useProxy="true"
                   />
                   <div>
                     <p class="gem-card-grade" :style="{ color: gem.gradeColor || undefined }">{{ gem.grade || '젬' }}</p>
@@ -201,7 +198,7 @@ import { computed } from 'vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import EmptyState from './EmptyState.vue'
 import ErrorMessage from './ErrorMessage.vue'
-import LazyImage from './LazyImage.vue'
+import IconImage from './IconImage.vue'
 import { stripHtml } from '@/utils/tooltipParser'
 import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import type { ArkGridResponse, ArkGridSlot, ArkPassiveEffect, ArkPassivePoint } from '@/api/types'
@@ -1266,4 +1263,26 @@ const emptyStateDescription = computed(() => {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .slot-card-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .passive-matrix .matrix-cell {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .passive-matrix .matrix-header {
+    font-size: 0.85rem;
+  }
+
+  .slot-card-name {
+    font-size: 0.85rem;
+  }
+}
+
 </style>

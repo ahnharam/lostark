@@ -58,7 +58,7 @@
             >
               <div class="summary-icon-box">
                 <div class="summary-icon-image">
-                  <LazyImage
+                  <IconImage
                     v-if="item.icon"
                     :src="item.icon"
                     :alt="item.name"
@@ -110,7 +110,7 @@
           <article class="equipment-card">
             <header class="equipment-card__header">
               <div class="equipment-card__icon-box">
-                <LazyImage
+                <IconImage
                   v-if="selectedEquipment.icon"
                   :src="selectedEquipment.icon"
                   :alt="selectedEquipment.name"
@@ -247,7 +247,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import LazyImage from './LazyImage.vue'
+import IconImage from './IconImage.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import EngravingCard from './EngravingCard.vue'
 import {
@@ -2240,4 +2240,11 @@ const cleanText = (text: string) =>
     justify-self: flex-start;
   }
 }
+
+@media (max-width: 768px) {
+  .character-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 </style>

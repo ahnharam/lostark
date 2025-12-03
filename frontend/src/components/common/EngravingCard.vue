@@ -2,7 +2,7 @@
   <article class="engraving-card">
     <div class="engraving-row">
       <div class="engraving-icon-box">
-        <LazyImage
+        <IconImage
           v-if="iconSrc"
           :src="iconSrc"
           :alt="displayName"
@@ -38,7 +38,7 @@ import { ENGRAVING_ICON_MAP } from '@/assets/BuffImage'
 import { stripHtml } from '@/utils/tooltipParser'
 import { getEngravingDisplayName } from '@/data/engravingNames'
 import type { Engraving } from '@/api/types'
-import LazyImage from './LazyImage.vue'
+import IconImage from './IconImage.vue'
 
 interface Props {
   engraving: Engraving
@@ -195,4 +195,13 @@ const formatLevel = (value: number) => {
   font-weight: 600;
   color: var(--text-secondary, #4b5563);
 }
+
+@media (max-width: 640px) {
+  .engraving-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
 </style>

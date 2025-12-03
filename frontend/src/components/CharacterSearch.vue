@@ -337,21 +337,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { lostarkApi } from '@/api/lostark'
 import type {
   CharacterProfile,
   SiblingCharacter,
-  SearchHistory,
   Equipment,
   Engraving,
   CharacterStat,
-  ArkGridResponse,
   ArkPassiveEffect,
-  SkillMenuResponse,
   Collectible,
   CombatSkill,
-  SkillGem,
-  CardResponse
+  SkillGem
 } from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import ErrorMessage from './common/ErrorMessage.vue'
@@ -369,12 +364,8 @@ import type { Suggestion } from './common/AutocompleteInput.vue'
 import { cleanTooltipLine, flattenTooltipLines, extractTooltipColor } from '@/utils/tooltipText'
 import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbbreviations'
 import { getEngravingDisplayName } from '@/data/engravingNames'
-
-interface ErrorState {
-  message: string
-  type: 'error' | 'warning' | 'info'
-  title?: string
-}
+import { formatItemLevel, formatNumberLocalized, formatCombatPower, formatInteger } from '@/utils/format'
+import { useCharacterSearchData } from '@/composables/useCharacterSearchData'
 
 type ResultTabKey =
   | 'summary'
@@ -393,8 +384,6 @@ interface TabPlaceholderCopy {
 
 type CombatRole = 'dealer' | 'support'
 
-const FAVORITES_STORAGE_KEY = 'loa:favorites'
-const HISTORY_STORAGE_KEY = 'loa:history'
 const DEFAULT_RESULT_TAB: ResultTabKey = 'summary'
 const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
   { key: 'summary', label: '통합' },
@@ -418,15 +407,46 @@ const tabPlaceholderCopy: Record<ResultTabKey, TabPlaceholderCopy | null> = {
 const router = useRouter()
 const route = useRoute()
 
-const characterName = ref('')
-const character = ref<CharacterProfile | null>(null)
-const loading = ref(false)
-const error = ref<ErrorState | null>(null)
-const siblings = ref<SiblingCharacter[]>([])
-const favorites = ref<CharacterProfile[]>([])
-const history = ref<SearchHistory[]>([])
-const characterAvailability = ref<Record<string, 'available' | 'unavailable' | 'loading'>>({})
-const selectedCharacterProfile = ref<CharacterProfile | null>(null)
+const {
+  characterName,
+  character,
+  loading,
+  error,
+  siblings,
+  favorites,
+  history,
+  selectedCharacterProfile,
+  detailEquipment,
+  detailEngravings,
+  detailLoading,
+  detailError,
+  arkGridResponse,
+  arkGridLoading,
+  arkGridError,
+  cardResponse,
+  cardLoading,
+  cardError,
+  skillResponse,
+  skillLoading,
+  skillError,
+  armoryGemsResponse,
+  collectibles,
+  collectiblesLoading,
+  collectiblesError,
+  lastRefreshedAt,
+  activeCharacter,
+  loadFavorites,
+  toggleFavorite: toggleFavoriteBase,
+  loadHistory,
+  clearHistory,
+  ensureSkillData,
+  ensureCollectiblesData,
+  ensureArkGridData,
+  ensureCardData,
+  searchCharacter: searchCharacterData,
+  clearSearch: clearSearchData
+} = useCharacterSearchData()
+
 const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
 const activePlaceholder = computed(() => tabPlaceholderCopy[activeResultTab.value])
 const searchPanelWrapperRef = ref<HTMLElement | null>(null)
@@ -434,7 +454,6 @@ const searchPanelOpen = ref(false)
 const activeSearchPanelTab = ref<'recent' | 'favorites'>('recent')
 const isHeroImageLarge = ref(false)
 const isHeroImagePopupOpen = ref(false)
-const activeCharacter = computed<CharacterProfile | null>(() => selectedCharacterProfile.value ?? character.value)
 const characterImageSrc = computed(() => activeCharacter.value?.characterImage || '')
 const hasCharacterImage = computed(() => Boolean(characterImageSrc.value))
 const isCharacterFavorite = computed(() => {
@@ -456,28 +475,9 @@ const lastRefreshedLabel = computed(() => {
   return `마지막 갱신: ${formatted}`
 })
 
-const detailEquipment = ref<Equipment[]>([])
-const detailEngravings = ref<Engraving[]>([])
-const detailLoading = ref(false)
-const detailError = ref<string | null>(null)
-const arkGridResponse = ref<ArkGridResponse | null>(null)
-const arkGridLoading = ref(false)
-const arkGridError = ref<string | null>(null)
-const arkGridLoadedFor = ref<string | null>(null)
-const cardResponse = ref<CardResponse | null>(null)
-const cardLoading = ref(false)
-const cardError = ref<string | null>(null)
-const cardLoadedFor = ref<string | null>(null)
-const skillResponse = ref<SkillMenuResponse | null>(null)
-const skillLoading = ref(false)
-const skillError = ref<string | null>(null)
-const skillLoadedFor = ref<string | null>(null)
-const armoryGemsResponse = ref<any | null>(null)
-const collectibles = ref<Collectible[]>([])
-const collectiblesLoading = ref(false)
-const collectiblesError = ref<string | null>(null)
-const collectiblesLoadedFor = ref<string | null>(null)
-const lastRefreshedAt = ref<Date | null>(null)
+const toggleFavorite = () => {
+  toggleFavoriteBase(activeCharacter.value)
+}
 const specialEquipmentKeywords = ['나침반', '부적', '문장', '보주']
 
 const isSpecialEquipment = (item: Equipment) => {
@@ -507,6 +507,29 @@ const normalizeHexColor = (value?: string | null) => {
   const normalized = String(value).trim().toUpperCase()
   if (!normalized) return ''
   return normalized.startsWith('#') ? normalized : `#${normalized}`
+}
+
+const parseSkillIconFromTooltip = (tooltip?: string | null): string => {
+  if (!tooltip) return ''
+  try {
+    const parsed = JSON.parse(tooltip)
+    const search = (node: any): string => {
+      if (!node || typeof node !== 'object') return ''
+      const pick = (icon: string) => (typeof icon === 'string' && icon.trim().length ? icon : '')
+      if (typeof node.iconPath === 'string' && pick(node.iconPath)) return node.iconPath
+      if (node.slotData && typeof node.slotData.iconPath === 'string' && pick(node.slotData.iconPath)) {
+        return node.slotData.iconPath
+      }
+      for (const value of Object.values(node)) {
+        const found = search(value as any)
+        if (found) return found
+      }
+      return ''
+    }
+    return search(parsed)
+  } catch {
+    return ''
+  }
 }
 
 const extractColorFromFontString = (text?: string | null) => {
@@ -653,24 +676,24 @@ interface SkillGemSlot {
   effectType: GemEffectPlacement
 }
 
-const GEM_DAMAGE_REGEX = /(멸화|겁화|피해|대미지|데미지)/i
-const GEM_COOLDOWN_REGEX = /(홍염|작열|쿨타임|재사용|대기시간)/i
+const GEM_DAMAGE_REGEX = /(멸화|겁화|피해|대미지|데미지|해방|지원\s*효과)/i
+const GEM_COOLDOWN_REGEX = /(홍염|작열|광휘|쿨타임|재사용|대기시간)/i
 
 const extractGemLabel = (gem: SkillGem) => {
   const tooltipText = flattenTooltipLines(gem.tooltip).join(' ')
   const candidates = [inlineText(gem.name), inlineText(gem.skill?.description), tooltipText]
     .filter(Boolean)
     .join(' ')
-  const labelMatch = candidates.match(/(멸화|겁화|홍염|작열)/i)
-  if (labelMatch?.[1]) return labelMatch[1]
   if (GEM_DAMAGE_REGEX.test(candidates)) return '겁화'
   if (GEM_COOLDOWN_REGEX.test(candidates)) return '작열'
+  const labelMatch = candidates.match(/(멸화|겁화|홍염|작열|광휘|지원\s*효과)/i)
+  if (labelMatch?.[1]) return labelMatch[1]
   return ''
 }
 
 const classifyGemEffect = (label: string): GemEffectPlacement => {
-  if (/멸화|겁화/i.test(label)) return 'damage'
-  if (/홍염|작열/i.test(label)) return 'cooldown'
+  if (/멸화|겁화|해방|지원\s*효과/i.test(label)) return 'damage'
+  if (/홍염|작열|광휘/i.test(label)) return 'cooldown'
   return 'unknown'
 }
 
@@ -711,21 +734,49 @@ const skillGemSlotsBySkill = computed(() => {
     }
     map.set(key, entry)
   })
-  map.forEach(entry => {
-    if (!entry.damage && entry.extras.length) {
-      entry.damage = entry.extras.shift() ?? null
-    }
-    if (!entry.cooldown && entry.extras.length) {
-      entry.cooldown = entry.extras.shift() ?? null
+  return map
+})
+
+const armoryGemIconMaps = computed(() => {
+  const skillByKey = new Map<string, string>()
+  const skillByName = new Map<string, string>()
+  const gemTooltipIconByName = new Map<string, string>()
+
+  const pickIcon = (icon?: string | null) => (typeof icon === 'string' && icon.trim().length ? icon : '')
+
+  const armoryGems = armoryGemsResponse.value?.Gems ?? armoryGemsResponse.value?.gems ?? []
+  const rawEffects = armoryGemsResponse.value?.Effects ?? armoryGemsResponse.value?.effects ?? []
+  const effectsArray = Array.isArray(rawEffects) ? rawEffects : rawEffects ? [rawEffects] : []
+  const effectSkills = effectsArray.flatMap((eff: any) => {
+    const skills = (eff?.Skills ?? eff?.skills) as any
+    return Array.isArray(skills) ? skills : []
+  })
+
+  effectSkills.forEach((sk: any) => {
+    const skKey = normalizeSkillKey(sk?.Name || sk?.name)
+    const icon = pickIcon(sk?.Icon) || parseSkillIconFromTooltip(sk?.Tooltip || sk?.tooltip)
+    if (skKey && icon) {
+      if (!skillByKey.has(skKey)) skillByKey.set(skKey, icon)
+      if (!skillByName.has(skKey)) skillByName.set(skKey, icon)
     }
   })
-  return map
+
+  armoryGems.forEach(gem => {
+    const nameKey = normalizeSkillKey(inlineText(gem?.Name || gem?.name))
+    const tooltipIcon = parseSkillIconFromTooltip(gem?.Tooltip || gem?.tooltip)
+    if (nameKey && tooltipIcon && !gemTooltipIconByName.has(nameKey)) {
+      gemTooltipIconByName.set(nameKey, tooltipIcon)
+    }
+  })
+
+  return { skillByKey, skillByName, gemTooltipIconByName }
 })
 
 const skillHighlights = computed(() => {
   const skills = skillResponse.value?.combatSkills ?? []
   if (!skills.length) return []
   const gemSlots = skillGemSlotsBySkill.value
+  const armoryIcons = armoryGemIconMaps.value
   return skills
     .filter(skill => !isAwakeningSkill(skill))
     .sort((a, b) => {
@@ -770,13 +821,17 @@ const skillHighlights = computed(() => {
       const damageGem = gem?.damage ?? null
       const cooldownGem = gem?.cooldown ?? null
       const hasGem = Boolean(damageGem || cooldownGem)
+      const overrideIcon = key ? armoryIcons.skillByKey.get(key) || armoryIcons.skillByName.get(key) : ''
+      if (overrideIcon && inlineText(skill.name).includes('종언')) {
+        console.debug('[skill icon override] name=%s source=armoryEffects icon=%s', inlineText(skill.name), overrideIcon)
+      }
       if (!hasSkillPoints && !hasRune && !hasGem) {
         return null
       }
       return {
         key: key || `skill-${index}`,
         name: inlineText(skill.name) || `스킬 ${index + 1}`,
-        icon: skill.icon || '',
+        icon: overrideIcon || skill.icon || '',
         levelLabel: formatLevelLabel(skill.level),
         pointLabel:
           hasSkillPoints && Number.isFinite(skillPointValue)
@@ -825,90 +880,17 @@ const skillLooseGems = computed(() => {
   const gems = skillResponse.value?.skillGems ?? []
   if (!gems.length) return []
 
-  const parseSkillIconFromTooltip = (tooltip?: string | null): string => {
-    if (!tooltip) return ''
-    try {
-      const parsed = JSON.parse(tooltip)
-      const search = (node: any): string => {
-        if (!node || typeof node !== 'object') return ''
-        const pick = (icon: string) => (icon?.includes('hkf_skill') ? icon : '')
-        if (typeof node.iconPath === 'string' && pick(node.iconPath)) return node.iconPath
-        if (node.slotData && typeof node.slotData.iconPath === 'string' && pick(node.slotData.iconPath)) {
-          return node.slotData.iconPath
-        }
-        for (const value of Object.values(node)) {
-          const found = search(value as any)
-          if (found) return found
-        }
-        return ''
-      }
-      return search(parsed)
-    } catch {
-      return ''
-    }
-  }
+  const {
+    skillByKey: armorySkillIconBySkillKey,
+    skillByName: armorySkillIconByName,
+    gemTooltipIconByName
+  } = armoryGemIconMaps.value
 
-  const armoryGemTooltipIconByName = new Map<string, string>()
-  const armorySkillIconBySkillKey = new Map<string, string>()
-  const armorySlotIconBySlot = new Map<number, string>()
   const armoryGemBySlot = new Map<number, any>()
-  const armorySkillIconByName = new Map<string, string>()
-  const armorySlotIconByName = new Map<string, string>()
   const armoryGems = armoryGemsResponse.value?.Gems ?? armoryGemsResponse.value?.gems ?? []
-  const armoryGemSlots = armoryGemsResponse.value?.GemSlots ?? armoryGemsResponse.value?.gemSlots ?? []
-  const armoryEffects = armoryGemsResponse.value?.Effects ?? armoryGemsResponse.value?.effects ?? []
   armoryGems.forEach(gem => {
     if (typeof gem?.Slot === 'number' && !armoryGemBySlot.has(gem.Slot)) {
       armoryGemBySlot.set(gem.Slot, gem)
-    }
-    const nameKey = normalizeSkillKey(inlineText(gem?.Name || gem?.name))
-    const tooltipIcon = parseSkillIconFromTooltip(gem?.Tooltip || gem?.tooltip)
-    if (nameKey && tooltipIcon && !armoryGemTooltipIconByName.has(nameKey)) {
-      armoryGemTooltipIconByName.set(nameKey, tooltipIcon)
-    }
-    const tooltipLines = flattenTooltipLines(gem?.Tooltip || gem?.tooltip)
-    tooltipLines.forEach(line => {
-      const cleaned = inlineText(line)
-      const match = cleaned.match(/\]\s*([^\d%]+?)(?:피해|재사용|쿨타임|감소|증가|레벨|Lv\.?)/)
-      const skillName = match?.[1]?.trim()
-      const skillKey = normalizeSkillKey(skillName)
-      if (skillKey && tooltipIcon && !armorySkillIconBySkillKey.has(skillKey)) {
-        armorySkillIconBySkillKey.set(skillKey, tooltipIcon)
-      }
-    })
-  })
-  armoryGemSlots.forEach(slot => {
-    const skillKey = normalizeSkillKey(inlineText(slot?.Name || slot?.name))
-    const slotIcon = typeof slot?.Icon === 'string' && slot.Icon.includes('hkf_skill') ? slot.Icon : ''
-    const slotIndex = typeof slot?.GemSlot === 'number' ? slot.GemSlot : typeof slot?.Slot === 'number' ? slot.Slot : null
-    const nameKey = normalizeSkillKey(slot?.Name || slot?.name)
-    if (nameKey && slotIcon && !armorySkillIconByName.has(nameKey)) {
-      armorySkillIconByName.set(nameKey, slotIcon)
-    }
-    if (nameKey && slotIcon && !armorySlotIconByName.has(nameKey)) {
-      armorySlotIconByName.set(nameKey, slotIcon)
-    }
-    if (skillKey && slotIcon && !armorySkillIconBySkillKey.has(skillKey)) {
-      armorySkillIconBySkillKey.set(skillKey, slotIcon)
-    }
-    if (slotIndex !== null && slotIcon && !armorySlotIconBySlot.has(slotIndex)) {
-      armorySlotIconBySlot.set(slotIndex, slotIcon)
-    }
-  })
-  armoryEffects.forEach((eff: any) => {
-    const nameKey = normalizeSkillKey(eff?.Name || eff?.name)
-    const icon = typeof eff?.Icon === 'string' && eff.Icon.includes('hkf_skill') ? eff.Icon : ''
-    if (nameKey && icon && !armorySkillIconByName.has(nameKey)) {
-      armorySkillIconByName.set(nameKey, icon)
-    }
-    if (Array.isArray(eff?.Skills)) {
-      eff.Skills.forEach((sk: any) => {
-        const skKey = normalizeSkillKey(sk?.Name || sk?.name)
-        const skIcon = typeof sk?.Icon === 'string' && sk.Icon.includes('hkf_skill') ? sk.Icon : icon
-        if (skKey && skIcon && !armorySkillIconByName.has(skKey)) {
-          armorySkillIconByName.set(skKey, skIcon)
-        }
-      })
     }
   })
 
@@ -916,10 +898,11 @@ const skillLooseGems = computed(() => {
   const skills = skillResponse.value?.combatSkills ?? []
   skills.forEach(skill => {
     const key = normalizeSkillKey(skill.name)
-    if (key && !skillIconByKey.has(key)) {
-      if (skill.icon) skillIconByKey.set(key, skill.icon)
+    if (key && skill.icon && !skillIconByKey.has(key)) {
+      skillIconByKey.set(key, skill.icon)
     }
   })
+
   const skillKeys = combatSkillKeySet.value
   return gems
     .filter(gem => {
@@ -946,22 +929,30 @@ const skillLooseGems = computed(() => {
         }
         return ''
       }
-      const skillIcon = pickIconFromKeys(candidateKeys, skillIconByKey)
+      const skillIcon = pickIconFromKeys(candidateKeys, armorySkillIconBySkillKey, armorySkillIconByName, skillIconByKey)
       const tooltipIcon = parseSkillIconFromTooltip(
         (gem as any).tooltip || (gem as any).Tooltip || armoryGem?.Tooltip || armoryGem?.tooltip
       )
       const armoryIcon =
-        pickIconFromKeys(candidateKeys, armorySkillIconBySkillKey, armorySkillIconByName, armoryGemTooltipIconByName) ||
-        pickIconFromKeys(candidateKeys, armorySlotIconByName) ||
-        (typeof (gem as any).Slot === 'number' ? armorySlotIconBySlot.get((gem as any).Slot) : undefined) ||
-        (typeof (gem as any).GemSlot === 'number' ? armorySlotIconBySlot.get((gem as any).GemSlot) : undefined) ||
-        ''
+        pickIconFromKeys(candidateKeys, armorySkillIconBySkillKey, armorySkillIconByName, gemTooltipIconByName) || ''
+      if (inlineText(skillName).includes('종언')) {
+        console.debug('[loose gem icon pick]', {
+          skillName,
+          candidateKeys,
+          armoryIcon,
+          skillIcon,
+          tooltipIcon,
+          gemIcon: gem.icon || '',
+          armoryGemSlot: (gem as any).Slot ?? (gem as any).slot ?? (gem as any).GemSlot,
+          source: armoryIcon ? 'armory' : skillIcon ? 'skillMatch' : tooltipIcon ? 'tooltip' : 'gemIcon'
+        })
+      }
       return {
         key: `${gem.name || 'gem'}-loose-${index}`,
         name: skillName || inlineText(gem.name) || '보석',
         skillName,
-        icon: skillIcon || tooltipIcon || armoryIcon || gem.icon || '',
-        skillIcon: skillIcon || tooltipIcon || armoryIcon,
+        icon: armoryIcon || skillIcon || tooltipIcon || gem.icon || '',
+        skillIcon: armoryIcon || skillIcon || tooltipIcon,
         levelLabel: formatLevelLabel(gem.level),
         grade: inlineText(gem.grade),
         effectLabel: effectLabel || inlineText(gem.skill?.description),
@@ -2101,70 +2092,6 @@ const cardSummary = computed(() => {
   }
 })
 
-const loadFromStorage = <T>(key: string, fallback: T): T => {
-  if (typeof window === 'undefined' || !window.localStorage) return fallback
-  try {
-    const stored = window.localStorage.getItem(key)
-    if (!stored) return fallback
-    return JSON.parse(stored) as T
-  } catch (err) {
-    console.warn(`Failed to parse local storage key '${key}'`, err)
-    return fallback
-  }
-}
-
-const saveToStorage = (key: string, value: unknown) => {
-  if (typeof window === 'undefined' || !window.localStorage) return
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value))
-  } catch (err) {
-    console.warn(`Failed to persist local storage key '${key}'`, err)
-  }
-}
-
-const loadFavoritesFromStorage = () => {
-  const stored = loadFromStorage<CharacterProfile[]>(FAVORITES_STORAGE_KEY, [])
-  if (stored.length) {
-    favorites.value = stored
-  }
-}
-
-const persistFavoritesToStorage = () => {
-  saveToStorage(FAVORITES_STORAGE_KEY, favorites.value)
-}
-
-type FavoriteIdentity = Pick<CharacterProfile, 'characterName' | 'serverName'>
-
-const isSameFavorite = (target: FavoriteIdentity, other: FavoriteIdentity) => {
-  return target.characterName === other.characterName && target.serverName === other.serverName
-}
-
-const upsertFavoriteLocal = (profile: CharacterProfile) => {
-  if (!profile?.characterName || !profile?.serverName) return
-  const filtered = favorites.value.filter(fav => !isSameFavorite(fav, profile))
-  favorites.value = [...filtered, profile]
-  persistFavoritesToStorage()
-}
-
-const removeFavoriteLocal = (identity: FavoriteIdentity) => {
-  const next = favorites.value.filter(fav => !isSameFavorite(fav, identity))
-  if (next.length !== favorites.value.length) {
-    favorites.value = next
-    persistFavoritesToStorage()
-  }
-}
-
-const loadHistoryFromStorage = () => {
-  const stored = loadFromStorage<SearchHistory[]>(HISTORY_STORAGE_KEY, [])
-  if (stored.length) {
-    history.value = stored
-  }
-}
-
-const persistHistoryToStorage = () => {
-  saveToStorage(HISTORY_STORAGE_KEY, history.value)
-}
-
 const expandHeroImage = () => {
   if (hasCharacterImage.value) {
     isHeroImageLarge.value = true
@@ -2301,8 +2228,6 @@ const expeditionGroups = computed(() => {
 })
 
 onMounted(() => {
-  loadFavoritesFromStorage()
-  loadHistoryFromStorage()
   loadFavorites()
   loadHistory()
   if (typeof document !== 'undefined') {
@@ -2361,94 +2286,15 @@ const searchCharacterByInput = () => {
   executeSearch(name)
 }
 
-const searchCharacter = async (name: string, options: { forceRefresh?: boolean; updateUrl?: boolean } = {}) => {
-  loading.value = true
-  error.value = null
-  if (options.forceRefresh) {
-    lostarkApi.invalidateCharacterCache(name)
-  }
-  character.value = null
-  siblings.value = []
-  selectedCharacterProfile.value = null
-  detailEquipment.value = []
-  detailEngravings.value = []
-  detailError.value = null
-  characterAvailability.value = {}
-  arkGridResponse.value = null
-  arkGridLoadedFor.value = null
-  arkGridError.value = null
-  arkGridLoading.value = false
-  cardResponse.value = null
-  cardLoadedFor.value = null
-  cardError.value = null
-  cardLoading.value = false
-  skillResponse.value = null
-  skillLoadedFor.value = null
-  skillError.value = null
-  skillLoading.value = false
-  collectibles.value = []
-  collectiblesLoadedFor.value = null
-  collectiblesError.value = null
-  collectiblesLoading.value = false
-  lastRefreshedAt.value = null
-
-  try {
-    const charResponse = await lostarkApi.getCharacter(name, { force: options.forceRefresh })
-    character.value = charResponse.data
-    characterName.value = name
-
-    const siblingsResponse = await lostarkApi.getSiblings(name, { force: options.forceRefresh })
-    const unique = new Map<string, SiblingCharacter>()
-    siblingsResponse.data.forEach(member => {
-      if (member.characterName === charResponse.data.characterName) return
-      const key = `${member.serverName}-${member.characterName}`
-      if (!unique.has(key)) {
-        unique.set(key, member)
-      }
-    })
-    siblings.value = Array.from(unique.values())
-
-    await loadCharacterDetails(name, { profile: charResponse.data, forceRefresh: options.forceRefresh })
-    if (options.forceRefresh) {
-      await Promise.allSettled([
-        loadSkillData(name, { forceRefresh: true }),
-        loadCollectiblesData(name, { forceRefresh: true }),
-        loadArkGridData(name, { forceRefresh: true }),
-        loadCardData(name, { forceRefresh: true })
-      ])
-      await loadHistory({ forceRefresh: true })
-    } else {
-      await loadHistory()
-    }
-    await Promise.allSettled([
-      ensureSkillData({ forceRefresh: options.forceRefresh }),
-      ensureCollectiblesData({ forceRefresh: options.forceRefresh }),
-      ensureArkGridData({ forceRefresh: options.forceRefresh }),
-      ensureCardData({ forceRefresh: options.forceRefresh })
-    ])
-    activeResultTab.value = DEFAULT_RESULT_TAB
-
-    // URL 업데이트 (기본값: true)
-    if (options.updateUrl !== false) {
-      router.push({ query: { character: name } })
-    }
-  } catch (err: any) {
-    const errorData = err.response?.data
-    if (err.response?.status === 404) {
-      error.value = {
-        title: '캐릭터를 찾을 수 없습니다',
-        message: errorData?.message || `'${name}' 캐릭터가 존재하지 않아요.`,
-        type: 'error'
-      }
-    } else {
-      error.value = {
-        title: '검색 실패',
-        message: errorData?.message || '예상치 못한 오류가 발생했어요.',
-        type: 'error'
-      }
-    }
-  } finally {
-    loading.value = false
+const searchCharacter = async (
+  name: string,
+  options: { forceRefresh?: boolean; updateUrl?: boolean } = {}
+) => {
+  const success = await searchCharacterData(name, { forceRefresh: options.forceRefresh })
+  if (!success) return
+  activeResultTab.value = DEFAULT_RESULT_TAB
+  if (options.updateUrl !== false) {
+    router.push({ query: { character: name } })
   }
 }
 const retrySearch = () => {
@@ -2469,267 +2315,8 @@ const dismissError = () => {
 }
 
 const clearSearch = () => {
-  characterName.value = ''
-  character.value = null
-  siblings.value = []
-  error.value = null
-  selectedCharacterProfile.value = null
-  detailEquipment.value = []
-  detailEngravings.value = []
-  detailError.value = null
-  characterAvailability.value = {}
-  arkGridResponse.value = null
-  arkGridLoadedFor.value = null
-  arkGridError.value = null
-  arkGridLoading.value = false
-  cardResponse.value = null
-  cardLoadedFor.value = null
-  cardError.value = null
-  cardLoading.value = false
-  skillResponse.value = null
-  skillLoadedFor.value = null
-  skillError.value = null
-  skillLoading.value = false
-  collectibles.value = []
-  collectiblesLoadedFor.value = null
-  collectiblesError.value = null
-  collectiblesLoading.value = false
-  lastRefreshedAt.value = null
+  clearSearchData()
   activeResultTab.value = DEFAULT_RESULT_TAB
-}
-
-const loadFavorites = async () => {
-  try {
-    const response = await lostarkApi.getFavorites()
-    favorites.value = response.data
-    persistFavoritesToStorage()
-  } catch (err) {
-    console.error('즐겨찾기 로딩 실패:', err)
-  }
-}
-
-let favoriteMutationId = 0
-
-const toggleFavorite = () => {
-  const targetCharacter = activeCharacter.value
-  if (!targetCharacter) return
-
-  const snapshot = favorites.value.slice()
-  const shouldFavorite = !isCharacterFavorite.value
-  const currentMutationId = ++favoriteMutationId
-
-  if (shouldFavorite) {
-    upsertFavoriteLocal(targetCharacter)
-  } else {
-    removeFavoriteLocal(targetCharacter)
-  }
-
-  const request = shouldFavorite
-    ? lostarkApi.addFavorite(targetCharacter.characterName)
-    : lostarkApi.removeFavorite(targetCharacter.characterName)
-
-  request
-    .catch(err => {
-      if (currentMutationId === favoriteMutationId) {
-        favorites.value = snapshot
-        persistFavoritesToStorage()
-      }
-      console.error('즐겨찾기 토글 실패:', err)
-    })
-    .finally(() => {
-      if (currentMutationId === favoriteMutationId) {
-        loadFavorites().catch(loadErr => {
-          console.error('즐겨찾기 동기화 실패:', loadErr)
-        })
-      }
-    })
-}
-
-const loadHistory = async (options: { forceRefresh?: boolean } = {}) => {
-  try {
-    const response = await lostarkApi.getHistory({ force: options.forceRefresh })
-    const items = response.data
-      .slice()
-      .sort((a, b) => new Date(b.searchedAt).getTime() - new Date(a.searchedAt).getTime())
-    const seen = new Set<string>()
-    const unique: typeof items = []
-    for (const it of items) {
-      if (!seen.has(it.characterName)) {
-        seen.add(it.characterName)
-        unique.push(it)
-      }
-    }
-    history.value = unique
-    persistHistoryToStorage()
-  } catch (err) {
-    console.error('검색 기록 로딩 실패:', err)
-  }
-}
-
-const clearHistory = async () => {
-  if (!confirm('검색 기록을 모두 삭제할까요?')) return
-  try {
-    await lostarkApi.clearHistory()
-    history.value = []
-    persistHistoryToStorage()
-  } catch (err) {
-    console.error('검색 기록 삭제 실패:', err)
-  }
-}
-
-const loadCharacterDetails = async (
-  name: string,
-  options: { profile?: CharacterProfile; forceRefresh?: boolean } = {}
-) => {
-  detailLoading.value = true
-  detailError.value = null
-  characterAvailability.value[name] = 'loading'
-
-  try {
-    const profilePromise = options.profile
-      ? Promise.resolve(options.profile)
-      : lostarkApi.getCharacter(name, { force: options.forceRefresh }).then(res => res.data)
-
-    const [profile, equipmentResponse, engravingsResponse] = await Promise.all([
-      profilePromise,
-      lostarkApi.getEquipment(name, { force: options.forceRefresh }),
-      lostarkApi.getEngravings(name, { force: options.forceRefresh })
-    ])
-
-    selectedCharacterProfile.value = profile
-    detailEquipment.value = equipmentResponse.data
-    detailEngravings.value = engravingsResponse.data
-    characterAvailability.value[name] = 'available'
-    lastRefreshedAt.value = new Date()
-  } catch (err: any) {
-    characterAvailability.value[name] = 'unavailable'
-    selectedCharacterProfile.value = options.profile || null
-    detailEquipment.value = []
-    detailEngravings.value = []
-    if (err.response?.status === 404) {
-      detailError.value = `'${name}' 캐릭터 정보를 불러올 수 없어요. 오랜 기간 미접속 캐릭터일 수 있습니다.`
-    } else {
-      detailError.value = err.response?.data?.message || '상세 정보를 불러오지 못했어요.'
-    }
-    console.error('Failed to load character details', err)
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-const ensureSkillData = async (options: { forceRefresh?: boolean } = {}) => {
-  const targetName = character.value?.characterName
-  if (!targetName) return
-  if (skillLoading.value) return
-  if (!options.forceRefresh && skillLoadedFor.value === targetName && skillResponse.value) return
-  await loadSkillData(targetName, options)
-}
-
-const loadSkillData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
-  skillLoading.value = true
-  skillError.value = null
-  try {
-    const [skillRes, armoryGemRes] = await Promise.all([
-      lostarkApi.getSkills(name, { force: options.forceRefresh }),
-      lostarkApi.getArmoryGems(name, { force: options.forceRefresh }).catch(() => null)
-    ])
-    skillResponse.value = skillRes.data
-    skillLoadedFor.value = name
-    armoryGemsResponse.value = armoryGemRes?.data ?? null
-  } catch (err: any) {
-    skillResponse.value = null
-    skillLoadedFor.value = null
-    const message =
-      err.response?.status === 404
-        ? `'${name}' 캐릭터의 스킬 정보를 찾을 수 없어요.`
-        : err.response?.data?.message || '스킬 정보를 불러오지 못했어요.'
-    skillError.value = message
-  } finally {
-    skillLoading.value = false
-  }
-}
-
-const ensureCollectiblesData = async (options: { forceRefresh?: boolean } = {}) => {
-  const targetName = character.value?.characterName
-  if (!targetName) return
-  if (collectiblesLoading.value) return
-  if (!options.forceRefresh && collectiblesLoadedFor.value === targetName && collectibles.value.length) return
-  await loadCollectiblesData(targetName, options)
-}
-
-const ensureCardData = async (options: { forceRefresh?: boolean } = {}) => {
-  const targetName = character.value?.characterName
-  if (!targetName) return
-  if (cardLoading.value) return
-  if (!options.forceRefresh && cardLoadedFor.value === targetName && cardResponse.value) return
-  await loadCardData(targetName, options)
-}
-
-const loadCollectiblesData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
-  collectiblesLoading.value = true
-  collectiblesError.value = null
-  try {
-    const response = await lostarkApi.getCollectibles(name, { force: options.forceRefresh })
-    collectibles.value = response.data
-    collectiblesLoadedFor.value = name
-  } catch (err: any) {
-    collectibles.value = []
-    collectiblesLoadedFor.value = null
-    const message =
-      err.response?.status === 404
-        ? `'${name}' 캐릭터의 수집 정보를 찾을 수 없어요.`
-        : err.response?.data?.message || '수집 정보를 불러오지 못했어요.'
-    collectiblesError.value = message
-  } finally {
-    collectiblesLoading.value = false
-  }
-}
-
-const loadCardData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
-  cardLoading.value = true
-  cardError.value = null
-  try {
-    const response = await lostarkApi.getCards(name, { force: options.forceRefresh })
-    cardResponse.value = response.data
-    cardLoadedFor.value = name
-  } catch (err: any) {
-    cardResponse.value = null
-    cardLoadedFor.value = null
-    const message =
-      err.response?.status === 404
-        ? `'${name}' 캐릭터의 카드 정보를 확인할 수 없어요.`
-        : err.response?.data?.message || '카드 정보를 불러오지 못했어요.'
-    cardError.value = message
-  } finally {
-    cardLoading.value = false
-  }
-}
-
-const ensureArkGridData = async (options: { forceRefresh?: boolean } = {}) => {
-  const targetName = character.value?.characterName
-  if (!targetName) return
-  if (arkGridLoading.value) return
-  if (!options.forceRefresh && arkGridLoadedFor.value === targetName && arkGridResponse.value) return
-  await loadArkGridData(targetName, options)
-}
-
-const loadArkGridData = async (name: string, options: { forceRefresh?: boolean } = {}) => {
-  arkGridLoading.value = true
-  arkGridError.value = null
-  try {
-    const response = await lostarkApi.getArkGrid(name, { force: options.forceRefresh })
-    arkGridResponse.value = response.data
-    arkGridLoadedFor.value = name
-  } catch (err: any) {
-    arkGridResponse.value = null
-    const message =
-      err.response?.status === 404
-        ? `'${name}' 캐릭터의 아크 그리드 정보를 확인할 수 없어요.`
-        : err.response?.data?.message || '아크 그리드 정보를 불러오지 못했어요.'
-    arkGridError.value = message
-  } finally {
-    arkGridLoading.value = false
-  }
 }
 
 const executeSearch = (name: string) => {
@@ -2750,10 +2337,6 @@ const viewCharacterDetail = (summary: CharacterProfile | SiblingCharacter) => {
   const targetName = summary.characterName
   if (!targetName) return
   searchCharacter(targetName)
-}
-
-const formatItemLevel = (value?: string | number) => {
-  return formatNumberLocalized(value, 2)
 }
 
 const extractTooltipLines = (tooltip?: string): string[] =>
@@ -2801,28 +2384,6 @@ const normalizeStatValue = (value?: string | string[]) => {
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .trim()
-}
-
-const formatNumberLocalized = (value?: number | string, fractionDigits?: number) => {
-  if (value === undefined || value === null || value === '') return '—'
-  const numeric =
-    typeof value === 'number'
-      ? value
-      : Number(
-          value
-            .toString()
-            .replace(/,/g, '')
-            .trim()
-        )
-  if (Number.isNaN(numeric)) {
-    return typeof value === 'string' && value.length ? value : '—'
-  }
-  const options: Intl.NumberFormatOptions = {}
-  if (typeof fractionDigits === 'number') {
-    options.minimumFractionDigits = fractionDigits
-    options.maximumFractionDigits = fractionDigits
-  }
-  return numeric.toLocaleString(undefined, options)
 }
 
 const formatProfileStat = (value?: string | string[]) => {
@@ -4819,7 +4380,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   gap: 6px;
   border: 2px solid transparent;
   border-radius: 16px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
   padding:10px;
 }
@@ -4881,38 +4441,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   line-height: 1.2;
 }
 
-.special-tooltip {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translate(-50%, -10px);
-  width: min(var(--tooltip-width, 360px), 85vw);
-  opacity: 0;
-  pointer-events: none;
-  box-sizing: border-box;
-  z-index: 7;
-  text-align: left;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.special-icon-wrapper.is-hovered .special-tooltip {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, -2px);
-}
-
-.special-tooltip::before {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%) rotate(180deg);
-  border-left: 9px solid transparent;
-  border-right: 9px solid transparent;
-  border-bottom: 9px solid var(--popover-bg);
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
-}
-
 .special-type {
   font-size: calc(0.85rem - 2px);
   color: var(--text-tertiary);
@@ -4931,12 +4459,6 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .special-highlights span {
   list-style: disc;
   white-space: pre-line;
-}
-
-.special-tooltip-empty {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--popover-muted);
 }
 
 .profile-stats-grid {
@@ -4980,7 +4502,7 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   box-shadow: var(--shadow-md);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
   .results-layout {
     flex-direction: column;
   }

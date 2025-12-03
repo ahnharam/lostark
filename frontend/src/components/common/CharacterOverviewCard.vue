@@ -1,5 +1,5 @@
 <template>
-  <div class="character-overview-card" ref="cardRef">
+  <div class="character-overview-card">
     <div class="overview-toolbar">
       <button
         type="button"
@@ -186,23 +186,23 @@
           <div
             v-if="hoveredSpecialName === special.item.name"
             class="special-tooltip popup-surface popup-surface--tooltip"
-            :style="tooltipWidthStyle"
+            :data-placement="tooltipPlacement"
+            :ref="setTooltipRef"
             role="tooltip"
             @mouseenter="cancelHoverTimeout"
             @mouseleave="scheduleHoverClear"
           >
-            <p class="popup-surface__title special-tooltip-title">
+            <p class="popup-surface__title">
               {{ special.item.name }}
             </p>
-            <div v-if="special.highlights.length" class="special-highlights">
-              <span
-                v-for="(line, idx) in special.highlights"
-                :key="`${special.item.name}-${idx}`"
-              >
-                {{ line }}
-              </span>
-            </div>
-            <p v-else class="special-tooltip-empty">추가 설명이 없습니다.</p>
+            <p
+              v-for="(line, idx) in special.highlights"
+              :key="`${special.item.name}-${idx}`"
+              class="popup-surface__body"
+            >
+              {{ line }}
+            </p>
+            <p v-if="!special.highlights.length" class="popup-surface__meta">추가 설명이 없습니다.</p>
           </div>
         </div>
       </div>
@@ -211,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, toRefs, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRefs } from 'vue'
 import LazyImage from './LazyImage.vue'
 import type { CharacterProfile, CharacterStat, Equipment } from '@/api/types'
 
@@ -272,20 +272,11 @@ defineEmits<{
   (e: 'toggle-favorite'): void
 }>()
 
-const cardRef = ref<HTMLElement | null>(null)
-const cardWidth = ref(0)
 const hoveredSpecialName = ref<string | null>(null)
 const hoverTimeout = ref<number | null>(null)
-let observer: ResizeObserver | null = null
-
-const tooltipWidthValue = computed(() => {
-  if (!cardWidth.value) return 320
-  return Math.max(Math.round(cardWidth.value - 20), 240)
-})
-
-const tooltipWidthStyle = computed(() => ({
-  '--tooltip-width': `${tooltipWidthValue.value}px`
-}))
+const tooltipRef = ref<HTMLElement | null>(null)
+const tooltipPlacement = ref<'top' | 'bottom'>('bottom')
+let placementListenersAttached = false
 
 const combatRoleLabel = computed(() => {
   if (combatRoleLoading.value) return '분석 중'
@@ -302,24 +293,49 @@ const combatRoleBadgeClass = computed(() => {
 
 const honorPointLabel = computed(() => formatInteger.value(honorPoint.value))
 
-const observeWidth = () => {
+const setTooltipRef = (el: HTMLElement | null) => {
+  tooltipRef.value = el
+}
+
+const updateTooltipPlacement = () => {
   if (typeof window === 'undefined') return
-  observer?.disconnect()
-  const el = cardRef.value
-  if (el && 'ResizeObserver' in window) {
-    observer = new ResizeObserver(entries => {
-      const width = entries[0]?.contentRect.width ?? el.getBoundingClientRect().width
-      cardWidth.value = width || cardWidth.value
-    })
-    observer.observe(el)
-  } else if (el) {
-    cardWidth.value = el.getBoundingClientRect().width
-  }
+  const tooltipEl = tooltipRef.value
+  if (!tooltipEl) return
+  const hostRect = tooltipEl.parentElement?.getBoundingClientRect() || tooltipEl.getBoundingClientRect()
+  const tooltipRect = tooltipEl.getBoundingClientRect()
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  const gap = 8
+  const tooltipHeight = tooltipEl.offsetHeight || tooltipRect.height
+  const spaceAbove = hostRect.top
+  const spaceBelow = viewportHeight - hostRect.bottom
+  const prefersTop = spaceBelow < tooltipHeight + gap && spaceAbove > spaceBelow
+  const canPlaceTop = spaceAbove >= tooltipHeight + gap
+  tooltipPlacement.value = prefersTop && canPlaceTop ? 'top' : 'bottom'
+}
+
+const attachPlacementListeners = () => {
+  if (placementListenersAttached || typeof window === 'undefined') return
+  window.addEventListener('resize', updateTooltipPlacement, { passive: true })
+  window.addEventListener('scroll', updateTooltipPlacement, { passive: true, capture: true })
+  placementListenersAttached = true
+}
+
+const detachPlacementListeners = () => {
+  if (!placementListenersAttached || typeof window === 'undefined') return
+  window.removeEventListener('resize', updateTooltipPlacement)
+  window.removeEventListener('scroll', updateTooltipPlacement, true)
+  placementListenersAttached = false
 }
 
 const handleHover = (name: string | null) => {
   cancelHoverTimeout()
   hoveredSpecialName.value = name
+  if (name) {
+    nextTick(() => {
+      updateTooltipPlacement()
+      attachPlacementListeners()
+    })
+  }
 }
 
 const cancelHoverTimeout = () => {
@@ -337,22 +353,15 @@ const scheduleHoverClear = () => {
   cancelHoverTimeout()
   hoverTimeout.value = window.setTimeout(() => {
     hoveredSpecialName.value = null
+    tooltipRef.value = null
+    detachPlacementListeners()
     hoverTimeout.value = null
   }, 120)
 }
 
-onMounted(() => {
-  observeWidth()
-})
-
-watch(
-  () => cardRef.value,
-  () => observeWidth()
-)
-
 onBeforeUnmount(() => {
-  observer?.disconnect()
   cancelHoverTimeout()
+  detachPlacementListeners()
 })
 
 </script>
@@ -604,6 +613,15 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.special-icon-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
 .special-grid {
   display: grid;
   gap: 10px;
@@ -637,29 +655,10 @@ onBeforeUnmount(() => {
 
 .special-tooltip {
   position: absolute;
-  top: calc(100% + 8px);
   left: 50%;
-  transform: translate(-50%, 6px);
-  min-width: var(--tooltip-width, 260px);
-  opacity: 1;
-  pointer-events: auto;
-  z-index: 30;
-}
-
-.special-tooltip-title {
-  margin: 0 0 6px;
-}
-
-.special-highlights {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.95rem;
-}
-
-.special-tooltip-empty {
-  margin: 0;
-  color: var(--text-secondary);
+  width: min(320px, 80vw);
+  z-index: 100;
+  --tooltip-gap: 8px;
 }
 
 @media (max-width: 1200px) {
@@ -668,4 +667,36 @@ onBeforeUnmount(() => {
     flex: 1;
   }
 }
+
+@media (max-width: 1024px) {
+  .hero-text h2 {
+    font-size: 1.15rem;
+  }
+
+  .hero-avatar-wrapper.is-large {
+    width: 240px;
+    height: 280px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-avatar-wrapper {
+    width: 120px;
+    height: 120px;
+  }
+
+  .hero-avatar-wrapper.is-large {
+    width: 200px;
+    height: 240px;
+  }
+
+  .hero-text h2 {
+    font-size: 1.05rem;
+  }
+
+  .hero-row--image {
+    flex-direction: column;
+  }
+}
+
 </style>

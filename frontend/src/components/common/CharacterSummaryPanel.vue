@@ -13,7 +13,7 @@
               <template v-if="row.right?.isBracelet && !row.left">
                 <div class="equipment-side equipment-side--bracelet">
                   <div class="equipment-icon-stack">
-                    <LazyImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
+                    <IconImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
                       imageClass="summary-icon" errorIcon="💍" :useProxy="true" />
                     <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--stacked">
                       {{ row.right.itemLevel }}
@@ -64,7 +64,7 @@
                 <div class="equipment-side equipment-side--left">
                   <template v-if="row.left">
                     <div class="equipment-icon-stack">
-                      <LazyImage :src="row.left.icon" :alt="row.left.name" width="40" height="40"
+                      <IconImage :src="row.left.icon" :alt="row.left.name" width="40" height="40"
                         imageClass="summary-icon" errorIcon="🗡️" :useProxy="true" />
                       <div v-if="qualityValue(row.left.quality) !== null && Number(row.left.quality) !== -1"
                         class="equipment-quality equipment-quality--stacked">
@@ -112,7 +112,7 @@
                 <div class="equipment-side">
                   <template v-if="row.right">
                     <div class="equipment-icon-stack">
-                      <LazyImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
+                      <IconImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
                         imageClass="summary-icon" errorIcon="💍" :useProxy="true" />
                       <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--stacked">
                         {{ row.right.itemLevel }}
@@ -246,7 +246,7 @@
                     <div v-if="section.effects.length" class="ark-passive-cell-list">
                       <div v-for="effect in section.effects" :key="effect.key" class="ark-passive-chip">
                         <div class="ark-passive-chip-visual">
-                          <LazyImage v-if="effect.icon" :src="effect.icon" :alt="effect.name" width="30" height="30"
+                          <IconImage v-if="effect.icon" :src="effect.icon" :alt="effect.name" width="30" height="30"
                             imageClass="summary-icon" errorIcon="🌟" :useProxy="true" />
                           <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">★</div>
                         </div>
@@ -282,7 +282,7 @@
                     <div v-for="cell in row.cells" :key="`core-cell-${cell.key}`" class="ark-core-card-cell">
                       <article v-for="slot in cell.slots" :key="slot.key" class="ark-core-card">
                         <div class="ark-core-card__thumb">
-                          <LazyImage v-if="slot.icon" :src="slot.icon" :alt="slot.name" width="40" height="40"
+                          <IconImage v-if="slot.icon" :src="slot.icon" :alt="slot.name" width="40" height="40"
                             imageClass="ark-core-card__image" errorIcon="🧩" :useProxy="true" />
                           <div v-else class="ark-core-card__placeholder" aria-hidden="true">
                             {{ slot.initial }}
@@ -317,7 +317,7 @@
               class="summary-list-item summary-list-item--plain summary-skill-item"
               :class="{ 'summary-skill-item--with-gems': skill.hasGem || skill.rune }">
               <div class="summary-skill-icon-stack">
-                <LazyImage :src="skill.icon" :alt="skill.name" width="40" height="40" imageClass="summary-icon"
+                <IconImage :src="skill.icon" :alt="skill.name" width="40" height="40" imageClass="summary-icon"
                   errorIcon="🎯" :useProxy="true" />
               </div>
               <div class="summary-list-text summary-skill-text">
@@ -380,7 +380,7 @@
           <div v-if="engravingSummary.length" class="summary-engraving-grid">
             <div v-for="engrave in engravingSummary" :key="engrave.key" class="summary-engraving-card">
               <div class="summary-engraving-icon">
-                <LazyImage v-if="engrave.icon || engravingIcon(engrave.name)"
+                <IconImage v-if="engrave.icon || engravingIcon(engrave.name)"
                   :src="engrave.icon || engravingIcon(engrave.name)" :alt="engrave.displayName || engrave.name"
                   width="40" height="40" imageClass="summary-icon" errorIcon="🔮" :useProxy="true" />
                 <div v-else class="summary-icon summary-icon--fallback" aria-hidden="true">
@@ -430,7 +430,7 @@
               <article v-for="card in cardSummary.cards" :key="card.key" class="card-slot card-slot--ornate">
                 <div class="card-slot__frame">
                   <div class="card-slot__thumb">
-                    <LazyImage v-if="card.icon" :src="card.icon" :alt="card.name" :width="`inherit - 10px`"
+                    <IconImage v-if="card.icon" :src="card.icon" :alt="card.name" :width="`inherit - 10px`"
                       :height="`inherit - 10px`" imageClass="card-slot__icon" errorIcon="✨" :useProxy="true" />
                     <div v-else class="card-slot__placeholder" aria-hidden="true">
                       {{ card.name?.[0] || '?' }}
@@ -489,7 +489,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import LazyImage from './LazyImage.vue'
+import IconImage from './IconImage.vue'
 import EmptyState from './EmptyState.vue'
 import type { CharacterProfile } from '@/api/types'
 import { getQualityColor } from '@/utils/tooltipParser'
@@ -1446,4 +1446,22 @@ const coreNameStyle = (slot: any) => {
   flex-direction: column;
   gap: 2px;
 }
+
+@media (max-width: 768px) {
+  .card-strip {
+    grid-template-columns: repeat(3, minmax(40px, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .card-strip {
+    grid-template-columns: repeat(3, minmax(40px, 1fr));
+  }
+
+  .card-head__effects {
+    justify-content: flex-start;
+  }
+}
+
 </style>

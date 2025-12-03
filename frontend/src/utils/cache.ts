@@ -211,10 +211,12 @@ class CacheManager {
 // 싱글톤 인스턴스
 export const cacheManager = new CacheManager()
 
-// 주기적으로 만료된 캐시 정리 (10분마다)
-setInterval(() => {
-  cacheManager.cleanup()
-}, 10 * 60 * 1000)
+// 주기적으로 만료된 캐시 정리 (10분마다) - 브라우저 환경에서만 실행
+if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+  setInterval(() => {
+    cacheManager.cleanup()
+  }, 10 * 60 * 1000)
+}
 
 /**
  * API 호출을 캐시로 래핑하는 헬퍼 함수

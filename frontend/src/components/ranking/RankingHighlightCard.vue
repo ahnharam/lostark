@@ -129,13 +129,6 @@ defineProps<{
   color: var(--text-muted, rgba(255, 255, 255, 0.6));
 }
 
-.skeleton-line {
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--panel-bg, rgba(255, 255, 255, 0.05)), var(--accent-soft-bg, rgba(255, 255, 255, 0.12)), var(--panel-bg, rgba(255, 255, 255, 0.05)));
-  background-size: 200% 100%;
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
 .skeleton-line.title {
   height: 18px;
   width: 40%;
@@ -156,14 +149,5 @@ defineProps<{
 
 .skeleton-line.small {
   height: 12px;
-}
-
-@keyframes pulse {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
 }
 </style>

@@ -40,7 +40,7 @@
                 <!-- 스킬 아이콘 및 이름 블록 -->
                 <div class="skill-card-icon-block">
                   <div class="skill-icon-wrapper" tabindex="0">
-                    <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
+                    <IconImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
                       imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                   </div>
                   <p class="skill-card-name">{{ skill.name }}</p>
@@ -75,7 +75,7 @@
                           <div class="skill-card-hero">
                             <div class="skill-card-icon-block">
                               <div class="skill-icon-wrapper" tabindex="0">
-                                <LazyImage v-if="pair.left.icon" :src="pair.left.icon" :alt="pair.left.name" width="40"
+                                <IconImage v-if="pair.left.icon" :src="pair.left.icon" :alt="pair.left.name" width="40"
                                   height="40" imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                               </div>
                               <p class="skill-card-name">{{ pair.left.name }}</p>
@@ -98,7 +98,7 @@
                             class="skill-tripod-rail" :class="{ 'skill-tripod-rail--compact': pair.left.isCompact }">
                             <div v-for="tripod in pair.left.tripods" :key="tripod.key" class="tripod-detail-inline">
                               <div class="tripod-inline-icon">
-                                <LazyImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="40"
+                                <IconImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="40"
                                   height="40" imageClass="tripod-image" errorIcon="🌀" :useProxy="true" />
                                 <!-- <span v-else class="tripod-tier-pill" :class="`tier-${tripod.tier ?? 'x'}`">
                                 T{{ tripod.tier ?? '?' }}
@@ -115,7 +115,7 @@
                             </div>
                             <div v-if="pair.left.rune" class="skill-rune skill-rune--inline">
                               <div class="skill-rune-icon">
-                                <LazyImage v-if="pair.left.rune.icon" :src="pair.left.rune.icon"
+                                <IconImage v-if="pair.left.rune.icon" :src="pair.left.rune.icon"
                                   :alt="pair.left.rune.name" width="32" height="32" imageClass="rune-image"
                                   errorIcon="💠" :useProxy="true" />
                               </div>
@@ -135,7 +135,7 @@
                             <div v-for="gem in pair.left.gemBadges" :key="`gem-${pair.left.key}-${gem.key}`"
                               class="skill-gem-item">
                               <div class="skill-gem-main">
-                                <LazyImage v-if="gem.icon" :src="gem.icon" :alt="gem.name" width="32" height="32"
+                                <IconImage v-if="gem.icon" :src="gem.icon" :alt="gem.name" width="32" height="32"
                                   imageClass="skill-gem-icon-img" errorIcon="💎" :useProxy="true" />
                                 <span v-else class="skill-gem-icon-fallback">💎</span>
                                 <div class="skill-gem-info">
@@ -168,7 +168,7 @@
                           <div class="skill-card-hero">
                             <div class="skill-card-icon-block">
                               <div class="skill-icon-wrapper" tabindex="0">
-                                <LazyImage v-if="pair.right.icon" :src="pair.right.icon" :alt="pair.right.name"
+                                <IconImage v-if="pair.right.icon" :src="pair.right.icon" :alt="pair.right.name"
                                   width="40" height="40" imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                               </div>
                               <p class="skill-card-name">{{ pair.right.name }}</p>
@@ -198,7 +198,7 @@
                       <div class="skill-card-hero">
                         <div class="skill-card-icon-block">
                           <div class="skill-icon-wrapper" tabindex="0">
-                            <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="50" height="50"
+                            <IconImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="50" height="50"
                               imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                           </div>
                           <p class="skill-card-name">{{ skill.name }}</p>
@@ -217,7 +217,7 @@
                       :class="{ 'skill-tripod-rail--compact': skill.isCompact }">
                       <div v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="tripod-detail-inline">
                         <div class="tripod-detail-icon">
-                          <LazyImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="36" height="36"
+                          <IconImage v-if="tripod.icon" :src="tripod.icon" :alt="tripod.name" width="36" height="36"
                             imageClass="tripod-image" errorIcon="🌀" :useProxy="true" />
                         </div>
                         <div class="tripod-detail-body">
@@ -236,7 +236,7 @@
                       </div>
                       <div v-if="skill.rune" class="skill-rune skill-rune--inline">
                         <div class="skill-rune-icon">
-                          <LazyImage v-if="skill.rune.icon" :src="skill.rune.icon" :alt="skill.rune.name" width="32"
+                          <IconImage v-if="skill.rune.icon" :src="skill.rune.icon" :alt="skill.rune.name" width="32"
                             height="32" imageClass="rune-image" errorIcon="💠" :useProxy="true" />
                         </div>
                         <p class="skill-rune-grade" :style="{ color: skill.rune.gradeColor || undefined }">
@@ -250,7 +250,7 @@
                       <div v-if="skill.gemBadges.length" class="skill-gem-row">
                         <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
                           <div class="skill-gem-main">
-                            <LazyImage v-if="gem.icon" :src="gem.icon" :alt="gem.name" width="32" height="32"
+                            <IconImage v-if="gem.icon" :src="gem.icon" :alt="gem.name" width="32" height="32"
                               imageClass="skill-gem-icon-img" errorIcon="💎" :useProxy="true" />
                             <span v-else class="skill-gem-icon-fallback">💎</span>
                             <div class="skill-gem-info">
@@ -279,7 +279,7 @@
                   <div class="skill-card-hero">
                     <div class="skill-card-icon-block">
                       <div class="skill-icon-wrapper" tabindex="0">
-                        <LazyImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
+                        <IconImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
                           imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                         <!-- 스킬 아이콘 호버 시 표시되는 툴팁 -->
                         <div
@@ -321,7 +321,7 @@ import { computed } from 'vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import EmptyState from './EmptyState.vue'
 import ErrorMessage from './ErrorMessage.vue'
-import LazyImage from './LazyImage.vue'
+import IconImage from './IconImage.vue'
 import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import type { CombatSkill, SkillMenuResponse } from '@/api/types'
 
@@ -721,6 +721,7 @@ const normalizeGemEffectLabel = (effectText?: string | null) => {
   const text = sanitizeInline(effectText)
   if (!text) return ''
   const lowered = text.toLowerCase()
+  if (/지원\s*효과/.test(lowered)) return '겁화'
   if (/쿨타임|재사용|대기시간/.test(lowered) && /%/.test(lowered)) return '작열'
   if (/(피해|대미지|데미지)/.test(lowered) && /%/.test(lowered)) return '겁화'
   return text
