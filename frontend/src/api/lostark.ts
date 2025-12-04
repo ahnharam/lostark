@@ -13,7 +13,10 @@ import type {
   SearchHistory,
   SkillMenuResponse,
   SiblingCharacter,
-  CardResponse
+  CardResponse,
+  PageResponse,
+  StoredMarketCategory,
+  StoredMarketItem
 } from './types'
 
 const CACHE_TTL = {
@@ -263,6 +266,27 @@ export const lostarkApi = {
       CACHE_TTL.SKILLS,
       options
     )
+  },
+
+  async getMarketCategories(): Promise<StoredMarketCategory[]> {
+    const response = await apiClient.get<StoredMarketCategory[]>('/markets/categories')
+    return response.data
+  },
+
+  async getStoredMarketItems(params: {
+    categoryCode?: number | null
+    page?: number
+    size?: number
+  }): Promise<PageResponse<StoredMarketItem>> {
+    const response = await apiClient.get<PageResponse<StoredMarketItem>>('/markets/items', {
+      params
+    })
+    const data = response.data
+    // Spring 페이지 번호는 0-based라 UI용으로 1-based로 보정
+    return {
+      ...data,
+      number: (data?.number ?? 0) + 1
+    }
   },
 
   addFavorite(characterName: string) {

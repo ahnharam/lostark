@@ -253,7 +253,25 @@
                       <h3>원정대 보유 캐릭터</h3>
                       <p class="section-subtitle">클릭하면 상세 정보가 열립니다.</p>
                     </div>
-                    <span class="count-pill">{{ (character ? 1 : 0) + siblings.length }}명</span>
+                    <div class="section-actions">
+                      <div class="expedition-sort">
+                        <label for="expedition-sort">캐릭터 정렬 기준</label>
+                        <select
+                          id="expedition-sort"
+                          v-model="expeditionSortKey"
+                          class="expedition-sort__select"
+                        >
+                          <option
+                            v-for="option in expeditionSortOptions"
+                            :key="option.value"
+                            :value="option.value"
+                          >
+                            {{ option.label }}
+                          </option>
+                        </select>
+                      </div>
+                      <span class="count-pill">{{ (character ? 1 : 0) + siblings.length }}명</span>
+                    </div>
                   </div>
                   <template v-if="expeditionGroups.length">
                     <div
@@ -383,6 +401,7 @@ interface TabPlaceholderCopy {
 }
 
 type CombatRole = 'dealer' | 'support'
+type ExpeditionSortKey = 'itemLevel' | 'characterLevel' | 'name' | 'class'
 
 const DEFAULT_RESULT_TAB: ResultTabKey = 'summary'
 const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
@@ -403,6 +422,13 @@ const tabPlaceholderCopy: Record<ResultTabKey, TabPlaceholderCopy | null> = {
   ranking: null,
   arkGrid: null
 }
+
+const expeditionSortOptions: Array<{ value: ExpeditionSortKey; label: string }> = [
+  { value: 'itemLevel', label: '아이템 레벨' },
+  { value: 'characterLevel', label: '캐릭터 레벨' },
+  { value: 'name', label: '이름' },
+  { value: 'class', label: '직업' }
+]
 
 const router = useRouter()
 const route = useRoute()
@@ -448,6 +474,7 @@ const {
 } = useCharacterSearchData()
 
 const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
+const expeditionSortKey = ref<ExpeditionSortKey>('itemLevel')
 const activePlaceholder = computed(() => tabPlaceholderCopy[activeResultTab.value])
 const searchPanelWrapperRef = ref<HTMLElement | null>(null)
 const searchPanelOpen = ref(false)
@@ -2221,9 +2248,33 @@ const expeditionGroups = computed(() => {
   }
   siblings.value.forEach(addToGroup)
 
+  const parseItemLevel = (value?: string) => {
+    if (!value) return -Infinity
+    const numeric = Number(String(value).replace(/[^\d.]/g, ''))
+    return Number.isFinite(numeric) ? numeric : -Infinity
+  }
+
+  const compareMembers = (a: SiblingCharacter, b: SiblingCharacter) => {
+    if (expeditionSortKey.value === 'itemLevel') {
+      const levelA = parseItemLevel(a.itemMaxLevel || a.itemAvgLevel)
+      const levelB = parseItemLevel(b.itemMaxLevel || b.itemAvgLevel)
+      if (levelA !== levelB) return levelB - levelA
+    }
+    if (expeditionSortKey.value === 'characterLevel') {
+      const levelA = a.characterLevel ?? 0
+      const levelB = b.characterLevel ?? 0
+      if (levelA !== levelB) return levelB - levelA
+    }
+    if (expeditionSortKey.value === 'class') {
+      const classCompare = (a.characterClassName || '').localeCompare(b.characterClassName || '')
+      if (classCompare !== 0) return classCompare
+    }
+    return (a.characterName || '').localeCompare(b.characterName || '')
+  }
+
   return Array.from(groups.entries()).map(([server, members]) => ({
     server,
-    members
+    members: members.slice().sort(compareMembers)
   }))
 })
 
@@ -4513,6 +4564,36 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.expedition-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.expedition-sort label {
+  font-size: calc(0.9rem - 2px);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.expedition-sort__select {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-weight: 600;
+  outline: none;
 }
 
 .section-header-bar h3 {

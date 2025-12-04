@@ -85,7 +85,7 @@ interface MainMenuItem {
 const menuItems: MainMenuItem[] = [
   { key: 'character-search', label: '캐릭터 검색', icon: '🧭', available: true, badge: '기본' },
   { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: 'NEW' },
-  { key: 'auction', label: '경매', icon: '💰', available: false, badge: '준비 중' },
+  { key: 'auction', label: '경매', icon: '💰', available: true, badge: 'DB' },
   { key: 'life', label: '생활', icon: '🌿', available: false, badge: '준비 중' }
 ]
 

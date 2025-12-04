@@ -1345,7 +1345,7 @@ const skillSections = computed<SkillSectionView[]>(() => {
     sections.push({
       key: 'awakening',
       title: '각성·초각성기',
-      subtitle: '각성기와 초각성기를 구분하여 확인하세요.',
+      subtitle: '',
       cards: awakeningPairCandidates.value,
       modifier: 'skill-section--awakening',
       rows: awakeningRows
@@ -1355,7 +1355,7 @@ const skillSections = computed<SkillSectionView[]>(() => {
     sections.push({
       key: 'combat',
       title: '전투 스킬 트리',
-      subtitle: '선택된 트라이포드, 룬, 보석 정보를 한눈에 살펴보세요.',
+      subtitle: '',
       cards: regularSkillCards.value,
       rows: [
         {

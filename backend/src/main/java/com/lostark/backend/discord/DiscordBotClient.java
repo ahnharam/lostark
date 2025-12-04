@@ -8,6 +8,9 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
@@ -32,9 +35,11 @@ public class DiscordBotClient {
     private JDA jda;
 
     private final DiscordButtonListener buttonListener;
+    private final SlashCommandListener slashCommandListener;
 
-    public DiscordBotClient(DiscordButtonListener buttonListener) {
+    public DiscordBotClient(DiscordButtonListener buttonListener, SlashCommandListener slashCommandListener) {
         this.buttonListener = buttonListener;
+        this.slashCommandListener = slashCommandListener;
     }
 
     @PostConstruct
@@ -46,14 +51,59 @@ public class DiscordBotClient {
 
         try {
             jda = JDABuilder.createDefault(botToken)
-                    .enableIntents(GatewayIntent.DIRECT_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
-                    .addEventListeners(buttonListener)
+                    .enableIntents(GatewayIntent.DIRECT_MESSAGES, GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGES)
+                    .addEventListeners(buttonListener, slashCommandListener)
                     .build()
                     .awaitReady();
+
+            // 슬래시 커맨드 등록
+            registerSlashCommands();
+
             log.info("Discord 봇이 성공적으로 시작되었습니다: {}", jda.getSelfUser().getName());
         } catch (Exception e) {
             log.error("Discord 봇 시작 실패", e);
         }
+    }
+
+    private void registerSlashCommands() {
+        jda.updateCommands().addCommands(
+                // /레이드 발리탄 수요일21시
+                Commands.slash("레이드", "레이드 일정을 생성합니다")
+                        .addOptions(
+                                new OptionData(OptionType.STRING, "레이드명", "레이드 이름 (예: 발리탄, 에기르)", true),
+                                new OptionData(OptionType.STRING, "일시", "요일과 시간 (예: 수요일 21시)", true),
+                                new OptionData(OptionType.STRING, "난이도", "노말/하드", false)
+                                        .addChoice("노말", "노말")
+                                        .addChoice("하드", "하드")
+                        ),
+
+                // /시세 파괴석
+                Commands.slash("시세", "거래소 시세를 조회합니다")
+                        .addOptions(
+                                new OptionData(OptionType.STRING, "아이템", "검색할 아이템 이름", true)
+                        ),
+
+                // /경매 9레벨보석
+                Commands.slash("경매", "경매장을 검색합니다")
+                        .addOptions(
+                                new OptionData(OptionType.STRING, "아이템", "검색할 아이템 이름", true)
+                        ),
+
+                // /캐릭터 닉네임
+                Commands.slash("캐릭터", "캐릭터 정보를 조회합니다")
+                        .addOptions(
+                                new OptionData(OptionType.STRING, "캐릭터명", "검색할 캐릭터 이름", true)
+                        ),
+
+                // /등록 - 유저 등록
+                Commands.slash("등록", "봇 사용을 위한 유저 등록")
+                        .addOptions(
+                                new OptionData(OptionType.STRING, "캐릭터명", "대표 캐릭터 이름", true)
+                        )
+        ).queue(
+                success -> log.info("슬래시 커맨드 등록 완료: {}개", success.size()),
+                error -> log.error("슬래시 커맨드 등록 실패", error)
+        );
     }
 
     @PreDestroy
@@ -150,8 +200,8 @@ public class DiscordBotClient {
 
                 EmbedBuilder embed = new EmbedBuilder()
                         .setTitle(emoji + " 레이드 응답 알림")
-                        .setColor(status.equals("ACCEPTED") ? Color.GREEN : 
-                                 status.equals("DECLINED") ? Color.RED : Color.YELLOW)
+                        .setColor(status.equals("ACCEPTED") ? Color.GREEN :
+                                status.equals("DECLINED") ? Color.RED : Color.YELLOW)
                         .addField("레이드", raidName, true)
                         .addField("참가자", participantName, true)
                         .addField("응답", statusText, true);

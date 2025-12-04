@@ -43,3 +43,33 @@ export interface MarketItemDetail {
   ToolTip?: string
   Stats?: MarketItemStatEntry[]
 }
+
+export interface StoredMarketCategory {
+  id: number
+  code: number
+  codeName: string
+  parentCode?: number | null
+  hasSubs: boolean
+  depth?: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface StoredMarketItem {
+  id: number
+  apiItemId: number
+  categoryCode?: number | null
+  pageNo?: number | null
+  name: string
+  grade?: string
+  icon?: string
+  bundleCount?: number
+  tradeRemainCount?: number | null
+  yDayAvgPrice?: number | null
+  recentPrice?: number | null
+  currentMinPrice?: number | null
+  raw?: string | null
+  fetchedAt?: string
+  createdAt?: string
+  updatedAt?: string
+}

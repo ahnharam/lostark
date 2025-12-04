@@ -28,10 +28,10 @@ server:
 # Discord Bot
 discord:
   bot:
-    token: ${DISCORD_BOT_TOKEN:}
+    token: ${DISCORD_BOT_TOKEN}
 
 # Kakao OAuth2 (선택)
 kakao:
   client:
-    id: ${KAKAO_CLIENT_ID:}
-    secret: ${KAKAO_CLIENT_SECRET:}
+    id: ${KAKAO_CLIENT_ID}
+    secret: ${KAKAO_CLIENT_SECRET}

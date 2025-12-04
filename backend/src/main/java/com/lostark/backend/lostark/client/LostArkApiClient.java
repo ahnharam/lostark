@@ -9,6 +9,9 @@ import com.lostark.backend.dto.GemsResponseDto;
 import com.lostark.backend.dto.LeaderboardEntryDto;
 import com.lostark.backend.dto.SkillGemDto;
 import com.lostark.backend.dto.SiblingCharacterDto;
+import com.lostark.backend.dto.market.MarketItemsRequest;
+import com.lostark.backend.dto.market.MarketItemsResponse;
+import com.lostark.backend.dto.market.MarketOptionsResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -116,5 +119,20 @@ public class LostArkApiClient {
                 .retrieve()
                 .bodyToFlux(com.lostark.backend.dto.EquipmentDto.class)
                 .collectList();
+    }
+
+    public Mono<MarketOptionsResponse> getMarketOptions() {
+        return webClient.get()
+                .uri("/markets/options")
+                .retrieve()
+                .bodyToMono(MarketOptionsResponse.class);
+    }
+
+    public Mono<MarketItemsResponse> getMarketItems(MarketItemsRequest request) {
+        return webClient.post()
+                .uri("/markets/items")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(MarketItemsResponse.class);
     }
 }
