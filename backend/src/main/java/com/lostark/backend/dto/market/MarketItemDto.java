@@ -2,6 +2,7 @@ package com.lostark.backend.dto.market;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
@@ -26,12 +27,15 @@ public class MarketItemDto {
     @JsonAlias("TradeRemainCount")
     private Integer tradeRemainCount;
 
-    @JsonAlias("YDayAvgPrice")
+    @JsonProperty("yDayAvgPrice")
+    @JsonAlias({ "YDayAvgPrice", "yDayAvgPrice", "ydayAvgPrice", "y_day_avg_price", "YDAY_AVG_PRICE" })
     private Double yDayAvgPrice;
 
-    @JsonAlias("RecentPrice")
+    @JsonProperty("recentPrice")
+    @JsonAlias({ "RecentPrice", "recentPrice", "recent_price" })
     private Double recentPrice;
 
-    @JsonAlias("CurrentMinPrice")
+    @JsonProperty("currentMinPrice")
+    @JsonAlias({ "CurrentMinPrice", "currentMinPrice", "current_min_price" })
     private Double currentMinPrice;
 }

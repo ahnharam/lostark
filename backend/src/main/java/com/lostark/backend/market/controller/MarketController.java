@@ -1,15 +1,19 @@
 package com.lostark.backend.market.controller;
 
-import com.lostark.backend.dto.market.MarketSyncResultDto;
+import com.lostark.backend.dto.market.MarketItemDetailDto;
+import com.lostark.backend.dto.market.MarketItemDto;
+import com.lostark.backend.dto.market.MarketItemRefreshRequest;
+import com.lostark.backend.dto.market.MarketOptionsResponse;
+import com.lostark.backend.dto.market.MarketSearchResponse;
 import com.lostark.backend.market.entity.MarketCategory;
-import com.lostark.backend.market.entity.MarketItem;
 import com.lostark.backend.market.service.MarketSyncService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,20 +25,14 @@ public class MarketController {
 
     private final MarketSyncService marketSyncService;
 
+    @GetMapping("/options")
+    public ResponseEntity<MarketOptionsResponse> getOptions() {
+        return ResponseEntity.ok(marketSyncService.getOptions());
+    }
+    
     @PostMapping("/options/sync")
     public ResponseEntity<List<MarketCategory>> syncCategories() {
         return ResponseEntity.ok(marketSyncService.syncCategories());
-    }
-
-    @PostMapping("/items/sync")
-    public ResponseEntity<MarketSyncResultDto> syncItems(
-            @RequestParam(defaultValue = "true") boolean leafOnly,
-            @RequestParam(defaultValue = "5") int maxPagesPerCategory,
-            @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(defaultValue = "true") boolean clearExisting
-    ) {
-        MarketSyncResultDto result = marketSyncService.syncItems(leafOnly, maxPagesPerCategory, pageSize, clearExisting);
-        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/categories")
@@ -43,11 +41,45 @@ public class MarketController {
     }
 
     @GetMapping("/items")
-    public ResponseEntity<Page<MarketItem>> getItems(
-            @RequestParam(required = false) Integer categoryCode,
+    public ResponseEntity<MarketSearchResponse> searchItems(
+            @RequestParam Integer categoryCode,
+            @RequestParam(required = false) String characterClass,
+            @RequestParam(required = false) Integer itemTier,
+            @RequestParam(required = false) String itemGrade,
+            @RequestParam(defaultValue = "RECENT_PRICE") String sort,
+            @RequestParam(defaultValue = "ASC") String sortCondition,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "3") int prefetchRange
     ) {
-        return ResponseEntity.ok(marketSyncService.getItems(categoryCode, page, size));
+        MarketSearchResponse response = marketSyncService.searchMarketItems(
+                categoryCode,
+                characterClass,
+                itemTier,
+                itemGrade,
+                sort,
+                sortCondition,
+                page,
+                size,
+                prefetchRange
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/items/{apiItemId}/refresh")
+    public ResponseEntity<MarketItemDto> refreshItem(
+            @PathVariable Long apiItemId,
+            @RequestBody(required = false) MarketItemRefreshRequest request
+    ) {
+        return ResponseEntity.ok(marketSyncService.refreshSingleItem(apiItemId, request));
+    }
+
+    @GetMapping("/items/{apiItemId}/detail")
+    public ResponseEntity<MarketItemDetailDto> getItemDetail(@PathVariable Long apiItemId) {
+        MarketItemDetailDto detail = marketSyncService.getItemDetail(apiItemId);
+        if (detail == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(detail);
     }
 }

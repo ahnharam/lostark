@@ -3,26 +3,29 @@ package com.lostark.backend.market.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lostark.backend.dto.market.MarketCategoryDto;
+import com.lostark.backend.dto.market.MarketItemDetailDto;
 import com.lostark.backend.dto.market.MarketItemDto;
+import com.lostark.backend.dto.market.MarketItemRefreshRequest;
 import com.lostark.backend.dto.market.MarketItemsRequest;
 import com.lostark.backend.dto.market.MarketItemsResponse;
 import com.lostark.backend.dto.market.MarketOptionsResponse;
+import com.lostark.backend.dto.market.MarketSearchResponse;
 import com.lostark.backend.dto.market.MarketSyncResultDto;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.lostark.client.LostArkApiClient;
 import com.lostark.backend.market.entity.MarketCategory;
-import com.lostark.backend.market.entity.MarketItem;
+import com.lostark.backend.market.entity.MarketOptionMeta;
 import com.lostark.backend.market.repository.MarketCategoryRepository;
-import com.lostark.backend.market.repository.MarketItemRepository;
-import java.time.LocalDateTime;
+import com.lostark.backend.market.repository.MarketOptionMetaRepository;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -35,12 +38,16 @@ public class MarketSyncService {
 
     private final LostArkApiClient lostArkApiClient;
     private final MarketCategoryRepository marketCategoryRepository;
-    private final MarketItemRepository marketItemRepository;
+    private final MarketOptionMetaRepository marketOptionMetaRepository;
     private final ObjectMapper objectMapper;
     private static final int MAX_RETRY = 5;
     private static final long BASE_BACKOFF_MS = 1500L;
     private static final long MAX_BACKOFF_MS = 8000L;
     private static final long CALL_DELAY_MS = 150L;
+    private static final long ITEM_REFRESH_COOLDOWN_MS = 5 * 1000L;
+
+    private final Map<Integer, Long> categoryFetchTimestamps = new ConcurrentHashMap<>();
+    private final Map<Long, Long> itemRefreshLocks = new ConcurrentHashMap<>();
 
     @Transactional
     public List<MarketCategory> syncCategories() {
@@ -49,6 +56,7 @@ public class MarketSyncService {
                 .orElseThrow(() -> new ApiException("거래소 카테고리를 불러오지 못했습니다."));
 
         marketCategoryRepository.deleteAllInBatch();
+        marketOptionMetaRepository.deleteAllInBatch();
 
         List<MarketCategory> flattened = new ArrayList<>();
         if (!CollectionUtils.isEmpty(options.getCategories())) {
@@ -57,82 +65,114 @@ public class MarketSyncService {
             }
         }
 
-        return marketCategoryRepository.saveAll(flattened);
+        marketCategoryRepository.saveAll(flattened);
+        saveOptionMeta(options);
+        return marketCategoryRepository.findAll();
+    }
+
+    public MarketOptionsResponse getOptions() {
+        // 우선 DB에 저장된 옵션을 반환하고, 없을 경우 API를 호출하여 저장한 뒤 반환
+        return marketOptionMetaRepository.findAll().stream().findFirst()
+                .map(this::toOptionsResponse)
+                .orElseGet(() -> {
+                    MarketOptionsResponse fresh = lostArkApiClient.getMarketOptions()
+                            .blockOptional()
+                            .orElseThrow(() -> new ApiException("거래소 옵션을 불러오지 못했습니다."));
+                    saveOptionMeta(fresh);
+                    return fresh;
+                });
     }
 
     @Transactional
     public MarketSyncResultDto syncItems(boolean leafOnly, int maxPagesPerCategory, int pageSize, boolean clearExisting) {
-        List<MarketCategory> categories = leafOnly
-                ? marketCategoryRepository.findByHasSubsFalse()
-                : marketCategoryRepository.findAll();
-
-        if (clearExisting) {
-            marketItemRepository.deleteAllInBatch();
-        }
-
-        long totalSaved = 0;
-        int pagesFetched = 0;
-
-        for (MarketCategory category : categories) {
-            int pageNo = 1;
-            while (pageNo <= maxPagesPerCategory) {
-                MarketItemsRequest request = MarketItemsRequest.builder()
-                        .sort("RECENT_PRICE")
-                        .categoryCode(category.getCode())
-                        .itemTier(null)
-                        .itemGrade(null)
-                        .itemName(null)
-                        .pageNo(pageNo)
-                        .pageSize(pageSize)
-                        .sortCondition("ASC")
-                        .build();
-
-                MarketItemsResponse response;
-                try {
-                    response = fetchMarketItemsWithRetry(request, category.getCode(), pageNo);
-                } catch (Exception e) {
-                    log.error("거래소 아이템 조회 실패 - categoryCode={}, page={}", category.getCode(), pageNo, e);
-                    break;
-                }
-
-                if (response == null || CollectionUtils.isEmpty(response.getItems())) {
-                    break;
-                }
-
-                pagesFetched++;
-                List<MarketItem> toSave = mapItems(response.getItems(), category.getCode(), response.getPageNo());
-                marketItemRepository.saveAll(toSave);
-                totalSaved += toSave.size();
-
-                int totalCount = response.getTotalCount() != null ? response.getTotalCount() : 0;
-                int lastPage = pageSize > 0 ? (int) Math.ceil((double) totalCount / pageSize) : pageNo;
-                if (pageNo >= lastPage || pageNo >= maxPagesPerCategory) {
-                    break;
-                }
-                pageNo++;
-                sleep(CALL_DELAY_MS); // 연속 호출 완화
-            }
-        }
-
-        return MarketSyncResultDto.builder()
-                .categoriesProcessed(categories.size())
-                .itemsSaved(totalSaved)
-                .pagesFetched(pagesFetched)
-                .build();
+        throw new ApiException("전체 리스트 일괄 수집은 비활성화되었습니다.");
     }
 
     public List<MarketCategory> getCategories() {
         return marketCategoryRepository.findAll();
     }
 
-    public Page<MarketItem> getItems(Integer categoryCode, int page, int size) {
-        int pageIndex = Math.max(page - 1, 0);
-        int pageSize = Math.max(size, 1);
-        Pageable pageable = PageRequest.of(pageIndex, pageSize);
+    /**
+     * 카테고리/정렬/직업/페이지 조건에 맞춰 필요한 페이지만 불러오고,
+     * 앞뒤로 prefetchRange만큼 추가 페이지를 같이 가져온다.
+     */
+    public MarketSearchResponse searchMarketItems(Integer categoryCode,
+                                                  String characterClass,
+                                                  Integer itemTier,
+                                                  String itemGrade,
+                                                  String sort,
+                                                  String sortCondition,
+                                                  int page,
+                                                  int size,
+                                                  int prefetchRange) {
         if (categoryCode == null) {
-            return marketItemRepository.findAll(pageable);
+            throw new ApiException("categoryCode가 필요합니다.");
         }
-        return marketItemRepository.findByCategoryCode(categoryCode, pageable);
+
+        int pageNo = Math.max(page, 1);
+        int pageSize = Math.max(size, 1);
+        int range = Math.max(prefetchRange, 0);
+
+        MarketItemsRequest baseRequest = MarketItemsRequest.builder()
+                .sort(sort != null ? sort : "RECENT_PRICE")
+                .sortCondition(sortCondition != null ? sortCondition : "ASC")
+                .categoryCode(categoryCode)
+                .characterClass(characterClass)
+                .itemTier(itemTier)
+                .itemGrade(itemGrade)
+                .build();
+
+        PageBundle firstBundle = fetchPageBundle(baseRequest, categoryCode, pageNo, pageSize);
+        if (firstBundle.items().isEmpty()) {
+            return MarketSearchResponse.builder()
+                    .categoryCode(categoryCode)
+                    .characterClass(characterClass)
+                    .sort(baseRequest.getSort())
+                    .sortCondition(baseRequest.getSortCondition())
+                    .itemTier(itemTier)
+                    .itemGrade(itemGrade)
+                    .page(pageNo)
+                    .pageSize(pageSize)
+                    .totalCount(firstBundle.totalCount())
+                    .totalPages(0)
+                    .pages(Collections.emptyMap())
+                    .fetchedAt(System.currentTimeMillis())
+                    .build();
+        }
+
+        int totalCount = firstBundle.totalCount() != null ? firstBundle.totalCount() : firstBundle.items().size();
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) totalCount / pageSize) : pageNo;
+
+        Map<Integer, List<MarketItemDto>> pages = new HashMap<>();
+        pages.put(pageNo, firstBundle.items());
+
+        int start = Math.max(1, pageNo - range);
+        int end = Math.min(totalPages, pageNo + range);
+
+        for (int p = start; p <= end; p++) {
+            if (p == pageNo) continue;
+            PageBundle bundle = fetchPageBundle(baseRequest, categoryCode, p, pageSize);
+            if (!CollectionUtils.isEmpty(bundle.items())) {
+                pages.put(p, bundle.items());
+            }
+        }
+
+        categoryFetchTimestamps.put(categoryCode, System.currentTimeMillis());
+
+        return MarketSearchResponse.builder()
+                .categoryCode(categoryCode)
+                .characterClass(characterClass)
+                    .sort(baseRequest.getSort())
+                    .sortCondition(baseRequest.getSortCondition())
+                    .itemTier(itemTier)
+                    .itemGrade(itemGrade)
+                    .page(pageNo)
+                    .pageSize(pageSize)
+                    .totalCount(totalCount)
+                    .totalPages(totalPages)
+                    .pages(pages)
+                .fetchedAt(System.currentTimeMillis())
+                .build();
     }
 
     private void collectCategory(MarketCategoryDto dto, Integer parentCode, int depth, List<MarketCategory> out) {
@@ -149,6 +189,60 @@ public class MarketSyncService {
                 collectCategory(sub, dto.getCode(), depth + 1, out);
             }
         }
+    }
+
+    private PageBundle fetchPageBundle(MarketItemsRequest baseRequest, Integer categoryCode, int uiPage, int uiPageSize) {
+        int desiredSize = Math.max(uiPageSize, 1);
+        int apiPageSize = Math.min(desiredSize, 10); // LostArk API 최대 사이즈 가정
+        int startIndex = (uiPage - 1) * desiredSize;
+        int startApiPage = (startIndex / apiPageSize) + 1;
+        int skip = startIndex % apiPageSize;
+
+        List<MarketItemDto> combined = new ArrayList<>();
+        Integer totalCount = null;
+
+        int currentApiPage = startApiPage;
+        while (combined.size() < desiredSize) {
+            MarketItemsRequest req = MarketItemsRequest.builder()
+                    .sort(baseRequest.getSort())
+                    .sortCondition(baseRequest.getSortCondition())
+                    .categoryCode(baseRequest.getCategoryCode())
+                    .characterClass(baseRequest.getCharacterClass())
+                    .itemTier(baseRequest.getItemTier())
+                    .itemGrade(baseRequest.getItemGrade())
+                    .itemName(baseRequest.getItemName())
+                    .pageNo(currentApiPage)
+                    .pageSize(apiPageSize)
+                    .build();
+
+            MarketItemsResponse resp = fetchMarketItemsWithRetry(req, categoryCode, currentApiPage);
+            if (resp == null || CollectionUtils.isEmpty(resp.getItems())) {
+                break;
+            }
+            // debug: ensure API returns previous-day average price
+            if (log.isDebugEnabled() && !CollectionUtils.isEmpty(resp.getItems())) {
+                MarketItemDto sample = resp.getItems().get(0);
+                log.debug("[MarketSync] page {} sample item {} yDayAvgPrice={}", currentApiPage, sample.getName(), sample.getYDayAvgPrice());
+            }
+            if (totalCount == null && resp.getTotalCount() != null) {
+                totalCount = resp.getTotalCount();
+            }
+
+            List<MarketItemDto> items = resp.getItems();
+            if (currentApiPage == startApiPage && skip > 0 && items.size() > skip) {
+                items = items.subList(skip, items.size());
+            }
+            combined.addAll(items);
+            if (items.size() < apiPageSize) {
+                break;
+            }
+            currentApiPage++;
+        }
+
+        if (totalCount == null) {
+            totalCount = combined.size();
+        }
+        return new PageBundle(combined, totalCount);
     }
 
     private MarketItemsResponse fetchMarketItemsWithRetry(MarketItemsRequest request, Integer categoryCode, int pageNo) {
@@ -169,6 +263,36 @@ public class MarketSyncService {
             }
         }
         return null;
+    }
+
+    private void saveOptionMeta(MarketOptionsResponse options) {
+        MarketOptionMeta meta = new MarketOptionMeta();
+        try {
+            meta.setItemGradesJson(objectMapper.writeValueAsString(options.getItemGrades()));
+            meta.setItemTiersJson(objectMapper.writeValueAsString(options.getItemTiers()));
+            meta.setClassesJson(objectMapper.writeValueAsString(options.getClasses()));
+        } catch (JsonProcessingException e) {
+            throw new ApiException("거래소 옵션을 저장하는 중 오류가 발생했습니다.", e);
+        }
+        marketOptionMetaRepository.save(meta);
+    }
+
+    private MarketOptionsResponse toOptionsResponse(MarketOptionMeta meta) {
+        try {
+            MarketOptionsResponse response = new MarketOptionsResponse();
+            if (meta.getItemGradesJson() != null) {
+                response.setItemGrades(objectMapper.readValue(meta.getItemGradesJson(), objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)));
+            }
+            if (meta.getItemTiersJson() != null) {
+                response.setItemTiers(objectMapper.readValue(meta.getItemTiersJson(), objectMapper.getTypeFactory().constructCollectionType(List.class, Integer.class)));
+            }
+            if (meta.getClassesJson() != null) {
+                response.setClasses(objectMapper.readValue(meta.getClassesJson(), objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)));
+            }
+            return response;
+        } catch (Exception e) {
+            throw new ApiException("저장된 거래소 옵션을 읽는 중 오류가 발생했습니다.", e);
+        }
     }
 
     private long resolveRetryAfterMs(WebClientResponseException e, long fallbackMs) {
@@ -193,33 +317,57 @@ public class MarketSyncService {
         }
     }
 
-    private List<MarketItem> mapItems(List<MarketItemDto> items, Integer categoryCode, Integer pageNo) {
-        if (CollectionUtils.isEmpty(items)) {
-            return Collections.emptyList();
+    public MarketItemDto refreshSingleItem(Long apiItemId, MarketItemRefreshRequest request) {
+        if (apiItemId == null) {
+            throw new ApiException("apiItemId가 필요합니다.");
         }
-        List<MarketItem> result = new ArrayList<>();
-        for (MarketItemDto dto : items) {
-            MarketItem entity = new MarketItem();
-            entity.setApiItemId(dto.getId());
-            entity.setCategoryCode(categoryCode);
-            entity.setPageNo(pageNo);
-            entity.setName(dto.getName());
-            entity.setGrade(dto.getGrade());
-            entity.setIcon(dto.getIcon());
-            entity.setBundleCount(dto.getBundleCount());
-            entity.setTradeRemainCount(dto.getTradeRemainCount());
-            entity.setYDayAvgPrice(dto.getYDayAvgPrice());
-            entity.setRecentPrice(dto.getRecentPrice());
-            entity.setCurrentMinPrice(dto.getCurrentMinPrice());
-            entity.setFetchedAt(LocalDateTime.now());
-            try {
-                entity.setRaw(objectMapper.writeValueAsString(dto));
-            } catch (JsonProcessingException e) {
-                log.warn("거래소 아이템 JSON 직렬화 실패: {}", dto.getName(), e);
-                entity.setRaw("{}");
-            }
-            result.add(entity);
+        if (request == null || request.getCategoryCode() == null) {
+            throw new ApiException("categoryCode가 필요합니다.");
         }
-        return result;
+        long now = System.currentTimeMillis();
+        Long last = itemRefreshLocks.get(apiItemId);
+        if (last != null && now - last < ITEM_REFRESH_COOLDOWN_MS) {
+            throw new ApiException("아이템 요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.");
+        }
+        itemRefreshLocks.put(apiItemId, now);
+
+        MarketItemsRequest apiRequest = MarketItemsRequest.builder()
+                .sort(request.getSort() != null ? request.getSort() : "RECENT_PRICE")
+                .sortCondition(request.getSortCondition() != null ? request.getSortCondition() : "ASC")
+                .categoryCode(request.getCategoryCode())
+                .characterClass(request.getCharacterClass())
+                .itemName(request.getItemName())
+                .itemTier(request.getItemTier())
+                .itemGrade(request.getItemGrade())
+                .pageNo(1)
+                .pageSize(request.getPageSize() != null ? request.getPageSize() : 10)
+                .build();
+
+        MarketItemsResponse response = fetchMarketItemsWithRetry(apiRequest, request.getCategoryCode(), 1);
+        if (response == null || CollectionUtils.isEmpty(response.getItems())) {
+            throw new ApiException("아이템을 갱신하지 못했습니다.");
+        }
+
+        return response.getItems().stream()
+                .filter(dto -> apiItemId.equals(dto.getId()))
+                .findFirst()
+                .orElse(response.getItems().get(0));
     }
+
+    public MarketItemDetailDto getItemDetail(Long apiItemId) {
+        try {
+            List<MarketItemDetailDto> list = lostArkApiClient.getMarketItemDetail(apiItemId)
+                    .blockOptional()
+                    .orElse(Collections.emptyList());
+            if (CollectionUtils.isEmpty(list)) {
+                return null;
+            }
+            return list.get(0);
+        } catch (Exception e) {
+            log.error("거래소 아이템 상세 조회 실패 - itemId={}", apiItemId, e);
+            return null;
+        }
+    }
+
+    private record PageBundle(List<MarketItemDto> items, Integer totalCount) {}
 }

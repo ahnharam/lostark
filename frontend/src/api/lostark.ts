@@ -16,7 +16,11 @@ import type {
   CardResponse,
   PageResponse,
   StoredMarketCategory,
-  StoredMarketItem
+  StoredMarketItem,
+  MarketOptionsResponse,
+  MarketSearchResponse,
+  MarketItemSummary,
+  MarketItemDetail
 } from './types'
 
 const CACHE_TTL = {
@@ -273,20 +277,45 @@ export const lostarkApi = {
     return response.data
   },
 
-  async getStoredMarketItems(params: {
-    categoryCode?: number | null
+  async getMarketOptions(): Promise<MarketOptionsResponse> {
+    const response = await apiClient.get<MarketOptionsResponse>('/markets/options')
+    return response.data
+  },
+
+  async searchMarketItems(params: {
+    categoryCode: number
+    characterClass?: string
+    itemTier?: number
+    itemGrade?: string
+    sort?: string
+    sortCondition?: string
     page?: number
     size?: number
-  }): Promise<PageResponse<StoredMarketItem>> {
-    const response = await apiClient.get<PageResponse<StoredMarketItem>>('/markets/items', {
+    prefetchRange?: number
+  }): Promise<MarketSearchResponse> {
+    const response = await apiClient.get<MarketSearchResponse>('/markets/items', {
       params
     })
-    const data = response.data
-    // Spring 페이지 번호는 0-based라 UI용으로 1-based로 보정
-    return {
-      ...data,
-      number: (data?.number ?? 0) + 1
-    }
+    return response.data
+  },
+
+  async refreshMarketItem(apiItemId: number, body: {
+    categoryCode: number
+    itemName?: string
+    characterClass?: string
+    itemTier?: number
+    itemGrade?: string
+    sort?: string
+    sortCondition?: string
+    pageSize?: number
+  }): Promise<MarketItemSummary> {
+    const response = await apiClient.post<MarketItemSummary>(`/markets/items/${apiItemId}/refresh`, body)
+    return response.data
+  },
+
+  async getMarketItemDetail(apiItemId: number): Promise<MarketItemDetail> {
+    const response = await apiClient.get<MarketItemDetail>(`/markets/items/${apiItemId}/detail`)
+    return response.data
   },
 
   addFavorite(characterName: string) {

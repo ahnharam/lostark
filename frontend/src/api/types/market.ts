@@ -12,15 +12,15 @@ export interface MarketOptionsResponse {
 }
 
 export interface MarketItemSummary {
-  Id: number
-  Name: string
-  Grade?: string
-  Icon?: string
-  BundleCount?: number
-  TradeRemainCount?: number | null
-  YDayAvgPrice?: number
-  RecentPrice?: number
-  CurrentMinPrice?: number
+  id: number
+  name: string
+  grade?: string
+  icon?: string
+  bundleCount?: number
+  tradeRemainCount?: number | null
+  yDayAvgPrice?: number
+  recentPrice?: number
+  currentMinPrice?: number
 }
 
 export interface MarketItemsResponse {
@@ -37,11 +37,26 @@ export interface MarketItemStatEntry {
 }
 
 export interface MarketItemDetail {
-  Name: string
-  BundleCount?: number
-  TradeRemainCount?: number | null
-  ToolTip?: string
-  Stats?: MarketItemStatEntry[]
+  name: string
+  bundleCount?: number
+  tradeRemainCount?: number | null
+  toolTip?: string
+  stats?: MarketItemStatEntry[]
+}
+
+export interface MarketSearchResponse {
+  categoryCode?: number
+  characterClass?: string
+  itemTier?: number
+  itemGrade?: string
+  sort?: string
+  sortCondition?: string
+  page?: number
+  pageSize?: number
+  totalCount?: number
+  totalPages?: number
+  pages?: Record<number, MarketItemSummary[]>
+  fetchedAt?: number
 }
 
 export interface StoredMarketCategory {

@@ -12,6 +12,7 @@ import com.lostark.backend.dto.SiblingCharacterDto;
 import com.lostark.backend.dto.market.MarketItemsRequest;
 import com.lostark.backend.dto.market.MarketItemsResponse;
 import com.lostark.backend.dto.market.MarketOptionsResponse;
+import com.lostark.backend.dto.market.MarketItemDetailDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -134,5 +135,13 @@ public class LostArkApiClient {
                 .bodyValue(request)
                 .retrieve()
                 .bodyToMono(MarketItemsResponse.class);
+    }
+
+    public Mono<java.util.List<MarketItemDetailDto>> getMarketItemDetail(long itemId) {
+        return webClient.get()
+                .uri("/markets/items/{itemId}", itemId)
+                .retrieve()
+                .bodyToFlux(MarketItemDetailDto.class)
+                .collectList();
     }
 }
