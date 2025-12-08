@@ -31,7 +31,7 @@
           <select v-model="selectedCategory" class="input" :disabled="loadingCategories">
             <option :value="null">전체 보기</option>
             <option v-for="cat in leafCategories" :key="cat.code" :value="cat.code">
-              {{ cat.code }} · {{ cat.codeName }}
+              {{ cat.codeName }}
             </option>
           </select>
         </label>
@@ -1253,7 +1253,7 @@ onMounted(async () => {
   display: inline-flex;
   justify-content: flex-end;
   padding: 4px 8px;
-  background: var(--bg-secondary, #f3f4f6);
+  /* background: var(--bg-secondary, #f3f4f6); */
   border-radius: 10px;
   color: var(--text-secondary, #4b5563);
   font-size: 0.9rem;
