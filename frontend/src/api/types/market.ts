@@ -33,6 +33,7 @@ export interface MarketItemsResponse {
 export interface MarketItemStatEntry {
   AvgPrice?: number
   TradeCount?: number
+  TradeVolume?: number
   Date?: string
 }
 

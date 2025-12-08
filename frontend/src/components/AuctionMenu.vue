@@ -188,14 +188,12 @@
 
     <transition name="fade">
       <div v-if="detailOpen" class="modal-backdrop" @click="closeDetail">
-        <div class="modal" @click.stop>
+        <div class="modal" ref="modalRef" @click.stop>
           <div class="modal-header">
-            <div>
-              <p class="eyebrow">아이템 상세</p>
-              <h3>{{ selectedItem?.name || '선택된 아이템 없음' }}</h3>
-              <p class="muted">{{ selectedItem?.grade }}</p>
+            <div class="modal-maintitle">
+              <h3 class="eyebrow">아이템 상세</h3>
+              <button type="button" class="btn ghost" @click="closeDetail">닫기</button>
             </div>
-            <button type="button" class="btn ghost" @click="closeDetail">닫기</button>
           </div>
 
           <div v-if="detailLoading">
@@ -205,174 +203,211 @@
             <p class="error-text">{{ detailError }}</p>
           </div>
           <div v-else>
-            <div class="detail-prices">
-              <div class="detail-card">
-                <span class="label">현재 최저가</span>
-                <strong>{{ formatGold(selectedItem?.currentMinPrice) }}</strong>
-              </div>
-              <div class="detail-card">
-                <span class="label">최근 거래가</span>
-                <strong>{{ formatGold(selectedItem?.recentPrice) }}</strong>
-              </div>
-              <div class="detail-card">
-                <span class="label">전일 평균</span>
-                <strong>{{ formatGold(selectedYDayAvgPrice) }}</strong>
-              </div>
-              <div class="detail-card">
-                <span class="label">묶음/거래 가능</span>
-                <strong>
-                  {{ selectedItem?.bundleCount ?? '-' }}
-                  <span v-if="selectedItem?.tradeRemainCount !== undefined && selectedItem?.tradeRemainCount !== null">
-                    / {{ selectedItem?.tradeRemainCount }}
+            <div class="detail-layout">
+              <div class="detail-side">
+                <div class="detail-thumb">
+                  <LazyImage
+                    v-if="selectedItem?.icon"
+                    :src="selectedItem.icon"
+                    :alt="selectedItem.name"
+                    :width="75"
+                    :height="75"
+                    :show-skeleton="false"
+                  />
+                  <div v-else class="thumb large" :data-grade="selectedItem?.grade">
+                    <span>{{ gradeInitial(selectedItem?.grade) }}</span>
+                  </div>
+                  <div class="modal-subtitle">
+                    <h4>{{ selectedItem?.name || '선택된 아이템 없음' }}</h4>
+                    <p class="muted">{{ selectedItem?.grade }}</p>
+                  </div>
+                </div>
+                <div class="detail-grid">
+                  <div class="detail-grid__item">
+                    <span class="label">현재 최저가</span>
+                    <strong>{{ formatGold(selectedItem?.currentMinPrice) }}</strong>
+                  </div>
+                  <div class="detail-grid__item">
+                    <span class="label">최근 거래가</span>
+                    <strong>{{ formatGold(selectedItem?.recentPrice) }}</strong>
+                  </div>
+                  <div class="detail-grid__item">
+                    <span class="label">전일 평균</span>
+                    <strong>{{ formatGold(selectedYDayAvgPrice) }}</strong>
+                  </div>
+                  <div class="detail-grid__item">
+                    <span class="label">묶음 수량</span>
+                    <strong>
+                      {{ selectedItem?.bundleCount ?? '-' }}
+                      <span
+                        v-if="selectedItem?.tradeRemainCount !== undefined && selectedItem?.tradeRemainCount !== null"
+                      >
+                        / {{ selectedItem?.tradeRemainCount }}
+                      </span>
+                    </strong>
+                  </div>
+                </div>
+                <div class="axis-dates">
+                  <span class="axis-date-line">
+                    {{ (sparkline.volume.firstDate || sparkline.price.firstDate) || '' }}
                   </span>
-                </strong>
+                  <span>
+                    /
+                  </span>
+                  <span class="axis-date-line">
+                    {{ (sparkline.volume.lastDate || sparkline.price.lastDate) || '' }}
+                  </span>
+                </div>
               </div>
-            </div>
-
-            <div v-if="detailStats.length" class="detail-stats">
-              <div class="detail-stats__header">
-                <p class="eyebrow">거래 추이 (거래 건수)</p>
-                <span class="muted">{{ detailStats.length }}일 기준</span>
-              </div>
-              <div class="sparkline-wrapper">
-                <svg
-                  class="sparkline"
-                  viewBox="0 0 360 120"
-                  role="img"
-                  aria-label="거래 추이 그래프 (거래 건수)"
-                  ref="countChartRef"
-                >
-                  <line
-                    class="axis-line"
-                    :x1="sparkline.pad"
-                    :y1="sparkline.height - sparkline.pad"
-                    :x2="sparkline.width - sparkline.pad"
-                    :y2="sparkline.height - sparkline.pad"
-                  />
-                  <line
-                    class="axis-line"
-                    :x1="sparkline.pad"
-                    :y1="sparkline.pad"
-                    :x2="sparkline.pad"
-                    :y2="sparkline.height - sparkline.pad"
-                  />
-                  <g v-for="(tick, idx) in sparkline.count.ticks" :key="`c-${idx}`">
+              <div class="detail-chart">
+                <div v-if="detailStats.length" class="detail-stats">
+                  <div class="detail-stats__header">
+                    <h5 class="eyebrow">거래 추이 (거래 건수)</h5>
+                    <span class="muted">{{ detailStats.length }}일 기준</span>
+                  </div>
+                  <div class="sparkline-wrapper">
+                    <svg
+                      class="sparkline"
+                      viewBox="0 0 480 210"
+                      role="img"
+                      aria-label="거래 추이 그래프 (거래량 + 평균가)"
+                      ref="chartRef"
+                      @pointermove="handleChartMove($event)"
+                      @mousemove="handleChartMove($event)"
+                      @pointerleave="clearTooltip()"
+                      @mouseleave="clearTooltip()"
+                    >
+                      <line
+                        class="axis-line"
+                        :x1="sparkline.pad"
+                        :y1="sparkline.height - sparkline.pad"
+                        :x2="sparkline.width - sparkline.pad"
+                        :y2="sparkline.height - sparkline.pad"
+                      />
+                      <line
+                        class="axis-line"
+                        :x1="sparkline.pad"
+                        :y1="sparkline.pad"
+                        :x2="sparkline.pad"
+                        :y2="sparkline.height - sparkline.pad"
+                      />
+                      <line
+                        class="axis-line"
+                        :x1="sparkline.width - sparkline.pad"
+                        :y1="sparkline.pad"
+                        :x2="sparkline.width - sparkline.pad"
+                        :y2="sparkline.height - sparkline.pad"
+                      />
+                      <g v-for="(tick, idx) in xAxisTicks" :key="`x-${idx}`">
+                        <line
+                          class="tick-line x-axis"
+                          :x1="tick.x"
+                          :y1="sparkline.height - sparkline.pad"
+                          :x2="tick.x"
+                          :y2="sparkline.height - sparkline.pad + 6"
+                        />
+                        <text
+                          class="x-tick-label"
+                          :x="tick.x"
+                          :y="sparkline.height - sparkline.pad + 14"
+                          text-anchor="middle"
+                        >
+                          <tspan :x="tick.x" dy="0">{{ tick.labelLines?.[0] || tick.label }}</tspan>
+                          <tspan :x="tick.x" dy="10">{{ tick.labelLines?.[1] }}</tspan>
+                        </text>
+                      </g>
+                      <g v-for="(tick, idx) in sparkline.volume.ticks" :key="`v-${idx}`">
                     <text
                       class="tick-label"
                       :x="sparkline.pad - 6"
                       :y="tick.y + 4"
                       text-anchor="end"
                     >
-                      {{ tick.value }}
+                      {{ formatCompactNumber(tick.value) }}
                     </text>
-                    <line
-                      class="tick-line"
-                      :x1="sparkline.pad"
-                      :y1="tick.y"
-                      :x2="sparkline.width - sparkline.pad"
-                      :y2="tick.y"
-                    />
-                  </g>
-                  <path v-if="sparkline.count.path" :d="sparkline.count.path" />
-                  <g v-for="(dot, idx) in sparkline.count.dots" :key="idx">
-                    <circle
-                      :cx="dot.x"
-                      :cy="dot.y"
-                      r="4"
-                      @mouseenter="handleTooltip(dot, countChartRef, 'count', $event)"
-                      @mousemove="handleTooltip(dot, countChartRef, 'count', $event)"
-                      @mouseleave="clearTooltip"
-                    />
-                  </g>
-                </svg>
-                <div
-                  v-if="tooltip?.visible && tooltipContext === 'count'"
-                  class="chart-tooltip"
-                  :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
-                >
-                  {{ tooltip.label }}
-                </div>
-                <div class="axis-labels">
-                  <span>거래 건수</span>
-                  <div class="axis-dates">
-                    <span>{{ sparkline.count.firstDate }}</span>
-                    <span>{{ sparkline.count.lastDate }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="detail-stats__header" style="margin-top:12px;">
-                <p class="eyebrow">거래 추이 (평균가)</p>
-              </div>
-              <div class="sparkline-wrapper">
-                <svg
-                  class="sparkline"
-                  viewBox="0 0 360 120"
-                  role="img"
-                  aria-label="거래 추이 그래프 (평균가)"
-                  ref="priceChartRef"
-                >
-                  <line
-                    class="axis-line"
-                    :x1="sparkline.pad"
-                    :y1="sparkline.height - sparkline.pad"
-                    :x2="sparkline.width - sparkline.pad"
-                    :y2="sparkline.height - sparkline.pad"
-                  />
-                  <line
-                    class="axis-line"
-                    :x1="sparkline.pad"
-                    :y1="sparkline.pad"
-                    :x2="sparkline.pad"
-                    :y2="sparkline.height - sparkline.pad"
-                  />
-                  <g v-for="(tick, idx) in sparkline.price.ticks" :key="`p-${idx}`">
+                        <line
+                          class="tick-line"
+                          :x1="sparkline.pad"
+                          :y1="tick.y"
+                          :x2="sparkline.width - sparkline.pad"
+                          :y2="tick.y"
+                        />
+                      </g>
+                      <g v-for="(tick, idx) in sparkline.price.ticks" :key="`pr-${idx}`">
                     <text
-                      class="tick-label"
-                      :x="sparkline.pad - 6"
+                      class="tick-label price-tick"
+                      :x="sparkline.width - sparkline.pad + 6"
                       :y="tick.y + 4"
-                      text-anchor="end"
+                      text-anchor="start"
                     >
-                      {{ formatNumber(tick.value) }}
+                      {{ formatCompactNumber(tick.value) }}
                     </text>
-                    <line
-                      class="tick-line price"
-                      :x1="sparkline.pad"
-                      :y1="tick.y"
-                      :x2="sparkline.width - sparkline.pad"
-                      :y2="tick.y"
-                    />
-                  </g>
-                  <path v-if="sparkline.price.path" class="price-path" :d="sparkline.price.path" />
-                  <g v-for="(dot, idx) in sparkline.price.dots" :key="`price-${idx}`">
-                    <circle
-                      class="price-dot"
-                      :cx="dot.x"
-                      :cy="dot.y"
-                      r="4"
-                      @mouseenter="handleTooltip({ ...dot, avgPrice: dot.value }, priceChartRef, 'price', $event)"
-                      @mousemove="handleTooltip({ ...dot, avgPrice: dot.value }, priceChartRef, 'price', $event)"
-                      @mouseleave="clearTooltip"
-                    />
-                  </g>
-                </svg>
-                <div
-                  v-if="tooltip?.visible && tooltipContext === 'price'"
-                  class="chart-tooltip"
-                  :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
-                >
-                  {{ tooltip.label }}
-                </div>
-                <div class="axis-labels">
-                  <span>평균가</span>
-                  <div class="axis-dates">
-                    <span>{{ sparkline.price.firstDate }}</span>
-                    <span>{{ sparkline.price.lastDate }}</span>
+                      </g>
+                      <path v-if="sparkline.volume.path" class="volume-path" :d="sparkline.volume.path" />
+                      <path v-if="sparkline.price.path" class="price-path" :d="sparkline.price.path" stroke="#16a34a" />
+                      <g v-for="(dot, idx) in sparkline.volume.dots" :key="`vol-${idx}`">
+                        <circle
+                          class="volume-dot"
+                          :cx="dot.x"
+                          :cy="dot.y"
+                          r="5"
+                          @pointerenter="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
+                          @pointermove="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
+                          @mouseenter="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
+                          @mousemove="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
+                          @touchstart.passive="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event as any)"
+                          @touchmove.passive="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event as any)"
+                          @mouseleave="clearTooltip()"
+                        />
+                      </g>
+                      <g v-for="(dot, idx) in sparkline.price.dots" :key="`price-${idx}`">
+                        <circle
+                          class="price-dot"
+                          :cx="dot.x"
+                          :cy="dot.y"
+                          r="5"
+                          stroke="#16a34a"
+                          fill="#fff"
+                          @pointerenter="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
+                          @pointermove="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
+                          @mouseenter="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
+                          @mousemove="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
+                          @touchstart.passive="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event as any)"
+                          @touchmove.passive="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event as any)"
+                          @mouseleave="clearTooltip()"
+                        />
+                      </g>
+                    </svg>
+                    <div
+                      v-if="tooltip?.visible"
+                      class="chart-tooltip"
+                      :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
+                    >
+                      <p class="tooltip-date">{{ tooltip.date }}</p>
+                      <div class="tooltip-grid">
+                        <div class="tooltip-row">
+                          <span class="tooltip-label">거래건수</span>
+                          <strong class="tooltip-value">{{ formatNumber(tooltip.tradeCount) }}</strong>
+                        </div>
+                        <div class="tooltip-row">
+                          <span class="tooltip-label">평균가</span>
+                          <strong class="tooltip-value">{{ formatGold(tooltip.avgPrice) }}</strong>
+                        </div>
+                        <div class="tooltip-row">
+                          <span class="tooltip-label">거래량</span>
+                          <strong class="tooltip-value">{{ formatNumber(tooltip.tradeVolume) }}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="axis-labels">
+                      <span class="axis-label-left">거래량</span>
+                      <span class="axis-label-right">평균가</span>
+                    </div>
                   </div>
                 </div>
+                <div v-else class="muted">추가 통계가 없습니다.</div>
               </div>
             </div>
-            <div v-else class="muted">추가 통계가 없습니다.</div>
           </div>
         </div>
       </div>
@@ -386,6 +421,74 @@ import { lostarkApi } from '@/api/lostark'
 import type { StoredMarketCategory, MarketOptionsResponse, MarketItemSummary, MarketItemDetail } from '@/api/types'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import LazyImage from './common/LazyImage.vue'
+
+type TooltipState = {
+  visible: boolean
+  x: number
+  y: number
+  date?: string
+  tradeCount?: number | null
+  avgPrice?: number | null
+  tradeVolume?: number | null
+}
+
+const toNumberOrUndefined = (value: unknown) => {
+  const num = Number(value)
+  return Number.isNaN(num) ? undefined : num
+}
+
+const toSvgCoords = (svg: SVGSVGElement, clientX: number, clientY: number) => {
+  if (typeof svg.createSVGPoint === 'function') {
+    const point = svg.createSVGPoint()
+    point.x = clientX
+    point.y = clientY
+    const ctm = svg.getScreenCTM()
+    if (ctm) {
+      const transformed = point.matrixTransform(ctm.inverse())
+      return { x: transformed.x, y: transformed.y }
+    }
+  }
+  const rect = svg.getBoundingClientRect()
+  const viewBox = svg.viewBox?.baseVal
+  const vbWidth = viewBox?.width || 480
+  const vbHeight = viewBox?.height || 210
+  const scaleX = (rect.width || vbWidth) / vbWidth
+  const scaleY = (rect.height || vbHeight) / vbHeight
+  return {
+    x: (clientX - rect.left) / scaleX,
+    y: (clientY - rect.top) / scaleY
+  }
+}
+
+const toClientCoords = (svg: SVGSVGElement, svgX: number, svgY: number) => {
+  if (typeof svg.createSVGPoint === 'function') {
+    const point = svg.createSVGPoint()
+    point.x = svgX
+    point.y = svgY
+    const ctm = svg.getScreenCTM()
+    if (ctm) {
+      const screen = point.matrixTransform(ctm)
+      return { x: screen.x, y: screen.y }
+    }
+  }
+  const rect = svg.getBoundingClientRect()
+  const viewBox = svg.viewBox?.baseVal
+  const vbWidth = viewBox?.width || 480
+  const vbHeight = viewBox?.height || 210
+  const scale = Math.min(rect.width / vbWidth, rect.height / vbHeight)
+  const offsetX = (rect.width - vbWidth * scale) / 2
+  const offsetY = (rect.height - vbHeight * scale) / 2
+  return {
+    x: rect.left + offsetX + svgX * scale,
+    y: rect.top + offsetY + svgY * scale
+  }
+}
+
+const toDateValue = (value?: string | null) => {
+  if (!value) return null
+  const ts = new Date(value).getTime()
+  return Number.isNaN(ts) ? null : ts
+}
 
 const categories = ref<StoredMarketCategory[]>([])
 const pageCache = ref<Record<number, MarketItemSummary[]>>({})
@@ -415,26 +518,56 @@ const detailLoading = ref(false)
 const detailData = ref<MarketItemDetail | null>(null)
 const selectedItem = ref<MarketItemSummary | null>(null)
 const detailError = ref('')
-const tooltip = ref<{ visible: boolean; x: number; y: number; label: string } | null>(null)
-const tooltipContext = ref<'count' | 'price' | null>(null)
-const countChartRef = ref<SVGSVGElement | null>(null)
-const priceChartRef = ref<SVGSVGElement | null>(null)
+const modalRef = ref<HTMLElement | null>(null)
+const tooltip = ref<TooltipState | null>(null)
+const lastHoverKey = ref<string | null>(null)
+const chartRef = ref<SVGSVGElement | null>(null)
 const detailStats = computed(() => {
   const stats = detailData.value?.stats || []
-  return stats
-    .map(stat => ({
-      date: stat.Date || stat.date,
-      tradeCount: Number(stat.TradeCount ?? stat.tradeCount ?? 0),
-      avgPrice: Number(stat.AvgPrice ?? stat.avgPrice ?? 0)
-    }))
-    .filter(s => !Number.isNaN(s.tradeCount) || !Number.isNaN(s.avgPrice))
+  const bundleCountForVolume =
+    toNumberOrUndefined(detailData.value?.bundleCount ?? selectedItem.value?.bundleCount ?? 1) ?? 1
+  const mapped = stats.map(stat => {
+    const date = stat.Date || stat.date
+    const tradeCount = toNumberOrUndefined(stat.TradeCount ?? stat.tradeCount ?? 0) ?? 0
+    const avgPrice = toNumberOrUndefined(stat.AvgPrice ?? stat.avgPrice ?? 0) ?? 0
+    const rawVolume =
+      (stat as any).TradeVolume ??
+      (stat as any).tradeVolume ??
+      (stat as any).trade_volume ??
+      (stat as any).Volume ??
+      (stat as any).volume
+    const rawVolumeNumber = rawVolume !== undefined && rawVolume !== null ? toNumberOrUndefined(rawVolume) : undefined
+    const tradeVolumeCandidate = rawVolumeNumber !== undefined ? rawVolumeNumber : tradeCount * bundleCountForVolume
+    const tradeVolume =
+      typeof tradeVolumeCandidate === 'number' && !Number.isNaN(tradeVolumeCandidate) ? tradeVolumeCandidate : undefined
+    return {
+      date,
+      tradeCount,
+      avgPrice,
+      tradeVolume
+    }
+  })
+  const filtered = mapped.filter(
+    s =>
+      !Number.isNaN(s.tradeCount) ||
+      !Number.isNaN(s.avgPrice) ||
+      (typeof s.tradeVolume === 'number' && !Number.isNaN(s.tradeVolume))
+  )
+  return filtered.sort((a, b) => {
+    const aTs = toDateValue(a.date)
+    const bTs = toDateValue(b.date)
+    if (aTs !== null && bTs !== null) return aTs - bTs
+    if (aTs !== null) return -1
+    if (bTs !== null) return 1
+    return (a.date || '').localeCompare(b.date || '')
+  })
 })
 
 const sparkline = computed(() => {
   const points = detailStats.value
-  const width = 360
-  const height = 120
-  const pad = 12
+  const width = 480
+  const height = 210
+  const pad = 36
   const build = (values: { date?: string; value: number }[], minClamp: number, roundTo?: number) => {
     if (!values.length) return { path: '', dots: [], ticks: [], firstDate: '', lastDate: '' }
     const rawMax = Math.max(...values.map(v => v.value))
@@ -455,7 +588,7 @@ const sparkline = computed(() => {
       dots.push({ x, y, value: v.value, date: v.date })
     })
     const ticks = []
-    const divisions = 4 // 5 lines 고정
+    const divisions = 5 // 6 lines 고정 (x축 포함)
     for (let i = 0; i <= divisions; i++) {
       const value = Math.round(min + (span * i) / divisions)
       const y = height - pad - ((value - min) / span) * (height - pad * 2)
@@ -470,18 +603,37 @@ const sparkline = computed(() => {
     }
   }
 
-  const countValues = points.map(p => ({ date: p.date, value: p.tradeCount }))
+  const volumeValues = points
+    .filter(p => p.tradeVolume !== undefined && !Number.isNaN(p.tradeVolume as number) && (p.tradeVolume ?? 0) >= 0)
+    .map(p => ({ date: p.date, value: p.tradeVolume ?? 0 }))
   const priceValues = points
-    .filter(p => !Number.isNaN(p.avgPrice) && p.avgPrice > 0)
+    .filter(p => !Number.isNaN(p.avgPrice) && (p.avgPrice ?? 0) > 0)
     .map(p => ({ date: p.date, value: p.avgPrice }))
 
   return {
-    count: build(countValues, 100, 100),
+    volume: build(volumeValues, 10, 10),
     price: build(priceValues, 10, 10),
     width,
     height,
     pad
   }
+})
+
+const xAxisTicks = computed(() => {
+  const dots = sparkline.value.volume.dots.length ? sparkline.value.volume.dots : sparkline.value.price.dots
+  if (!dots.length) return []
+  return dots.map(dot => {
+    const label = dot.date || ''
+    const parts = label.split('-')
+    if (parts.length >= 3) {
+      return {
+        x: dot.x,
+        label,
+        labelLines: [parts[0], `${parts[1]}.${parts[2]}`]
+      }
+    }
+    return { x: dot.x, label, labelLines: [label, ''] }
+  })
 })
 
 const selectedYDayAvgPrice = computed(() => {
@@ -513,43 +665,84 @@ const lastFetchedLabel = computed(() => {
 })
 
 const handleTooltip = (
-  dot: { x: number; y: number; value: number; date?: string; avgPrice?: number },
-  chartRef: typeof countChartRef | typeof priceChartRef,
-  type: 'count' | 'price',
-  evt?: MouseEvent
+  dot: { x: number; y: number; value: number; date?: string; avgPrice?: number; tradeVolume?: number },
+  type: 'volume' | 'price',
+  _evt?: PointerEvent
 ) => {
   const svg = chartRef.value
-  const wrapper = svg?.parentElement as HTMLElement | null
-  if (!svg || !wrapper) return
+  if (!svg) return
 
-  const rect = svg.getBoundingClientRect()
-  const wrapperRect = wrapper.getBoundingClientRect()
-  const scaleX = (rect.width || 360) / 360
-  const scaleY = (rect.height || 120) / 120
+  const dotClient = toClientCoords(svg, dot.x, dot.y)
+  const modalRect = modalRef.value?.getBoundingClientRect()
+  const margin = 12
+  const tooltipWidth = 220
+  const tooltipHeight = 120
+  const halfW = tooltipWidth / 2
+  const bounds = modalRect || { left: 0, right: window.innerWidth, top: 0, bottom: window.innerHeight }
+  const clampedX = Math.max(bounds.left + margin + halfW, Math.min(bounds.right - margin - halfW, dotClient.x))
+  const clampedYAnchor = Math.max(bounds.top + margin + tooltipHeight, Math.min(bounds.bottom - margin, dotClient.y))
 
-  const mouseX = evt ? evt.clientX - wrapperRect.left : 0
-  const mouseY = evt ? evt.clientY - wrapperRect.top : 0
-  const fallbackX = dot.x * scaleX + (rect.left - wrapperRect.left)
-  const fallbackY = dot.y * scaleY + (rect.top - wrapperRect.top)
-  const x = Math.max(8, Math.min(wrapperRect.width - 8, mouseX || fallbackX))
-  const y = Math.max(8, Math.min(wrapperRect.height - 8, mouseY || fallbackY))
-
-  const label =
-    type === 'count'
-      ? `${dot.date} · 거래 ${formatNumber(dot.value)}건`
-      : `${dot.date} · 평균가 ${formatGold(dot.value)}`
-  tooltipContext.value = type
+  const stat = detailStats.value.find(s => s.date === dot.date)
+  const tradeCount = stat?.tradeCount
+  const avgPrice = stat?.avgPrice ?? (type === 'price' ? dot.value : undefined)
+  const tradeVolume = stat?.tradeVolume ?? (type === 'volume' ? dot.value : undefined)
+  const hoverKey = `${type}-${dot.date}-${tradeCount}-${avgPrice}-${tradeVolume}`
+  if (lastHoverKey.value !== hoverKey) {
+    lastHoverKey.value = hoverKey
+    console.log('[AuctionMenu] chart hover', {
+      chart: type,
+      date: dot.date,
+      value: dot.value,
+      tradeCount,
+      avgPrice,
+      tradeVolume,
+      coords: { x, y }
+    })
+  }
   tooltip.value = {
     visible: true,
-    x,
-    y: y - 12,
-    label
+    x: clampedX,
+    y: clampedYAnchor,
+    date: dot.date,
+    tradeCount,
+    avgPrice,
+    tradeVolume
   }
 }
 
 const clearTooltip = () => {
   tooltip.value = null
-  tooltipContext.value = null
+  lastHoverKey.value = null
+}
+
+const handleChartMove = (evt: PointerEvent | MouseEvent) => {
+  const ref = chartRef.value
+  if (!ref) return
+  const volumeDots = sparkline.value.volume.dots.map(d => ({ ...d, type: 'volume' as const }))
+  const priceDots = sparkline.value.price.dots.map(d => ({ ...d, type: 'price' as const }))
+  const dots = [...volumeDots, ...priceDots]
+  if (!dots.length) return
+  const svgPoint = toSvgCoords(ref, evt.clientX, evt.clientY)
+  const cursorX = svgPoint.x
+  const cursorY = svgPoint.y
+  let closest = dots[0]
+  let minDist = Number.MAX_VALUE
+  dots.forEach(d => {
+    const dx = d.x - cursorX
+    const dy = d.y - cursorY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < minDist) {
+      minDist = dist
+      closest = d
+    }
+  })
+  const stepGuess = volumeDots.length > 1 ? Math.abs(volumeDots[1].x - volumeDots[0].x) : 0
+  const threshold = stepGuess > 0 ? Math.max(8, Math.min(24, stepGuess / 2)) : 14
+  if (minDist <= threshold) {
+    handleTooltip(closest, closest.type, evt as PointerEvent)
+  } else {
+    clearTooltip()
+  }
 }
 
 const normalizeItem = (item: any): MarketItemSummary => {
@@ -582,9 +775,18 @@ const formatNumber = (value?: number | null) => {
   return new Intl.NumberFormat('ko-KR').format(value)
 }
 
+const formatCompactNumber = (value?: number | null) => {
+  if (value === null || value === undefined) return '-'
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace(/\\.0$/, '')}B`
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\\.0$/, '')}M`
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\\.0$/, '')}K`
+  return formatNumber(value)
+}
+
 const formatGold = (value?: number | null) => {
   if (value === null || value === undefined) return '-'
-  return `${formatNumber(value)} G`
+  return `${formatNumber(value)}`
 }
 
 const formatDateTime = (value?: string) => {
@@ -714,7 +916,7 @@ const openDetail = async (item: MarketItemSummary) => {
   detailLoading.value = true
   detailData.value = null
   detailError.value = ''
-  tooltip.value = null
+  clearTooltip()
   try {
     const refreshed = await lostarkApi.refreshMarketItem(item.id, {
       categoryCode: selectedCategory.value as number,
@@ -747,7 +949,7 @@ const closeDetail = () => {
   detailOpen.value = false
   detailData.value = null
   selectedItem.value = null
-  tooltip.value = null
+  clearTooltip()
 }
 
 watch([selectedCategory, sort, sortCondition, characterClass, itemTier, itemGrade, pageSize], () => resetAndLoad())
@@ -816,7 +1018,7 @@ onMounted(async () => {
 }
 
 .meta-chip.muted {
-  opacity: 0.7;
+  color: var(--text-secondary);
 }
 
 .meta-label {
@@ -1044,6 +1246,7 @@ onMounted(async () => {
 
 .muted {
   color: var(--text-secondary, #6b7280);
+  font-size: var(--font-sm);
 }
 
 .badge {
@@ -1093,10 +1296,21 @@ onMounted(async () => {
 
 .modal-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+}
+
+.modal-maintitle{
+  display: flex;
   gap: 10px;
-  margin-bottom: 12px;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.modal-subtitle{
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .detail-prices {
@@ -1106,18 +1320,82 @@ onMounted(async () => {
   margin-bottom: 12px;
 }
 
-.detail-card {
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
-  padding: 10px;
-  background: var(--bg-secondary, #f8fafc);
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.4fr) 1fr;
+  gap: 16px;
+  align-items: flex-start;
 }
 
-.detail-card .label {
-  display: block;
+.detail-side {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-chart {
+  width: 100%;
+  margin-top: auto;
+}
+
+.detail-thumb {
+  width: 100%;
+  height: 120px;
+  display: grid;
+  place-items: center;
+  /* background: var(--bg-secondary, #f8fafc);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, #e5e7eb); */
+}
+
+.thumb.large {
+  width: 96px;
+  height: 96px;
+  font-size: 1.6rem;
+}
+
+.detail-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+}
+
+.detail-grade {
+  margin: 0;
+  color: var(--text-secondary, #4b5563);
+}
+
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  background: var(--bg-secondary, #f8fafc);
+  padding: 8px 12px;
+}
+
+.detail-grid__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.detail-grid__item + .detail-grid__item {
+  border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.detail-grid__item .label {
+  display: inline-block;
   color: var(--text-secondary, #4b5563);
   font-size: 0.9rem;
-  margin-bottom: 4px;
 }
 
 .detail-stats ul {
@@ -1146,12 +1424,13 @@ onMounted(async () => {
 
 .sparkline {
   width: 100%;
-  height: 140px;
+  height: 240px;
   background: var(--bg-secondary, #f8fafc);
   border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 12px;
   padding: 4px;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .sparkline-wrapper {
@@ -1161,62 +1440,115 @@ onMounted(async () => {
 
 .chart-tooltip {
   position: fixed;
-  transform: translate(-50%, -120%);
+  transform: translate(-50%, -100%);
   background: #111827;
   color: #f9fafb;
-  padding: 6px 10px;
+  padding: 10px 12px;
   border-radius: 8px;
   font-size: 0.85rem;
   pointer-events: none;
-  white-space: nowrap;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
-  z-index: 3;
+  z-index: 2000;
+  transition: opacity 0.1s ease, transform 0.1s ease;
+}
+
+.tooltip-date {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  color: rgba(248, 250, 252, 0.78);
+}
+
+.tooltip-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.tooltip-label {
+  color: rgba(248, 250, 252, 0.72);
+  font-size: 0.82rem;
+}
+
+.tooltip-value {
+  color: #f8fafc;
+  font-weight: 700;
 }
 
 .sparkline text {
   user-select: none;
 }
 
-.sparkline path {
-  fill: none;
-  stroke: var(--primary-color, #2563eb);
-  stroke-width: 2;
-}
-
-.sparkline circle {
-  fill: #fff;
-  stroke: var(--primary-color, #2563eb);
-  stroke-width: 2;
-}
-
 .price-path {
   fill: none;
-  stroke: var(--warning-color, #f97316);
+  stroke: #16a34a;
   stroke-width: 2;
+  pointer-events: none;
 }
 
 .price-dot {
   fill: #fff;
-  stroke: var(--warning-color, #f97316);
+  stroke: #16a34a;
   stroke-width: 2;
+  pointer-events: auto;
 }
 
 .axis-line {
   stroke: var(--border-color, #d1d5db);
   stroke-width: 1;
+  pointer-events: none;
 }
 
 .tick-line {
   stroke: rgba(0, 0, 0, 0.04);
   stroke-width: 1;
+  pointer-events: none;
 }
 .tick-line.price {
-  stroke: rgba(249, 115, 22, 0.12);
+  stroke: rgba(22, 163, 74, 0.12);
+}
+.tick-line.x-axis {
+  stroke: rgba(0, 0, 0, 0.12);
 }
 
 .tick-label {
   fill: var(--text-secondary, #4b5563);
   font-size: 10px;
+  pointer-events: none;
+}
+
+.x-tick-label {
+  fill: var(--text-secondary, #4b5563);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.volume-path {
+  fill: none;
+  stroke: var(--primary-color, #2563eb);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.volume-dot {
+  fill: #fff;
+  stroke: var(--primary-color, #2563eb);
+  stroke-width: 2;
+  pointer-events: auto;
+}
+
+.price-tick {
+  fill: #16a34a;
+}
+
+.axis-label-right {
+  color: #16a34a;
+  font-weight: 600;
 }
 
 .axis-labels {
@@ -1225,13 +1557,28 @@ onMounted(async () => {
   align-items: center;
   margin-top: 6px;
   color: var(--text-secondary, #4b5563);
-  font-size: 0.9rem;
+  font-size: var(--font-sm);
+  height:22px;
+}
+
+.axis-label-left {
+  color: var(--primary-color, #2563eb);
+  font-weight: 600;
 }
 
 .axis-dates {
   display: flex;
-  gap: 8px;
-  font-size: 0.8rem;
+  font-size: var(--font-xs);
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  /* justify-content: space-between; */
+  gap:5px;
+  height:22px;
+}
+
+.axis-date-line {
+  line-height: 1.2;
 }
 
 .table-row {
@@ -1275,6 +1622,10 @@ onMounted(async () => {
   .items-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .detail-layout{
+    display: block;
   }
 }
 </style>

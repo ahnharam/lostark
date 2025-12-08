@@ -538,25 +538,42 @@ const normalizeHexColor = (value?: string | null) => {
 
 const parseSkillIconFromTooltip = (tooltip?: string | null): string => {
   if (!tooltip) return ''
-  try {
-    const parsed = JSON.parse(tooltip)
-    const search = (node: any): string => {
-      if (!node || typeof node !== 'object') return ''
-      const pick = (icon: string) => (typeof icon === 'string' && icon.trim().length ? icon : '')
-      if (typeof node.iconPath === 'string' && pick(node.iconPath)) return node.iconPath
-      if (node.slotData && typeof node.slotData.iconPath === 'string' && pick(node.slotData.iconPath)) {
-        return node.slotData.iconPath
-      }
-      for (const value of Object.values(node)) {
-        const found = search(value as any)
+  const pick = (icon?: string | null) => (typeof icon === 'string' && icon.trim().length ? icon.trim() : '')
+  const search = (node: any): string => {
+    if (!node) return ''
+    if (typeof node === 'string') return ''
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = search(item)
         if (found) return found
       }
       return ''
     }
-    return search(parsed)
-  } catch {
+    if (typeof node === 'object') {
+      if (pick((node as any).iconPath)) return pick((node as any).iconPath)
+      if (pick((node as any).Icon)) return pick((node as any).Icon)
+      if (node.slotData && pick((node as any).slotData?.iconPath)) return pick((node as any).slotData?.iconPath)
+      for (const value of Object.values(node)) {
+        const found = search(value)
+        if (found) return found
+      }
+    }
     return ''
   }
+
+  try {
+    const parsed = JSON.parse(tooltip)
+    const fromParsed = search(parsed)
+    if (fromParsed) return fromParsed
+  } catch {
+    // ignore parse errors
+  }
+
+  // fallback: regex search in raw string
+  const match =
+    String(tooltip).match(/iconPath["']?\s*[:=]\s*["']([^"']+)["']/i) ||
+    String(tooltip).match(/"Icon"\s*:\s*"([^"]+)"/i)
+  return pick(match?.[1]) || ''
 }
 
 const extractColorFromFontString = (text?: string | null) => {
@@ -724,6 +741,74 @@ const classifyGemEffect = (label: string): GemEffectPlacement => {
   return 'unknown'
 }
 
+const extractSkillNameFromGemTooltip = (tooltip?: string | null) => {
+  if (!tooltip) return ''
+  const extractFromString = (value: string) => {
+    const fontMatch = value.match(/<FONT[^>]*>([^<]+)<\/FONT>/i)
+    if (fontMatch?.[1]) return inlineText(fontMatch[1])
+    const bracketMatch = value.match(/\[([^\]]+)\]/)
+    if (bracketMatch?.[1]) return inlineText(bracketMatch[1])
+    return ''
+  }
+  try {
+    const parsed = JSON.parse(tooltip)
+    const part = (parsed as any)?.Element_007?.value?.Element_001 ?? (parsed as any)?.Element_007?.value?.Element_000
+    if (part) {
+      const fromPart = extractFromString(String(part))
+      if (fromPart) return fromPart
+      const firstLine = flattenTooltipLines(part).find(Boolean)
+      if (firstLine) {
+        const fromLine = extractFromString(firstLine)
+        if (fromLine) return fromLine
+        return inlineText(firstLine.replace(/^\[[^\]]+\]\s*/, ''))
+      }
+    }
+    // fallback: scan every string in parsed tooltip
+    const findInNode = (node: any): string => {
+      if (!node) return ''
+      if (typeof node === 'string') return extractFromString(node)
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          const found = findInNode(item)
+          if (found) return found
+        }
+        return ''
+      }
+      if (typeof node === 'object') {
+        for (const value of Object.values(node)) {
+          const found = findInNode(value)
+          if (found) return found
+        }
+      }
+      return ''
+    }
+    const scanned = findInNode(parsed)
+    if (scanned) return scanned
+  } catch {
+    // ignore parse/shape errors
+  }
+
+  const lines = flattenTooltipLines(tooltip)
+  for (const line of lines) {
+    const fromLine = extractFromString(line)
+    if (fromLine) return fromLine
+  }
+  return ''
+}
+
+const normalizeGemSkillKey = (gem: SkillGem, fallbackTooltip?: string | null) => {
+  const tooltipSource = gem.tooltip || fallbackTooltip
+  const candidates = [gem.skill?.name, gem.skill?.description, extractSkillNameFromGemTooltip(tooltipSource), gem.name]
+  for (const candidate of candidates) {
+    const key = normalizeSkillKey(candidate)
+    if (key) return key
+  }
+  return ''
+}
+
+const skillNameFromGem = (gem: SkillGem, fallbackTooltip?: string | null) =>
+  inlineText(gem.skill?.name || gem.skill?.description || extractSkillNameFromGemTooltip(gem.tooltip || fallbackTooltip))
+
 const pickHigherGem = (current: SkillGemSlot | null, next: SkillGemSlot) => {
   if (!current) return next
   return next.levelValue > current.levelValue ? next : current
@@ -736,7 +821,7 @@ const skillGemSlotsBySkill = computed(() => {
   >()
   const gems = skillResponse.value?.skillGems ?? []
   gems.forEach((gem, index) => {
-    const key = normalizeSkillKey(gem.skill?.name || gem.skill?.description || gem.name)
+    const key = normalizeGemSkillKey(gem)
     if (!key) return
     const label = extractGemLabel(gem)
     const effectType = classifyGemEffect(label)
@@ -933,17 +1018,19 @@ const skillLooseGems = computed(() => {
   const skillKeys = combatSkillKeySet.value
   return gems
     .filter(gem => {
-      const key = normalizeSkillKey(gem.skill?.name || gem.skill?.description)
+      const armoryGem = typeof (gem as any).Slot === 'number' ? armoryGemBySlot.get((gem as any).Slot) : undefined
+      const key = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip)
       if (key && skillKeys.has(key)) return false
       return true
     })
     .map((gem, index) => {
       const effectLabel = extractGemLabel(gem)
-      const skillName = inlineText(gem.skill?.name || gem.skill?.description)
-      const normalizedKey = normalizeSkillKey(gem.skill?.name || gem.skill?.description)
       const armoryGem = typeof (gem as any).Slot === 'number' ? armoryGemBySlot.get((gem as any).Slot) : undefined
+      const skillName = skillNameFromGem(gem, armoryGem?.Tooltip || armoryGem?.tooltip)
+      const normalizedKey = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip)
       const candidateKeys = [
         normalizedKey,
+        normalizeSkillKey(extractSkillNameFromGemTooltip(armoryGem?.Tooltip || armoryGem?.tooltip)),
         normalizeSkillKey(effectLabel),
         normalizeSkillKey(armoryGem?.Name || armoryGem?.name)
       ].filter(Boolean) as string[]
@@ -983,7 +1070,7 @@ const skillLooseGems = computed(() => {
         levelLabel: formatLevelLabel(gem.level),
         grade: inlineText(gem.grade),
         effectLabel: effectLabel || inlineText(gem.skill?.description),
-        typeLabel: inlineText(gem.skill?.name)
+        typeLabel: skillName || inlineText(gem.skill?.name)
       }
     })
 })
