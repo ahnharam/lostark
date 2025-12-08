@@ -14,6 +14,7 @@ public class MarketSearchResponse {
     private String sortCondition;
     private Integer itemTier;
     private String itemGrade;
+    private String itemName;
     private Integer page;
     private Integer pageSize;
     private Integer totalCount;
