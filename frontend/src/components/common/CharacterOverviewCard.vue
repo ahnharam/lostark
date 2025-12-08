@@ -149,13 +149,13 @@
       </div>
     </div>
 
-    <div class="hero-row hero-row--special" v-if="specialEquipments.length">
+    <div class="hero-row hero-row--special" v-if="specialEquipmentsWithFallback.length">
       <div class="special-header">
         <h3>기타</h3>
       </div>
       <div class="special-grid special-grid--icons">
         <div
-          v-for="special in specialEquipments"
+          v-for="special in specialEquipmentsWithFallback"
           :key="special.item.name"
           class="special-icon-wrapper"
           :class="{ 'is-hovered': hoveredSpecialName === special.item.name }"
@@ -167,18 +167,14 @@
         >
           <div class="special-icon-box">
             <LazyImage
-              v-if="special.item.icon"
-              :src="special.item.icon"
-              :alt="special.item.name"
+              :src="special.displayIcon"
+              :alt="special.item.name || special.label"
               width="40"
               height="40"
-              imageClass="special-icon"
+              :imageClass="special.isFallbackIcon ? 'special-icon special-icon--placeholder' : 'special-icon'"
               errorIcon="🧭"
               :useProxy="true"
             />
-            <div v-else class="special-icon special-icon--fallback" aria-hidden="true">
-              {{ special.item.name ? special.item.name[0] : '?' }}
-            </div>
           </div>
           <span class="special-label">
             {{ special.label }}
@@ -225,6 +221,9 @@ interface SpecialEquipmentDisplay {
   highlights: string[]
   label: string
 }
+
+const SPECIAL_EQUIPMENT_FALLBACK_ICON =
+  'https://cdn-lostark.game.onstove.com/2018/obt/assets/images/common/game/bg_special_slot.png?71bb8b720de8066efb86'
 
 const props = defineProps<{
   activeCharacter: CharacterProfile | null
@@ -292,6 +291,14 @@ const combatRoleBadgeClass = computed(() => {
 })
 
 const honorPointLabel = computed(() => formatInteger.value(honorPoint.value))
+
+const specialEquipmentsWithFallback = computed(() =>
+  specialEquipments.value.map(entry => ({
+    ...entry,
+    displayIcon: entry.item.icon || SPECIAL_EQUIPMENT_FALLBACK_ICON,
+    isFallbackIcon: !entry.item.icon || entry.item.icon === SPECIAL_EQUIPMENT_FALLBACK_ICON
+  }))
+)
 
 const setTooltipRef = (el: HTMLElement | null) => {
   tooltipRef.value = el
@@ -633,18 +640,13 @@ onBeforeUnmount(() => {
   background: var(--bg-secondary);
 }
 
-.special-icon {
+.special-icon-box :deep(.special-icon) {
   border-radius: 10px;
 }
 
-.special-icon--fallback {
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  border-radius: 10px;
+.special-icon-box :deep(.special-icon--placeholder) {
+  opacity: 0.74 !important;
+  border-radius: 14px;
 }
 
 .special-label {

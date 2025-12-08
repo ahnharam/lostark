@@ -287,6 +287,7 @@ export const lostarkApi = {
     characterClass?: string
     itemTier?: number
     itemGrade?: string
+    itemName?: string
     sort?: string
     sortCondition?: string
     page?: number
@@ -294,7 +295,18 @@ export const lostarkApi = {
     prefetchRange?: number
   }): Promise<MarketSearchResponse> {
     const response = await apiClient.get<MarketSearchResponse>('/markets/items', {
-      params
+      params: {
+        categoryCode: params.categoryCode,
+        characterClass: params.characterClass,
+        itemTier: params.itemTier,
+        itemGrade: params.itemGrade,
+        itemName: params.itemName,
+        sort: params.sort,
+        sortCondition: params.sortCondition,
+        page: params.page,
+        size: params.size,
+        prefetchRange: params.prefetchRange
+      }
     })
     return response.data
   },

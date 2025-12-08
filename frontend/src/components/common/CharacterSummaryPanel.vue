@@ -528,31 +528,12 @@ const props = defineProps<{
   combatRole?: 'dealer' | 'support' | null
 }>()
 
-const displaySkillHighlights = computed(() => {
-  const base = props.skillHighlights || []
-  const loose = (props.skillLooseGems || []).map(gem => {
-    const name = gem.skillName || gem.name || '보석'
-    const levelLabel = gem.levelLabel || ''
-    const label = gem.effectLabel || gem.typeLabel || ''
-    return {
-      key: gem.key || `gem-only-${name}`,
-      name,
-      icon: gem.icon || '',
-      levelLabel: '',
-      pointLabel: '',
-      rune: null,
-      tripods: [],
-      gems: {
-        damage: label
-          ? { label, levelLabel }
-          : null,
-        cooldown: null
-      },
-      hasGem: true
-    }
-  })
-  return [...base, ...loose]
-})
+const normalizeSkillKey = (value?: string) =>
+  (value || '')
+    .replace(/[\s\[\]\(\)<>{}]/g, '')
+    .toLowerCase()
+
+const displaySkillHighlights = computed(() => props.skillHighlights || [])
 
 const equipmentRows = computed(() => {
   const left = props.equipmentSummary?.left || []
@@ -963,7 +944,8 @@ const effectTextDisplayColor = (effect: any, item: any) => {
 const normalizeCategoryLabel = (value?: string) =>
   (value || '').replace(/\s+/g, '').replace(/[+]/g, '').toLowerCase()
 
-const DEALER_SUPPORT_KEYWORDS = ['적주피', '추피', '치피', '치적', '낙', '아덴', '보호막', '회복', '아공강', '아피강']
+const DEALER_ROLE_PRIORITY_KEYWORDS = ['적주피', '추피', '치피', '치적', '낙', '아덴']
+const SUPPORT_ROLE_PRIORITY_KEYWORDS = ['보호막', '회복', '아공강', '아피강']
 const COMMON_PERCENT_KEYWORDS = ['공%', '무공%', '공격력%', '무기공격력%']
 const COMMON_FLAT_KEYWORDS = ['무공', '공', '공격력', '무기공격력']
 
@@ -973,7 +955,16 @@ const effectCategoryPriority = (effect: any, item: any) => {
   const raw = normalizeCategoryLabel(`${effect?.full || ''}${effect?.label || ''}${display}`)
   if (!raw) return 2
   const hasPercent = /%/.test(raw)
-  if (DEALER_SUPPORT_KEYWORDS.some(key => raw.includes(key))) return 0
+  const combatRole = normalizeRoleLabel(props.combatRole)
+  const hasSupportKeyword = SUPPORT_ROLE_PRIORITY_KEYWORDS.some(key => raw.includes(key))
+  const hasDealerKeyword = DEALER_ROLE_PRIORITY_KEYWORDS.some(key => raw.includes(key))
+
+  if (hasSupportKeyword) {
+    // 회복/아피강 등은 딜러일 때 후순위로 내려서 딜 옵션이 먼저 오도록 정렬
+    return combatRole === 'dealer' ? 2 : 0
+  }
+
+  if (hasDealerKeyword) return 0
   if (hasPercent && COMMON_PERCENT_KEYWORDS.some(key => raw.includes(key))) return 1
   if (!hasPercent && COMMON_FLAT_KEYWORDS.some(key => raw.includes(key))) return 2
   if (hasAbbreviationMatch(raw)) return 2

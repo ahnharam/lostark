@@ -100,6 +100,7 @@ public class MarketSyncService {
                                                   String characterClass,
                                                   Integer itemTier,
                                                   String itemGrade,
+                                                  String itemName,
                                                   String sort,
                                                   String sortCondition,
                                                   int page,
@@ -120,6 +121,7 @@ public class MarketSyncService {
                 .characterClass(characterClass)
                 .itemTier(itemTier)
                 .itemGrade(itemGrade)
+                .itemName(itemName)
                 .build();
 
         PageBundle firstBundle = fetchPageBundle(baseRequest, categoryCode, pageNo, pageSize);
@@ -131,6 +133,7 @@ public class MarketSyncService {
                     .sortCondition(baseRequest.getSortCondition())
                     .itemTier(itemTier)
                     .itemGrade(itemGrade)
+                    .itemName(itemName)
                     .page(pageNo)
                     .pageSize(pageSize)
                     .totalCount(firstBundle.totalCount())
@@ -162,11 +165,12 @@ public class MarketSyncService {
         return MarketSearchResponse.builder()
                 .categoryCode(categoryCode)
                 .characterClass(characterClass)
-                    .sort(baseRequest.getSort())
-                    .sortCondition(baseRequest.getSortCondition())
-                    .itemTier(itemTier)
-                    .itemGrade(itemGrade)
-                    .page(pageNo)
+                .sort(baseRequest.getSort())
+                .sortCondition(baseRequest.getSortCondition())
+                .itemTier(itemTier)
+                .itemGrade(itemGrade)
+                .itemName(itemName)
+                .page(pageNo)
                     .pageSize(pageSize)
                     .totalCount(totalCount)
                     .totalPages(totalPages)

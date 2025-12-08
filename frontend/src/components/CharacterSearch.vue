@@ -506,6 +506,9 @@ const toggleFavorite = () => {
   toggleFavoriteBase(activeCharacter.value)
 }
 const specialEquipmentKeywords = ['나침반', '부적', '문장', '보주']
+const specialEquipmentDisplayOrder = ['나침반', '부적', '보주', '문장']
+const SPECIAL_EQUIPMENT_FALLBACK_ICON =
+  'https://cdn-lostark.game.onstove.com/2018/obt/assets/images/common/game/bg_special_slot.png?71bb8b720de8066efb86'
 
 const isSpecialEquipment = (item: Equipment) => {
   const target = `${item.type ?? ''} ${item.name ?? ''}`.toLowerCase()
@@ -517,11 +520,36 @@ const specialEquipments = computed(() => {
 })
 
 const specialEquipmentsDetailed = computed(() => {
-  return specialEquipments.value.map(item => ({
+  const detailed = specialEquipments.value.map(item => ({
     item,
     highlights: getSpecialHighlights(item),
     label: getSpecialLabel(item)
   }))
+
+  const byLabel = new Map<string, (typeof detailed)[number]>()
+  detailed.forEach(entry => {
+    if (!byLabel.has(entry.label)) {
+      byLabel.set(entry.label, entry)
+    }
+  })
+
+  const slots = specialEquipmentDisplayOrder.map(label => {
+    const hit = byLabel.get(label)
+    if (hit) return hit
+    return {
+      item: {
+        type: label,
+        name: label,
+        icon: SPECIAL_EQUIPMENT_FALLBACK_ICON,
+        tooltip: ''
+      } as Equipment,
+      highlights: [],
+      label
+    }
+  })
+
+  const extras = detailed.filter(entry => !specialEquipmentDisplayOrder.includes(entry.label))
+  return [...slots, ...extras]
 })
 
 const inlineText = (value?: string | number | null) => {
@@ -728,10 +756,20 @@ const extractGemLabel = (gem: SkillGem) => {
   const candidates = [inlineText(gem.name), inlineText(gem.skill?.description), tooltipText]
     .filter(Boolean)
     .join(' ')
-  if (GEM_DAMAGE_REGEX.test(candidates)) return '겁화'
-  if (GEM_COOLDOWN_REGEX.test(candidates)) return '작열'
   const labelMatch = candidates.match(/(멸화|겁화|홍염|작열|광휘|지원\s*효과)/i)
-  if (labelMatch?.[1]) return labelMatch[1]
+  const label = labelMatch?.[1]
+  const isDamageHint = GEM_DAMAGE_REGEX.test(candidates)
+  const isCooldownHint = GEM_COOLDOWN_REGEX.test(candidates)
+
+  // 광휘 보석은 피해증가 → 겁화, 쿨감 → 작열로 매핑
+  if (label && /광휘/i.test(label)) {
+    if (isDamageHint) return '겁화'
+    if (isCooldownHint) return '작열'
+  }
+
+  if (label) return label
+  if (isDamageHint) return '멸화'
+  if (isCooldownHint) return '홍염'
   return ''
 }
 
@@ -748,6 +786,16 @@ const extractSkillNameFromGemTooltip = (tooltip?: string | null) => {
     if (fontMatch?.[1]) return inlineText(fontMatch[1])
     const bracketMatch = value.match(/\[([^\]]+)\]/)
     if (bracketMatch?.[1]) return inlineText(bracketMatch[1])
+    return ''
+  }
+  const scanLinesForName = (lines: string[]) => {
+    for (const line of lines) {
+      const trimmed = inlineText(line)
+      if (!trimmed || /보석\s*효과/i.test(trimmed)) continue
+      const fromLine = extractFromString(trimmed)
+      if (fromLine) return fromLine
+      if (trimmed.length >= 2) return trimmed
+    }
     return ''
   }
   try {
@@ -789,16 +837,37 @@ const extractSkillNameFromGemTooltip = (tooltip?: string | null) => {
   }
 
   const lines = flattenTooltipLines(tooltip)
-  for (const line of lines) {
-    const fromLine = extractFromString(line)
-    if (fromLine) return fromLine
-  }
+  const wideLines = flattenTooltipLines(tooltip, { preferValueField: false })
+  const fromLines = scanLinesForName(lines)
+  if (fromLines) return fromLines
+  const fromWideLines = scanLinesForName(wideLines)
+  if (fromWideLines) return fromWideLines
   return ''
 }
 
-const normalizeGemSkillKey = (gem: SkillGem, fallbackTooltip?: string | null) => {
+type CombatSkillCatalogEntry = { key: string; name: string }
+
+const normalizeGemSkillKey = (
+  gem: SkillGem,
+  fallbackTooltip?: string | null,
+  skillCatalog?: CombatSkillCatalogEntry[]
+) => {
   const tooltipSource = gem.tooltip || fallbackTooltip
   const candidates = [gem.skill?.name, gem.skill?.description, extractSkillNameFromGemTooltip(tooltipSource), gem.name]
+  const catalog = skillCatalog ?? []
+  for (const candidate of candidates) {
+    const key = normalizeSkillKey(candidate)
+    if (key && (!catalog.length || catalog.some(entry => entry.key === key))) return key
+  }
+
+  const combinedText = [tooltipSource, gem.skill?.description, gem.name].filter(Boolean).join(' ')
+  if (combinedText && catalog.length) {
+    const normalizedCombined = normalizeSkillKey(combinedText)
+    const hit = catalog.find(entry => entry.key && normalizedCombined.includes(entry.key))
+    if (hit) return hit.key
+  }
+
+  // fallback: return first non-empty key even if 카탈로그 매치 실패
   for (const candidate of candidates) {
     const key = normalizeSkillKey(candidate)
     if (key) return key
@@ -806,22 +875,89 @@ const normalizeGemSkillKey = (gem: SkillGem, fallbackTooltip?: string | null) =>
   return ''
 }
 
-const skillNameFromGem = (gem: SkillGem, fallbackTooltip?: string | null) =>
-  inlineText(gem.skill?.name || gem.skill?.description || extractSkillNameFromGemTooltip(gem.tooltip || fallbackTooltip))
+const skillNameFromGem = (
+  gem: SkillGem,
+  fallbackTooltip?: string | null,
+  skillCatalog?: CombatSkillCatalogEntry[]
+) => {
+  const tooltipSource = gem.tooltip || fallbackTooltip
+  const direct =
+    inlineText(gem.skill?.name) ||
+    inlineText(gem.skill?.description) ||
+    extractSkillNameFromGemTooltip(tooltipSource) ||
+    ''
+  if (skillCatalog?.length) {
+    const normalized = normalizeSkillKey(direct)
+    const hit = normalized ? skillCatalog.find(entry => entry.key === normalized) : null
+    if (hit?.name) return hit.name
+  }
+  return direct
+}
 
 const pickHigherGem = (current: SkillGemSlot | null, next: SkillGemSlot) => {
   if (!current) return next
   return next.levelValue > current.levelValue ? next : current
 }
 
+const armoryEffectGemSlots = computed<SkillGem[]>(() => {
+  const armoryGems = armoryGemsResponse.value?.Gems ?? armoryGemsResponse.value?.gems ?? []
+  const rawEffects = armoryGemsResponse.value?.Effects ?? armoryGemsResponse.value?.effects ?? []
+  const effectsArray = Array.isArray(rawEffects) ? rawEffects : rawEffects ? [rawEffects] : []
+  return effectsArray
+    .flatMap((eff: any) => {
+      const skills = (eff?.Skills ?? eff?.skills) as any
+      return Array.isArray(skills) ? skills : []
+    })
+    .map((sk: any, idx: number) => {
+      const skillName = inlineText(sk?.Name || sk?.name)
+      const description = Array.isArray(sk?.Description)
+        ? sk.Description.join(' ')
+        : inlineText(sk?.Description)
+      const matchedGem =
+        typeof sk?.GemSlot === 'number'
+          ? armoryGems.find((g: any) => g?.Slot === sk.GemSlot || g?.slot === sk.GemSlot)
+          : undefined
+      const gemName = inlineText(matchedGem?.Name || matchedGem?.name)
+      const gemTooltip = matchedGem?.Tooltip || matchedGem?.tooltip || sk?.Tooltip || sk?.tooltip
+      const gemIcon =
+        matchedGem?.Icon ||
+        parseSkillIconFromTooltip(gemTooltip) ||
+        sk?.Icon ||
+        parseSkillIconFromTooltip(sk?.Tooltip || sk?.tooltip)
+      return {
+        slot: typeof sk?.GemSlot === 'number' ? sk.GemSlot : undefined,
+        name: gemName || skillName || `gem-effect-${idx}`,
+        icon: gemIcon || '',
+        tooltip: gemTooltip,
+        level: typeof matchedGem?.Level === 'number' ? matchedGem.Level : undefined,
+        grade: inlineText(matchedGem?.Grade),
+        skill: {
+          name: skillName,
+          description
+        }
+      } as SkillGem
+    })
+})
+
+const combatSkillCatalog = computed<CombatSkillCatalogEntry[]>(() => {
+  const skills = skillResponse.value?.combatSkills ?? []
+  return skills
+    .map(skill => ({
+      key: normalizeSkillKey(skill.name),
+      name: inlineText(skill.name)
+    }))
+    .filter(entry => entry.key)
+})
+
 const skillGemSlotsBySkill = computed(() => {
   const map = new Map<
     string,
     { damage: SkillGemSlot | null; cooldown: SkillGemSlot | null; extras: SkillGemSlot[] }
   >()
-  const gems = skillResponse.value?.skillGems ?? []
+  const baseGems = skillResponse.value?.skillGems ?? []
+  const gems = [...baseGems, ...armoryEffectGemSlots.value]
   gems.forEach((gem, index) => {
-    const key = normalizeGemSkillKey(gem)
+    const key = normalizeGemSkillKey(gem, undefined, combatSkillCatalog.value)
     if (!key) return
     const label = extractGemLabel(gem)
     const effectType = classifyGemEffect(label)
@@ -886,10 +1022,39 @@ const armoryGemIconMaps = computed(() => {
 
 const skillHighlights = computed(() => {
   const skills = skillResponse.value?.combatSkills ?? []
-  if (!skills.length) return []
+  const skillKeySet = new Set<string>()
+  skills.forEach(skill => {
+    const key = normalizeSkillKey(skill.name)
+    if (key) skillKeySet.add(key)
+  })
+
+  const gemOnlySkills = armoryEffectGemSlots.value
+    .map((gem, idx) => {
+      const name = skillNameFromGem(gem, gem.tooltip, combatSkillCatalog.value)
+      const key = normalizeSkillKey(name)
+      if (!key || skillKeySet.has(key)) return null
+      const icon = parseSkillIconFromTooltip(gem.tooltip) || gem.icon || ''
+      return {
+        name,
+        icon,
+        level: undefined,
+        skillPoints: 0,
+        skillType: 0,
+        tripods: [],
+        rune: null,
+        tooltip: gem.tooltip,
+        skillPointsScroll: 0,
+        order: 9999 + idx,
+        isGemOnly: true
+      } as CombatSkill
+    })
+    .filter(Boolean) as CombatSkill[]
+
+  const mergedSkills = [...skills, ...gemOnlySkills]
+  if (!mergedSkills.length) return []
   const gemSlots = skillGemSlotsBySkill.value
   const armoryIcons = armoryGemIconMaps.value
-  return skills
+  return mergedSkills
     .filter(skill => !isAwakeningSkill(skill))
     .sort((a, b) => {
       const levelA = typeof a.level === 'number' ? a.level : -1
@@ -927,11 +1092,12 @@ const skillHighlights = computed(() => {
               levelLabel: formatLevelLabel(tripod.level)
             }
           }) ?? []
+      const isGemOnly = (skill as any).isGemOnly === true
       const skillPointValue = Number(skill.skillPoints ?? 0)
       const hasSkillPoints = Number.isFinite(skillPointValue) && skillPointValue > 0
       const hasRune = Boolean(rune)
-      const damageGem = gem?.damage ?? null
-      const cooldownGem = gem?.cooldown ?? null
+      const damageGem = gem?.damage ?? gem?.extras?.[0] ?? null
+      const cooldownGem = gem?.cooldown ?? gem?.extras?.[1] ?? null
       const hasGem = Boolean(damageGem || cooldownGem)
       const overrideIcon = key ? armoryIcons.skillByKey.get(key) || armoryIcons.skillByName.get(key) : ''
       if (overrideIcon && inlineText(skill.name).includes('종언')) {
@@ -944,7 +1110,7 @@ const skillHighlights = computed(() => {
         key: key || `skill-${index}`,
         name: inlineText(skill.name) || `스킬 ${index + 1}`,
         icon: overrideIcon || skill.icon || '',
-        levelLabel: formatLevelLabel(skill.level),
+        levelLabel: isGemOnly ? '' : formatLevelLabel(skill.level),
         pointLabel:
           hasSkillPoints && Number.isFinite(skillPointValue)
             ? `${skillPointValue.toLocaleString()}P`
@@ -1019,15 +1185,22 @@ const skillLooseGems = computed(() => {
   return gems
     .filter(gem => {
       const armoryGem = typeof (gem as any).Slot === 'number' ? armoryGemBySlot.get((gem as any).Slot) : undefined
-      const key = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip)
+      const key = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip, combatSkillCatalog.value)
       if (key && skillKeys.has(key)) return false
+      const skillName = inlineText(gem.skill?.name || gem.skill?.description)
+      if (!skillName && !key) return false
+      if (!key) return false
       return true
     })
     .map((gem, index) => {
       const effectLabel = extractGemLabel(gem)
       const armoryGem = typeof (gem as any).Slot === 'number' ? armoryGemBySlot.get((gem as any).Slot) : undefined
-      const skillName = skillNameFromGem(gem, armoryGem?.Tooltip || armoryGem?.tooltip)
-      const normalizedKey = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip)
+      const normalizedKey = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip, combatSkillCatalog.value)
+      const catalogHit = normalizedKey
+        ? combatSkillCatalog.value.find(entry => entry.key === normalizedKey)
+        : null
+      const skillName =
+        catalogHit?.name || skillNameFromGem(gem, armoryGem?.Tooltip || armoryGem?.tooltip, combatSkillCatalog.value)
       const candidateKeys = [
         normalizedKey,
         normalizeSkillKey(extractSkillNameFromGemTooltip(armoryGem?.Tooltip || armoryGem?.tooltip)),

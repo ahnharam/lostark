@@ -60,17 +60,6 @@
           </select>
         </label>
 
-        <label class="field">
-          <span class="field-label">검색 (이름)</span>
-          <input
-            v-model.trim="searchText"
-            class="input"
-            type="text"
-            placeholder="예: 파괴석, 각인서..."
-            @keyup.enter="handleSearch"
-          />
-        </label>
-
         <label class="field field--small">
           <span class="field-label">정렬</span>
           <div class="sort-row">
@@ -87,7 +76,7 @@
         </label>
 
         <label class="field field--small">
-          <span class="field-label">페이지 크기</span>
+          <span class="field-label">페이징</span>
           <select v-model.number="pageSize" class="input" @change="resetAndLoad">
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -96,9 +85,24 @@
           </select>
         </label>
 
+        <label class="field">
+          <span class="field-label">검색 (이름)</span>
+          <input
+            v-model.trim="searchText"
+            class="input"
+            type="text"
+            placeholder="예: 파괴석, 각인서..."
+            @keyup.enter="handleSearch"
+          />
+        </label>
+
         <div class="actions">
-          <button type="button" class="btn" @click="resetAndLoad">새로고침</button>
+          <button type="button" class="btn" @click="handleSearch">검색</button>
           <button type="button" class="btn ghost" @click="clearSearch">검색 초기화</button>
+          <button type="button" class="btn ghost refresh-btn" @click="resetAndLoad">
+            <span class="btn-icon" aria-hidden="true"></span>
+            <span class="btn-label">새로고침</span>
+          </button>
         </div>
       </div>
 
@@ -433,7 +437,12 @@ type TooltipState = {
 }
 
 const toNumberOrUndefined = (value: unknown) => {
-  const num = Number(value)
+  if (value === null || value === undefined) return undefined
+  const normalized =
+    typeof value === 'string'
+      ? value.replace(/,/g, '').trim()
+      : value
+  const num = Number(normalized)
   return Number.isNaN(num) ? undefined : num
 }
 
@@ -607,7 +616,7 @@ const sparkline = computed(() => {
     .filter(p => p.tradeVolume !== undefined && !Number.isNaN(p.tradeVolume as number) && (p.tradeVolume ?? 0) >= 0)
     .map(p => ({ date: p.date, value: p.tradeVolume ?? 0 }))
   const priceValues = points
-    .filter(p => !Number.isNaN(p.avgPrice) && (p.avgPrice ?? 0) > 0)
+    .filter(p => !Number.isNaN(p.avgPrice) && p.avgPrice !== undefined && p.avgPrice !== null)
     .map(p => ({ date: p.date, value: p.avgPrice }))
 
   return {
@@ -652,11 +661,7 @@ const categoryCount = computed(() => categories.value.length)
 const currentItems = computed(() => pageCache.value[page.value] ?? pageCache.value[String(page.value)] ?? [])
 
 const filteredItems = computed(() => {
-  const keyword = searchText.value.toLowerCase()
-  const base = keyword
-    ? currentItems.value.filter(item => (item.name || '').toLowerCase().includes(keyword))
-    : currentItems.value
-  return base.slice(0, pageSize.value)
+  return currentItems.value
 })
 
 const lastFetchedLabel = computed(() => {
@@ -696,7 +701,7 @@ const handleTooltip = (
       tradeCount,
       avgPrice,
       tradeVolume,
-      coords: { x, y }
+      coords: { x: clampedX, y: clampedYAnchor }
     })
   }
   tooltip.value = {
@@ -807,11 +812,16 @@ const gradeInitial = (grade?: string | null) => {
 }
 
 const handleSearch = () => {
-  // computed가 알아서 필터링하므로 별도 호출은 필요 없지만 UX를 위해 페이지를 유지
+  page.value = 1
+  lastCenterPage.value = 1
+  loadItems()
 }
 
 const clearSearch = () => {
   searchText.value = ''
+  page.value = 1
+  lastCenterPage.value = 1
+  loadItems()
 }
 
 const changePage = (nextPage: number) => {
@@ -883,6 +893,7 @@ const loadItems = async () => {
       characterClass: characterClass.value || undefined,
       itemTier: itemTier.value || undefined,
       itemGrade: itemGrade.value || undefined,
+      itemName: searchText.value || undefined,
       sort: sort.value,
       sortCondition: sortCondition.value,
       page: page.value,
@@ -1035,7 +1046,7 @@ onMounted(async () => {
 
 .control-row {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr)) 0.4fr auto;
+  grid-template-columns: 0.3fr repeat(3, minmax(0, 0.2fr)) 0.4fr 0.2fr 0.5fr auto;
   gap: 12px;
   align-items: end;
 }
@@ -1048,6 +1059,7 @@ onMounted(async () => {
 .field-label {
   font-size: 0.86rem;
   color: var(--text-secondary, #4b5563);
+  text-align: center;
 }
 
 .input {
@@ -1058,6 +1070,7 @@ onMounted(async () => {
   background: var(--bg-secondary, #f8fafc);
   color: var(--text-primary, #111827);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  text-align: center;
 }
 
 .input:focus {
@@ -1068,7 +1081,7 @@ onMounted(async () => {
 
 .sort-row {
   display: grid;
-  grid-template-columns: 1fr 0.6fr;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
@@ -1091,6 +1104,9 @@ onMounted(async () => {
   color: #ffffff;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn:hover {
@@ -1102,6 +1118,19 @@ onMounted(async () => {
   border-color: var(--border-color, #e5e7eb);
   background: var(--card-bg, #ffffff);
   color: var(--text-primary, #111827);
+}
+
+.refresh-btn .btn-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color, #d1d5db);
+  background: linear-gradient(135deg, #e5e7eb, #f8fafc);
+  display: inline-block;
+}
+
+.refresh-btn .btn-label {
+  line-height: 1;
 }
 
 .inline-hint {

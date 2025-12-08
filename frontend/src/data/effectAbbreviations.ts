@@ -41,7 +41,7 @@ const SUPPORT_RULES: EffectAbbreviationRule[] = [
   // TODO: 서폿용 약어를 추가하세요.
 
   // 목걸이
-  { pattern: /낙인력/gi, replace: '낙' },
+  { pattern: /낙인력/gi, replace: '낙인' },
   { pattern: /세레나데\s*신앙\s*조화\s*게이지\s*획득량/gi, replace: '아덴' },
 
   // 귀걸이
