@@ -1,6 +1,8 @@
 # 로스트아크 웹사이트 프로젝트
 
-## 개요
+# 로스트아크 웹사이트 프로젝트
+
+## 스택
 - **Frontend**: Vue 3 + Vite
 - **Backend**: Spring Boot 3 (Gradle)
 - **Database**: MariaDB 11.4
@@ -13,96 +15,43 @@ lostark-project/
 ├── backend/               # Spring Boot (Dockerfile, Dockerfile.dev 포함)
 ├── docker-compose.yml     # 개발용 Compose
 ├── docker-compose.prod.yml# 운영용 Compose
-├── docs/deployment/       # Vercel/Railway/FreeDB 가이드
+├── docs/                  # 문서(준비/배포/가이드)
 ├── .env                   # 로컬 환경 변수
 └── README.md
 ```
 
-## 로컬 개발 순서
-1. **환경 변수 준비**
-   - `.env`를 생성하고 다음 값을 채웁니다.
-     ```
-     LOSTARK_API_KEY=your_api_key_here   # https://developer-lostark.game.onstove.com
-     VITE_API_BASE_URL=http://localhost:8080/api
-     ```
-   - DB 접속 정보는 로컬 Compose 기본값을 사용하거나 필요 시 수정하세요.
-
-2. **컨테이너 실행**
-   ```bash
-   # 개발 모드 (Vite dev + bootRun)
-   docker compose up -d --build
-
-   # 운영 모드 시뮬레이션 (정적 빌드 + JAR)
-   docker compose -f docker-compose.prod.yml up -d --build
-
-   # 로그
-   docker compose logs -f backend
-   docker compose logs -f frontend
-   ```
-
-3. **주요 접속 주소**
-   - Frontend(Dev): http://localhost:5173
-   - Frontend(Nginx 빌드): http://localhost:8081
-   - Backend API: http://localhost:8080
-   - Adminer: http://localhost:8082 (system: MySQL / server: database / user 비밀번호는 `.env` 참고)
-
-4. **컨테이너 관리**
-   ```bash
-   docker compose restart              # 전체 재시작
-   docker compose restart backend      # 서비스별 재시작
-   docker compose down                 # 중지
-   docker compose down -v              # 볼륨 포함 초기화
-   ```
-
-## 개발 가이드
-- **Frontend**
-  - `frontend/`에서 Vite dev 서버를 실행하면 실시간 HMR이 적용됩니다.
-  - `vite.config.ts`의 `server.host` / `watch.usePolling` 설정은 Docker 개발환경에서도 안정적으로 동작하도록 구성했습니다.
-  - `npm run build`로 배포 산출물(`dist`)을 생성합니다.
-
-- **Backend**
-  - `backend/`는 Gradle 기반이며 `./gradlew bootRun`으로 실행합니다.
-  - `src/main/resources/application.yml`은 `SPRING_DATASOURCE_*`, `LOSTARK_API_KEY` 등 환경 변수를 주입받도록 설계되어 다른 인프라로 옮겨도 설정만 교체하면 됩니다.
-
-## 구조 정리·정렬 프레임워크
-- **분석(Inventory)**: 기능 단위로 중복/흩어진 로직을 `rg`/`ts-prune` 등으로 수집하고, “한 기능 = 한 유틸/컴포넌트” 매핑표를 작성합니다.
-- **정리(Consolidate)**: 공통 규칙을 유틸/컴포넌트/서비스 레이어로 올리고, 이름·타입·리턴 형태를 표준화합니다. 예) 툴팁 파싱/정리 → `src/utils/tooltipText.ts`.
-- **정렬(Align)**: 사용처를 새 유틸로 치환하고, 임시/중복 함수를 제거합니다. 동일 입력에 동일 결과가 나오도록 옵션을 정의하고 테스트(또는 샘플 데이터)로 검증합니다.
-- **검증(Verify)**: ESLint/TypeScript 체크 → 주요 화면 스모크 테스트(검색, 상세 모달, 스킬/아크 그리드 등) 순서로 확인합니다.
-- **문서화(Guide)**: README에 “어떤 기능을 어디서 다루는지” 표와 정리 규칙을 남겨 이후 기여자가 동일한 흐름을 따르도록 합니다.
-
-## Git 사용 순서
+## 빠른 시작
+1) `.env` 준비 (`.env.example` 참고, DB/LOSTARK_API_KEY 등)  
+2) 원클릭 준비: `bash scripts/dev-prepare.sh` (프론트 의존성 설치, DB/백엔드 기동, 헬스 체크)  
+3) 프론트: `npm run dev` (또는 `npm run dev:host`, `docker compose up -d frontend`)  
+4) 백엔드: `./gradlew bootRun` (또는 `./gradlew --no-daemon bootRun`)  
+5) 주요 포트: 프론트 5173, 백엔드 8080, DB 3307, Adminer 8082  
+6) 헬스 체크:  
 ```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/your-username/lostark-project.git
-git push -u origin main
-
-# 다른 PC에서
-git clone https://github.com/your-username/lostark-project.git
-cd lostark-project
-cp .env.example .env && # 값 입력
-docker compose up -d
+docker compose ps
+curl -i http://localhost:8080/api/markets/options
+curl -s http://localhost:8080/api/admin/market-stats/status
 ```
 
-## 문제 해결
-- **포트 충돌**: `docker-compose*.yml`에서 포트를 조정합니다.
-- **컨테이너 시작 실패**  
-  ```bash
-  docker compose logs backend
-  docker compose logs frontend
-  docker compose up -d --build
-  ```
-- **DB 초기화**  
-  ```bash
-  docker compose down -v
-  docker compose up -d
-  ```
+## 주요 기능/구성
+- **경매/거래소 조회**: `frontend/src/components/AuctionMenu.vue`, 백엔드 `market/controller/MarketController`
+- **일별 통계 수집**: 스케줄(04:30/수 06:05) + 수동 캡처(`POST /api/admin/market-stats/capture`, 비동기)  
+  - 저장: `market_daily_stats`, `market_item_assets`  
+  - 프론트 관리자 화면: `frontend/src/components/AdminStats.vue` (검색/페이징/수집 중 오버레이)
+- **상태 배지**: 메인 메뉴에서 `/api/markets/options` 헬스 기반 서버 상태 표시
 
-## 클라우드/호스팅 배포
-- Frontend: **Vercel** (정적 빌드, `VITE_API_BASE_URL`을 Railway 도메인으로 설정)
-- Backend: **Railway** (Dockerfile 또는 JAR 실행, FreeDB 연결)
-- Database: **FreeDB** (Hosted MariaDB)
+## 문서/가이드
+- 단일 진입: `docs/dev-quickstart.md` (준비/헬스/구성/트러블슈팅/문서 목록)  
+- 배포: `docs/deployment/` (Railway/Vercel/FreeDB 등)  
+- 프론트 UX/기능: `frontend/docs/UX_OVERVIEW.md`, `frontend/docs/CHARACTER_RANKING_GUIDE.md`, `frontend/docs/ARK_GRID_GUIDE.md`  
+- 기타: `docs/lostark-armory.md`, `docs/mcp-usage.md`, `docs/documentation-guidelines.md`
 
-플랫폼별 세부 절차와 환경 변수 매트릭스는 `docs/deployment` 폴더를 참고하세요.
+## 운영/배포
+- 개발: `docker compose up -d --build`
+- 운영 시뮬레이션: `docker compose -f docker-compose.prod.yml up -d --build`
+- 관리: `docker compose restart`, `docker compose logs -f backend`
+
+## 트러블슈팅 메모
+- 포트 충돌 시 Compose 포트 수정.  
+- Gradle 캐시 권한 오류: `sudo chown -R "$USER" backend/.gradle`.  
+- 프론트 OPTIONS/CORS 실패: `VITE_API_BASE_URL` 확인 + 백엔드(8080) 기동 여부 확인.

@@ -89,3 +89,26 @@ export interface StoredMarketItem {
   createdAt?: string
   updatedAt?: string
 }
+
+export interface MarketDailyStat {
+  id?: number
+  apiItemId: number
+  categoryCode: number
+  itemName?: string | null
+  icon?: string | null
+  statDate: string
+  minPrice?: number | null
+  avgPrice?: number | null
+  tradeCount?: number | null
+  tradeVolume?: number | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface PageResult<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  page: number
+  size: number
+}

@@ -23,7 +23,4 @@
 - 규칙: `docs/documentation-guidelines.md`를 따르되, UI/UX 캡처는 필요 시 포함 가능. 프런트 전용 내용은 `frontend/docs/`에 유지.
 
 ### 백엔드 문서
-- 경로: `backend/`
-- 파일:
-  - `HELP.md`
-- 규칙: 백엔드 전용 설정/운영/개발 문서는 `backend/` 이하에 배치하고, 공용 가이드와 충돌 없게 파일명 `kebab-case` 유지. 공통 규칙은 `docs/documentation-guidelines.md` 참고.
+- 현재 루트 `docs/`와 배포 문서만 존재하며, 별도 `backend/docs`는 없습니다. 백엔드 관련 설명은 `docs/dev-quickstart.md`와 `docs/deployment/`를 참고하세요.

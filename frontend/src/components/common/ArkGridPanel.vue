@@ -40,7 +40,7 @@
 
       <section v-if="passiveMatrix.length" class="ark-grid-passives">
         <div class="section-heading">
-          <h4>아크 패시브 계층</h4>
+          <h4>아크 패시브</h4>
         </div>
         <div class="passive-matrix">
           <div class="matrix-header">
@@ -97,7 +97,7 @@
       <section v-if="slotCards.length" class="ark-grid-slots">
         <div class="section-heading">
           <div>
-            <h4>코어 & 젬 네트워크</h4>
+            <h4>아크 그리드</h4>
           </div>
         </div>
         <div class="slot-card-grid">
@@ -202,6 +202,7 @@ import IconImage from './IconImage.vue'
 import { stripHtml } from '@/utils/tooltipParser'
 import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import type { ArkGridResponse, ArkGridSlot, ArkPassiveEffect, ArkPassivePoint } from '@/api/types'
+import { applyArkGemAbbreviations } from '@/data/arkGemAbbreviations'
 
 const props = defineProps<{
   response: ArkGridResponse | null
@@ -344,6 +345,8 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
       stripHtml(segment).trim()
     ).filter(Boolean)
 
+    const abbreviateGemText = (value: string) => applyArkGemAbbreviations(value)
+
     let i = 0
     while (i < segments.length) {
       const segment = segments[i] ?? ''
@@ -355,9 +358,10 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
       // 1. 필요 의지력 패턴
       const willpowerMatch = segment.match(/필요\s*의지력\s*:\s*(\d+)/i)
       if (willpowerMatch) {
-        const text = `의지력 ${willpowerMatch[1]}`
-        badges.push({ text, fullText: text })
-        tooltipLines.push(text)
+        const fullText = segment
+        const text = abbreviateGemText(`의지력 ${willpowerMatch[1]}`)
+        badges.push({ text, fullText })
+        tooltipLines.push(fullText)
         i++
         continue
       }
@@ -365,18 +369,19 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
       // 2. 질서/혼돈 포인트 패턴
       const pointMatch = segment.match(/(질서|혼돈)\s*포인트\s*:\s*(\d+)/i)
       if (pointMatch) {
-        const text = `${pointMatch[1]} 포인트 ${pointMatch[2]}`
-        badges.push({ text, fullText: text })
-        tooltipLines.push(text)
+        const fullText = segment
+        const text = abbreviateGemText(`${pointMatch[1]} 포인트 ${pointMatch[2]}`)
+        badges.push({ text, fullText })
+        tooltipLines.push(fullText)
         i++
         continue
       }
 
       // 3. 효과 이름과 레벨 패턴 (예: [추가 피해] Lv.1)
-    const effectNameMatch = segment.match(/\[([^\]]+)\]\s*Lv\.(\d+)/i)
-    if (effectNameMatch) {
-      const effectName = (effectNameMatch[1] ?? '').trim()
-      const levelNum = effectNameMatch[2] ?? ''
+      const effectNameMatch = segment.match(/\[([^\]]+)\]\s*Lv\.(\d+)/i)
+      if (effectNameMatch) {
+        const rawEffectName = (effectNameMatch[1] ?? '').trim()
+        const levelNum = effectNameMatch[2] ?? ''
 
         // 다음 라인에서 효과 값 찾기
         if (i + 1 < segments.length) {
@@ -388,8 +393,8 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
           // 값 패턴 찾기 (예: +0.08%, +0.11%)
           const valueMatch = nextSegment.match(/([\+\-]\d+(?:\.\d+)?%)/i)
           if (valueMatch) {
-            const badgeText = `${effectName} ${levelNum}`
-            const fullText = `${effectName} Lv.${levelNum} ${valueMatch[1]}`
+            const badgeText = abbreviateGemText(`${rawEffectName} ${levelNum}`)
+            const fullText = `${rawEffectName} Lv.${levelNum} ${valueMatch[1]}`
             badges.push({ text: badgeText, fullText })
             tooltipLines.push(fullText)
             i += 2 // 다음 라인도 건너뜀
@@ -398,9 +403,10 @@ const parseGemDescriptionToBadges = (tooltip?: string | null): GemTooltipData =>
         }
 
         // 값이 없으면 레벨만 표시
-        const text = `${effectName} ${levelNum}`
-        badges.push({ text, fullText: text })
-        tooltipLines.push(text)
+        const text = abbreviateGemText(`${rawEffectName} ${levelNum}`)
+        const fullText = `${rawEffectName} Lv.${levelNum}`
+        badges.push({ text, fullText })
+        tooltipLines.push(fullText)
         i++
         continue
       }
@@ -1005,7 +1011,7 @@ const emptyStateDescription = computed(() => {
 
 .slot-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 18px;
   margin-top: 10px;
 }
@@ -1015,6 +1021,7 @@ const emptyStateDescription = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* padding: 0px 20px; */
 }
 
 .slot-card-head {
@@ -1077,16 +1084,18 @@ const emptyStateDescription = computed(() => {
   margin: 0;
   font-size: 0.8rem;
   color: var(--text-primary, #1f2937);
+  max-width: 280px;
 }
 
 .gem-badge-grid {
   /* display: grid;
   grid-template-columns: repeat(2, 90px); */
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
   margin: 0;
-  width: 200px;
+  /* width: 50px; */
+  /* padding: 0px 10px; */
 }
 
 .gem-badge {
@@ -1102,7 +1111,7 @@ const emptyStateDescription = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: fit-content;
+  width: 60px;
   height: fit-content;
 }
 
@@ -1142,13 +1151,12 @@ const emptyStateDescription = computed(() => {
 
 .slot-gem-stack {
   display: flex;
-  flex-direction: column;
   gap: 10px;
 }
 
 .gem-card {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 8px;
   position: relative;
 }
@@ -1162,6 +1170,10 @@ const emptyStateDescription = computed(() => {
   visibility: visible;
   opacity: 1;
   transform: translate(-50%, 2px);
+}
+
+.gem-card:not(:last-child){
+  /* border-right: 1px dashed var(--text-primary) */
 }
 
 .gem-tooltip-hover {

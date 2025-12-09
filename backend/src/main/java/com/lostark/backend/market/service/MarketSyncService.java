@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lostark.backend.dto.market.MarketCategoryDto;
 import com.lostark.backend.dto.market.MarketItemDetailDto;
 import com.lostark.backend.dto.market.MarketItemDto;
+import com.lostark.backend.dto.market.MarketItemStatDto;
 import com.lostark.backend.dto.market.MarketItemRefreshRequest;
 import com.lostark.backend.dto.market.MarketItemsRequest;
 import com.lostark.backend.dto.market.MarketItemsResponse;
@@ -14,16 +15,25 @@ import com.lostark.backend.dto.market.MarketSyncResultDto;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.lostark.client.LostArkApiClient;
 import com.lostark.backend.market.entity.MarketCategory;
+import com.lostark.backend.market.entity.MarketDailyStat;
 import com.lostark.backend.market.entity.MarketOptionMeta;
 import com.lostark.backend.market.repository.MarketCategoryRepository;
+import com.lostark.backend.market.repository.MarketDailyStatRepository;
+import com.lostark.backend.market.repository.MarketItemAssetRepository;
 import com.lostark.backend.market.repository.MarketOptionMetaRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,12 +49,15 @@ public class MarketSyncService {
     private final LostArkApiClient lostArkApiClient;
     private final MarketCategoryRepository marketCategoryRepository;
     private final MarketOptionMetaRepository marketOptionMetaRepository;
+    private final MarketDailyStatRepository marketDailyStatRepository;
+    private final MarketItemAssetRepository marketItemAssetRepository;
     private final ObjectMapper objectMapper;
     private static final int MAX_RETRY = 5;
     private static final long BASE_BACKOFF_MS = 1500L;
     private static final long MAX_BACKOFF_MS = 8000L;
     private static final long CALL_DELAY_MS = 150L;
     private static final long ITEM_REFRESH_COOLDOWN_MS = 5 * 1000L;
+    private static final ZoneId ZONE_SEOUL = ZoneId.of("Asia/Seoul");
 
     private final Map<Integer, Long> categoryFetchTimestamps = new ConcurrentHashMap<>();
     private final Map<Long, Long> itemRefreshLocks = new ConcurrentHashMap<>();
@@ -249,6 +262,133 @@ public class MarketSyncService {
         return new PageBundle(combined, totalCount);
     }
 
+    /**
+     * 지정한 statDate(예: 전일) 기준 거래 데이터를 저장한다.
+     */
+    public void captureDailyStats(LocalDate statDate) {
+        LocalDate targetDate = statDate != null ? statDate : LocalDate.now(ZONE_SEOUL).minusDays(1);
+        List<MarketCategory> leafCategories = marketCategoryRepository.findAll().stream()
+                .filter(cat -> !cat.isHasSubs())
+                .toList();
+        AtomicInteger saved = new AtomicInteger();
+        AtomicInteger scanned = new AtomicInteger();
+
+        for (MarketCategory category : leafCategories) {
+            int page = 1;
+            int pageSize = 10;
+            while (true) {
+                MarketItemsRequest request = MarketItemsRequest.builder()
+                        .sort("RECENT_PRICE")
+                        .sortCondition("ASC")
+                        .categoryCode(category.getCode())
+                        .pageNo(page)
+                        .pageSize(pageSize)
+                        .build();
+
+                MarketItemsResponse resp = fetchMarketItemsWithRetry(request, category.getCode(), page);
+                if (resp == null || CollectionUtils.isEmpty(resp.getItems())) {
+                    break;
+                }
+                resp.getItems().forEach(item -> {
+                    scanned.incrementAndGet();
+                    if (persistDailyStat(item, category.getCode(), targetDate)) {
+                        saved.incrementAndGet();
+                    }
+                });
+
+                Integer totalCount = resp.getTotalCount();
+                int totalPages = totalCount != null && pageSize > 0
+                        ? (int) Math.ceil((double) totalCount / pageSize)
+                        : page + 1;
+                if (page >= totalPages || resp.getItems().size() < pageSize) {
+                    break;
+                }
+                page++;
+                sleep(CALL_DELAY_MS);
+            }
+        }
+        log.info("[MarketStats] captureDailyStats date={} scanned={} saved={}", targetDate, scanned.get(), saved.get());
+    }
+
+    private boolean persistDailyStat(MarketItemDto itemDto, Integer categoryCode, LocalDate statDate) {
+        if (itemDto == null || itemDto.getId() == null) {
+            return false;
+        }
+        MarketItemDetailDto detail = getItemDetail(itemDto.getId());
+        sleep(CALL_DELAY_MS);
+        if (detail == null || CollectionUtils.isEmpty(detail.getStats())) {
+            return false;
+        }
+        MarketItemStatDto targetStat = detail.getStats().stream()
+                .filter(stat -> stat.getDate() != null && stat.getDate().isEqual(statDate))
+                .findFirst()
+                .orElse(null);
+        if (targetStat == null) {
+            return false;
+        }
+
+        Double avgPrice = targetStat.getAvgPrice();
+        Long tradeCount = targetStat.getTradeCount() != null ? targetStat.getTradeCount().longValue() : null;
+        long bundleCount = firstNonNull(
+                detail.getBundleCount(),
+                itemDto.getBundleCount(),
+                1
+        );
+        Long tradeVolume = tradeCount != null ? tradeCount * bundleCount : null;
+        Double minPrice = firstNonNull(itemDto.getCurrentMinPrice(), itemDto.getRecentPrice(), null);
+
+        if (avgPrice == null && tradeCount == null && tradeVolume == null && minPrice == null) {
+            return false;
+        }
+
+        MarketDailyStat stat = marketDailyStatRepository
+                .findByApiItemIdAndStatDate(itemDto.getId(), statDate)
+                .orElseGet(MarketDailyStat::new);
+        stat.setApiItemId(itemDto.getId());
+        stat.setCategoryCode(categoryCode);
+        stat.setItemName(itemDto.getName());
+        stat.setStatDate(statDate);
+        stat.setMinPrice(minPrice);
+        stat.setAvgPrice(avgPrice);
+        stat.setTradeCount(tradeCount);
+        stat.setTradeVolume(tradeVolume);
+        stat.setFetchedAt(LocalDateTime.now(ZONE_SEOUL));
+
+        marketDailyStatRepository.save(stat);
+
+        upsertAsset(itemDto);
+        return true;
+    }
+
+    private void upsertAsset(MarketItemDto itemDto) {
+        marketItemAssetRepository.findByApiItemId(itemDto.getId())
+                .ifPresentOrElse(asset -> {
+                    boolean dirty = false;
+                    if (itemDto.getName() != null && !itemDto.getName().equals(asset.getName())) {
+                        asset.setName(itemDto.getName());
+                        dirty = true;
+                    }
+                    if (itemDto.getIcon() != null && !itemDto.getIcon().equals(asset.getIcon())) {
+                        asset.setIcon(itemDto.getIcon());
+                        dirty = true;
+                    }
+                    if (itemDto.getGrade() != null && !itemDto.getGrade().equals(asset.getGrade())) {
+                        asset.setGrade(itemDto.getGrade());
+                        dirty = true;
+                    }
+                    if (dirty) {
+                        marketItemAssetRepository.save(asset);
+                    }
+                }, () -> {
+                    var asset = new com.lostark.backend.market.entity.MarketItemAsset();
+                    asset.setApiItemId(itemDto.getId());
+                    asset.setName(itemDto.getName());
+                    asset.setIcon(itemDto.getIcon());
+                    asset.setGrade(itemDto.getGrade());
+                    marketItemAssetRepository.save(asset);
+                });
+    }
+
     private MarketItemsResponse fetchMarketItemsWithRetry(MarketItemsRequest request, Integer categoryCode, int pageNo) {
         int attempt = 0;
         long backoff = BASE_BACKOFF_MS;
@@ -297,6 +437,19 @@ public class MarketSyncService {
         } catch (Exception e) {
             throw new ApiException("저장된 거래소 옵션을 읽는 중 오류가 발생했습니다.", e);
         }
+    }
+
+    @SafeVarargs
+    private static <T> T firstNonNull(T... values) {
+        if (values == null) {
+            return null;
+        }
+        for (T value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private long resolveRetryAfterMs(WebClientResponseException e, long fallbackMs) {
@@ -366,11 +519,35 @@ public class MarketSyncService {
             if (CollectionUtils.isEmpty(list)) {
                 return null;
             }
-            return list.get(0);
+            // 동일 아이템이라도 거래 가능 여부 등에 따라 다중 응답이 내려오므로
+            // 거래량/가격 데이터가 있는 쪽을 우선 선택한다.
+            MarketItemDetailDto best = list.stream()
+                    .filter(Objects::nonNull)
+                    .max(Comparator.comparingLong(this::detailScore))
+                    .orElse(null);
+            return best != null ? best : list.get(0);
         } catch (Exception e) {
             log.error("거래소 아이템 상세 조회 실패 - itemId={}", apiItemId, e);
             return null;
         }
+    }
+
+    private long detailScore(MarketItemDetailDto detail) {
+        if (detail == null || CollectionUtils.isEmpty(detail.getStats())) {
+            return Long.MIN_VALUE;
+        }
+        long tradeCountSum = detail.getStats().stream()
+                .map(MarketItemStatDto::getTradeCount)
+                .filter(Objects::nonNull)
+                .mapToLong(Integer::longValue)
+                .sum();
+        long priceDays = detail.getStats().stream()
+                .map(MarketItemStatDto::getAvgPrice)
+                .filter(Objects::nonNull)
+                .filter(price -> price > 0)
+                .count();
+        // 거래 건수가 많은 응답을 우선, 없으면 평균가가 있는 응답을 선택
+        return tradeCountSum > 0 ? (tradeCountSum * 10 + priceDays) : priceDays;
     }
 
     private record PageBundle(List<MarketItemDto> items, Integer totalCount) {}

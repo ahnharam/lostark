@@ -20,7 +20,9 @@ import type {
   MarketOptionsResponse,
   MarketSearchResponse,
   MarketItemSummary,
-  MarketItemDetail
+  MarketItemDetail,
+  MarketDailyStat,
+  PageResult
 } from './types'
 
 const CACHE_TTL = {
@@ -328,6 +330,39 @@ export const lostarkApi = {
   async getMarketItemDetail(apiItemId: number): Promise<MarketItemDetail> {
     const response = await apiClient.get<MarketItemDetail>(`/markets/items/${apiItemId}/detail`)
     return response.data
+  },
+
+  async getMarketDailyStatsRecent(options?: { page?: number; size?: number; q?: string }) {
+    const response = await apiClient.get<PageResult<MarketDailyStat>>(`/admin/market-stats/recent`, {
+      params: {
+        page: options?.page ?? 0,
+        size: options?.size ?? 50,
+        q: options?.q
+      }
+    })
+    return response.data
+  },
+
+  async triggerMarketStatsCapture(date?: string) {
+    const response = await apiClient.post<string>('/admin/market-stats/capture', null, {
+      params: { date }
+    })
+    return response.data
+  },
+
+  async getMarketStatsStatus() {
+    const response = await apiClient.get<{ running: boolean }>('/admin/market-stats/status')
+    return response.data
+  },
+
+  async checkServerStatus() {
+    try {
+      // 가벼운 엔드포인트로 상태 확인
+      await apiClient.get('/markets/options')
+      return true
+    } catch {
+      return false
+    }
   },
 
   addFavorite(characterName: string) {

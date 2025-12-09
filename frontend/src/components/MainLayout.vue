@@ -34,7 +34,13 @@
                 <span v-if="item.badge" class="menu-item__badge">{{ item.badge }}</span>
               </button>
             </div>
-            <ThemeToggle class="menu-theme-toggle" />
+            <div class="menu-actions">
+              <div class="server-status" :class="statusClass">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span class="status-label">{{ statusLabel }}</span>
+              </div>
+              <ThemeToggle class="menu-theme-toggle" />
+            </div>
           </div>
           <button class="menu-close" type="button" @click="closeMenu" aria-label="메뉴 닫기"></button>
         </div>
@@ -63,16 +69,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CharacterSearch from './CharacterSearch.vue'
 import ReforgeMenu from './ReforgeMenu.vue'
 import AuctionMenu from './AuctionMenu.vue'
 import LifeMenu from './LifeMenu.vue'
+import AdminStats from './AdminStats.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
 import { useTheme } from '@/composables/useTheme'
+import { lostarkApi } from '@/api/lostark'
 
-type MainMenuKey = 'character-search' | 'reforge' | 'auction' | 'life'
+type MainMenuKey = 'character-search' | 'reforge' | 'auction' | 'life' | 'admin'
 
 interface MainMenuItem {
   key: MainMenuKey
@@ -86,14 +94,15 @@ const menuItems: MainMenuItem[] = [
   { key: 'character-search', label: '캐릭터 검색', icon: '🧭', available: true, badge: '기본' },
   { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: 'NEW' },
   { key: 'auction', label: '경매', icon: '💰', available: true, badge: 'DB' },
-  { key: 'life', label: '생활', icon: '🌿', available: false, badge: '준비 중' }
+  { key: 'life', label: '생활', icon: '🌿', available: false, badge: '준비 중' },
+  { key: 'admin', label: '관리 (내부)', icon: '🛠️', available: true }
 ]
 
 const router = useRouter()
 const route = useRoute()
 
 const normalizeMenu = (value: unknown): MainMenuKey => {
-  if (value === 'reforge' || value === 'auction' || value === 'life') return value
+  if (value === 'reforge' || value === 'auction' || value === 'life' || value === 'admin') return value
   return 'character-search'
 }
 
@@ -102,6 +111,8 @@ initTheme()
 
 const activeMenu = ref<MainMenuKey>(normalizeMenu(route.params.menu))
 const menuOpen = ref(false)
+const serverStatus = ref<'unknown' | 'ok' | 'down'>('unknown')
+let statusTimer: number | undefined
 
 watch(
   () => route.params.menu,
@@ -136,10 +147,43 @@ const componentMap: Record<MainMenuKey, unknown> = {
   'character-search': CharacterSearch,
   reforge: ReforgeMenu,
   auction: AuctionMenu,
-  life: LifeMenu
+  life: LifeMenu,
+  admin: AdminStats
 }
 
 const activeComponent = computed(() => componentMap[activeMenu.value] ?? CharacterSearch)
+
+const statusClass = computed(() => {
+  if (serverStatus.value === 'ok') return 'status--ok'
+  if (serverStatus.value === 'down') return 'status--down'
+  return 'status--unknown'
+})
+
+const statusLabel = computed(() => {
+  if (serverStatus.value === 'ok') return '서버상태'
+  if (serverStatus.value === 'down') return '서버상태'
+  return '서버상태'
+})
+
+const checkServer = async () => {
+  try {
+    const ok = await lostarkApi.checkServerStatus()
+    serverStatus.value = ok ? 'ok' : 'down'
+  } catch {
+    serverStatus.value = 'down'
+  }
+}
+
+onMounted(() => {
+  checkServer()
+  statusTimer = window.setInterval(checkServer, 30000)
+})
+
+onBeforeUnmount(() => {
+  if (statusTimer) {
+    window.clearInterval(statusTimer)
+  }
+})
 </script>
 
 <style scoped>
@@ -238,8 +282,42 @@ const activeComponent = computed(() => componentMap[activeMenu.value] ?? Charact
   padding: 4px 0;
 }
 
-.menu-theme-toggle {
-  margin-left: auto;
+.menu-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.server-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f3f4f6);
+  font-size: 0.92rem;
+  color: var(--text-primary, #111827);
+}
+
+.server-status .status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d1d5db;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.server-status.status--ok .status-dot {
+  background: #16a34a;
+}
+
+.server-status.status--down .status-dot {
+  background: #dc2626;
+}
+
+.server-status.status--unknown .status-dot {
+  background: #d1d5db;
 }
 
 .menu-item {

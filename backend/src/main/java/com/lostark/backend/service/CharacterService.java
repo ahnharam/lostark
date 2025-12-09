@@ -7,17 +7,23 @@ import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.dto.CharacterStatDto;
 import com.lostark.backend.dto.CollectibleDto;
 import com.lostark.backend.entity.Character;
+import com.lostark.backend.entity.CharacterSnapshot;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.exception.CharacterNotFoundException;
 import com.lostark.backend.lostark.domain.LostArkProfileDomainService;
 import com.lostark.backend.repository.CharacterRepository;
+import com.lostark.backend.repository.CharacterSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,11 +33,14 @@ import java.util.Optional;
 public class CharacterService {
 
     private final CharacterRepository characterRepository;
+    private final CharacterSnapshotRepository characterSnapshotRepository;
     private final LostArkProfileDomainService lostArkProfileDomainService;
     private final ObjectMapper objectMapper;
     private final SearchHistoryService searchHistoryService;
 
     private static final Duration CACHE_DURATION = Duration.ofHours(1);
+    private static final ZoneId ZONE_SEOUL = ZoneId.of("Asia/Seoul");
+    private static final LocalTime RESET_CUTOFF_TIME = LocalTime.of(6, 0);
     
     @Transactional
     public CharacterProfileDto getCharacterProfile(String characterName, String userId, boolean forceRefresh) {
@@ -43,24 +52,30 @@ public class CharacterService {
         }
         
         Optional<Character> cachedCharacter = characterRepository.findByCharacterName(characterName);
+        LocalDate currentResetDate = resolveResetDate(ZonedDateTime.now(ZONE_SEOUL));
         
         if (cachedCharacter.isPresent() && !forceRefresh) {
             Character character = cachedCharacter.get();
-            boolean cacheFresh = Duration.between(character.getUpdatedAt(), LocalDateTime.now())
-                    .compareTo(CACHE_DURATION) < 0;
+            boolean hasTimestamp = character.getUpdatedAt() != null;
+            boolean cacheFresh = hasTimestamp &&
+                    Duration.between(character.getUpdatedAt(), LocalDateTime.now()).compareTo(CACHE_DURATION) < 0;
             boolean needsUpgrade =
                     character.getTitle() == null ||
                     character.getStatsJson() == null ||
                     character.getCombatPower() == null ||
                     character.getHonorPoint() == null;
+            boolean sameResetWindow = hasTimestamp &&
+                    resolveResetDate(character.getUpdatedAt()).equals(currentResetDate);
             
-            if (cacheFresh && !needsUpgrade) {
+            if (cacheFresh && !needsUpgrade && sameResetWindow) {
                 log.info("캐시된 데이터 반환: {}", characterName);
                 return convertToDto(character);
             }
             
             if (needsUpgrade) {
                 log.info("캐시 데이터에 누락된 필드가 있어 재요청: {}", characterName);
+            } else if (!sameResetWindow) {
+                log.info("리셋 시각이 지나 캐시를 무효화: {}", characterName);
             }
         }
         
@@ -69,13 +84,15 @@ public class CharacterService {
         try {
             CharacterProfileDto profile = lostArkProfileDomainService.fetchCharacterProfile(characterName);
             List<CollectibleDto> collectibles = lostArkProfileDomainService.fetchCollectibles(characterName);
+            Double collectionScore = calculateCollectionScore(collectibles);
 
             log.info("API 호출 성공: {}", profile.getCharacterName());
 
             // 3. DB에 저장 또는 업데이트
             Character character = cachedCharacter.orElse(new Character());
-            updateCharacterFromDto(character, profile, calculateCollectionScore(collectibles));
-            characterRepository.save(character);
+            updateCharacterFromDto(character, profile, collectionScore);
+            Character savedCharacter = characterRepository.save(character);
+            captureSnapshot(savedCharacter, profile, collectionScore, currentResetDate);
 
             return profile;
         } catch (CharacterNotFoundException e) {
@@ -179,5 +196,71 @@ public class CharacterService {
         } catch (JsonProcessingException e) {
             character.setApiResponse(null);
         }
+    }
+
+    private void captureSnapshot(Character character, CharacterProfileDto dto, Double collectionScore, LocalDate resetDate) {
+        if (character == null || dto == null || resetDate == null) {
+            return;
+        }
+
+        CharacterSnapshot snapshot = characterSnapshotRepository
+                .findByCharacterAndResetDate(character, resetDate)
+                .orElseGet(CharacterSnapshot::new);
+
+        snapshot.setCharacter(character);
+        snapshot.setResetDate(resetDate);
+        snapshot.setCapturedAt(LocalDateTime.now(ZONE_SEOUL));
+        snapshot.setCharacterName(dto.getCharacterName());
+        snapshot.setServerName(dto.getServerName());
+        snapshot.setCharacterClassName(dto.getCharacterClassName());
+        snapshot.setCharacterLevel(dto.getCharacterLevel());
+        snapshot.setItemAvgLevel(dto.getItemAvgLevel());
+        snapshot.setItemMaxLevel(dto.getItemMaxLevel());
+        snapshot.setCharacterImage(dto.getCharacterImage());
+        snapshot.setTitle(dto.getTitle());
+        snapshot.setExpeditionLevel(dto.getExpeditionLevel() != null ?
+                dto.getExpeditionLevel().toString() : null);
+        snapshot.setPvpGradeName(dto.getPvpGradeName());
+        snapshot.setGuildName(dto.getGuildName());
+        snapshot.setHonorPoint(dto.getHonorPoint());
+        snapshot.setCombatPower(dto.getCombatPower());
+        snapshot.setCollectionScore(collectionScore);
+
+        try {
+            snapshot.setStatsJson(dto.getStats() != null ?
+                    objectMapper.writeValueAsString(dto.getStats()) : null);
+        } catch (JsonProcessingException e) {
+            snapshot.setStatsJson(null);
+        }
+
+        try {
+            snapshot.setApiResponse(objectMapper.writeValueAsString(dto));
+        } catch (JsonProcessingException e) {
+            snapshot.setApiResponse(null);
+        }
+
+        characterSnapshotRepository.save(snapshot);
+    }
+
+    private LocalDate resolveResetDate(LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return null;
+        }
+        return resolveResetDate(dateTime.atZone(ZONE_SEOUL));
+    }
+
+    /**
+     * 06:00 KST 이전은 전날을 반환.
+     */
+    private LocalDate resolveResetDate(ZonedDateTime zonedDateTime) {
+        if (zonedDateTime == null) {
+            return null;
+        }
+        LocalTime time = zonedDateTime.toLocalTime();
+        LocalDate date = zonedDateTime.toLocalDate();
+        if (time.isBefore(RESET_CUTOFF_TIME)) {
+            return date.minusDays(1);
+        }
+        return date;
     }
 }
