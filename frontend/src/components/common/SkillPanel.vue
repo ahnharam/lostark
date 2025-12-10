@@ -1,6 +1,6 @@
 <template>
   <!-- 스킬 패널 메인 컨테이너 -->
-  <div class="skill-panel-shell">
+  <div class="skill-panel-shell" @mouseover="handleTooltipHover" @focusin="handleTooltipHover">
     <!-- 로딩 상태 표시 -->
     <div v-if="loading" class="skill-panel-placeholder">
       <LoadingSpinner message="스킬 정보를 불러오는 중입니다..." />
@@ -43,11 +43,14 @@
                         <IconImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
                       imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                         <div
-                          v-if="skill.descriptionText"
+                          v-if="getAwakeningDescription(skill)"
                           class="skill-icon-tooltip popup-surface popup-surface--tooltip"
                         >
                           <p class="popup-surface__title skill-tooltip-title">{{ skill.name }}</p>
-                          <p class="popup-surface__body skill-tooltip-desc">{{ skill.descriptionText }}</p>
+                          <p
+                            class="popup-surface__body skill-tooltip-desc"
+                            v-html="formatDescriptionEmphasis(getAwakeningDescription(skill))"
+                          />
                         </div>
                       </div>
                       <p class="skill-card-name">{{ skill.name }}</p>
@@ -61,33 +64,34 @@
       <!-- 스킬 섹션 반복 (각성기, 전투 스킬 등) -->
       <section v-for="section in skillSections" :key="section.key" class="skill-section" :class="section.modifier">
         <div class="section-heading">
-          <div class="section-heading-left">
-            <h4>{{ section.title }}</h4>
-            <p v-if="section.subtitle">{{ section.subtitle }}</p>
-            <div v-if="section.key === 'combat'" class="skill-view-toggle">
-              <button
-                type="button"
-                class="skill-view-toggle__btn"
-                :class="{ 'is-active': viewMode === 'summary' }"
-                @click="viewMode = 'summary'"
-              >
-                요약보기
-              </button>
-              <button
-                type="button"
-                class="skill-view-toggle__btn"
-                :class="{ 'is-active': viewMode === 'detail' }"
-                @click="viewMode = 'detail'"
-              >
-                자세히보기
+            <div class="section-heading-left">
+              <h4>{{ section.title }}</h4>
+              <p v-if="section.subtitle">{{ section.subtitle }}</p>
+              <div v-if="section.key === 'combat'" class="skill-view-toggle">
+                <button
+                  type="button"
+                  class="skill-view-toggle__btn"
+                  :class="{ 'is-active': viewMode === 'summary' }"
+                  @click="viewMode = 'summary'"
+                >
+                  요약보기
+                </button>
+                <button
+                  v-if="!isSmallViewport"
+                  type="button"
+                  class="skill-view-toggle__btn"
+                  :class="{ 'is-active': viewMode === 'detail' }"
+                  @click="viewMode = 'detail'"
+                >
+                  자세히보기
               </button>
             </div>
           </div>
         </div>
         <template v-if="section.key === 'combat' && viewMode === 'summary'">
-          <div class="skill-summary-grid">
-            <article
-              v-for="skill in regularSkillCards"
+            <div class="skill-summary-grid">
+              <article
+              v-for="skill in summarySkillCards"
               :key="`${skill.key}-summary`"
               class="skill-summary-card"
             >
@@ -136,9 +140,11 @@
                       />
                       <div class="skill-icon-tooltip popup-surface popup-surface--tooltip">
                         <p class="popup-surface__title skill-tooltip-title">{{ tripod.name }}</p>
-                        <p v-if="tripod.description" class="popup-surface__body skill-tooltip-desc">
-                          {{ tripod.description }}
-                        </p>
+                        <p
+                          v-if="tripod.description"
+                          class="popup-surface__body skill-tooltip-desc"
+                          v-html="formatDescriptionEmphasis(tripod.description)"
+                        />
                         <p class="popup-surface__body skill-tooltip-desc">
                           슬롯 {{ tripod.slotLabel }}
                         </p>
@@ -170,11 +176,14 @@
                                 <IconImage v-if="pair.left.icon" :src="pair.left.icon" :alt="pair.left.name" width="40"
                                   height="40" imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                                 <div
-                                  v-if="pair.left.descriptionText"
+                                  v-if="getAwakeningDescription(pair.left)"
                                   class="skill-icon-tooltip popup-surface popup-surface--tooltip"
                                 >
                                   <p class="popup-surface__title skill-tooltip-title">{{ pair.left.name }}</p>
-                                  <p class="popup-surface__body skill-tooltip-desc">{{ pair.left.descriptionText }}</p>
+                                  <p
+                                    class="popup-surface__body skill-tooltip-desc"
+                                    v-html="formatDescriptionEmphasis(getAwakeningDescription(pair.left))"
+                                  />
                                 </div>
                               </div>
                               <p class="skill-card-name">{{ pair.left.name }}</p>
@@ -215,7 +224,7 @@
                             <div v-if="pair.left.rune" class="skill-rune skill-rune--inline">
                               <div class="skill-rune-icon">
                                 <IconImage v-if="pair.left.rune.icon" :src="pair.left.rune.icon"
-                                  :alt="pair.left.rune.name" width="32" height="32" imageClass="rune-image"
+                                  :alt="pair.left.rune.name" width="36" height="36" imageClass="rune-image"
                                   errorIcon="💠" :useProxy="true" />
                               </div>
                               <div>
@@ -270,11 +279,14 @@
                                 <IconImage v-if="pair.right.icon" :src="pair.right.icon" :alt="pair.right.name"
                                   width="40" height="40" imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
                                 <div
-                                  v-if="pair.right.descriptionText"
+                                  v-if="getAwakeningDescription(pair.right)"
                                   class="skill-icon-tooltip popup-surface popup-surface--tooltip"
                                 >
                                   <p class="popup-surface__title skill-tooltip-title">{{ pair.right.name }}</p>
-                                  <p class="popup-surface__body skill-tooltip-desc">{{ pair.right.descriptionText }}</p>
+                                  <p
+                                    class="popup-surface__body skill-tooltip-desc"
+                                    v-html="formatDescriptionEmphasis(getAwakeningDescription(pair.right))"
+                                  />
                                 </div>
                               </div>
                               <p class="skill-card-name">{{ pair.right.name }}</p>
@@ -315,7 +327,11 @@
                         </div>
 
                         <div class="skill-main-destruction">
-                          <p v-if="skill.descriptionText" class="skill-description">{{ skill.descriptionText }}</p>
+                      <p
+                        v-if="skill.descriptionText"
+                        class="skill-description"
+                        v-html="formatDescriptionEmphasis(skill.descriptionText)"
+                      />
                         </div>
                       </div>
 
@@ -330,9 +346,11 @@
                           <div class="tripod-detail-head">
 
                             <span class="tripod-name">{{ tripod.name }}</span>
-                            <span v-if="tripod.description" class="tripod-desc">
-                              {{ tripod.description }}
-                            </span>
+                            <span
+                              v-if="tripod.description"
+                              class="tripod-desc"
+                              v-html="formatDescriptionEmphasis(tripod.description)"
+                            />
                             <span class="tripod-slot" :class="`tripod-color-${index + 1}`">{{ tripod.slotLabel }}</span>
                             <span v-if="tripod.levelLabel" class="tripod-level">
                               {{ tripod.levelLabel }}
@@ -342,16 +360,18 @@
                       </div>
                       <div v-if="skill.rune" class="skill-rune skill-rune--inline">
                         <div class="skill-rune-icon">
-                          <IconImage v-if="skill.rune.icon" :src="skill.rune.icon" :alt="skill.rune.name" width="32"
-                            height="32" imageClass="rune-image" errorIcon="💠" :useProxy="true" />
+                          <IconImage v-if="skill.rune.icon" :src="skill.rune.icon" :alt="skill.rune.name" width="36"
+                            height="36" imageClass="rune-image" errorIcon="💠" :useProxy="true" />
                         </div>
                         <p class="skill-rune-grade" :style="{ color: skill.rune.gradeColor || undefined }">
                           {{ skill.rune.grade || '룬' }}
                         </p>
                         <strong class="skill-rune-name">{{ skill.rune.name }}</strong>
-                        <p v-if="getRuneAffixView(skill.rune, skill.runeEffect)?.text" class="skill-rune-description">
-                          {{ getRuneAffixView(skill.rune, skill.runeEffect)!.text }}
-                        </p>
+                        <p
+                          v-if="getRuneAffixView(skill.rune, skill.runeEffect)?.text"
+                          class="skill-rune-description"
+                          v-html="formatDescriptionEmphasis(getRuneAffixView(skill.rune, skill.runeEffect)!.text)"
+                        />
                       </div>
                       <div v-if="skill.gemBadges.length" class="skill-gem-row">
                         <div v-for="gem in skill.gemBadges" :key="`gem-${skill.key}-${gem.key}`" class="skill-gem-item">
@@ -377,32 +397,36 @@
               </article>
             </template>
 
-            <!-- 일반 스킬 (트라이포드/룬/보석이 없는 스킬) - 인라인 행 배치 -->
-            <div v-if="getPlainSkills(row.cards).length" class="skill-card-inline-row">
-              <article v-for="skill in getPlainSkills(row.cards)" :key="`${skill.key}-plain`"
-                class="skill-card skill-card--inline" :class="{ 'skill-card--compact': skill.isCompact }">
-                <div class="skill-card-main">
-                  <div class="skill-card-hero">
-                    <div class="skill-card-icon-block">
-                      <div class="skill-icon-wrapper" tabindex="0">
-                        <IconImage v-if="skill.icon" :src="skill.icon" :alt="skill.name" width="40" height="40"
-                          imageClass="skill-card-icon" errorIcon="✨" :useProxy="true" />
-                        <!-- 스킬 아이콘 호버 시 표시되는 툴팁 -->
-                        <div
-                          v-if="skill.descriptionText || skill.tripods.length"
-                          class="skill-icon-tooltip popup-surface popup-surface--tooltip"
-                        >
-                          <p class="popup-surface__title skill-tooltip-title">{{ skill.name }}</p>
-                          <p v-if="skill.descriptionText" class="popup-surface__body skill-tooltip-desc">{{ skill.descriptionText }}</p>
-                        </div>
-                      </div>
-                      <p class="skill-card-name">{{ skill.name }}</p>
-                      <p class="skill-card-meta">
-                        <span v-if="skill.levelLabel">{{ skill.levelLabel }}</span>
-                      </p>
+            <!-- 일반 스킬 (스킬레벨/트라이포드/룬 정보가 없는 경우) - 아이콘·이름만 그리드 배치 -->
+            <div v-if="getPlainSkills(row.cards).length" class="plain-skill-grid">
+              <article
+                v-for="skill in getPlainSkills(row.cards)"
+                :key="`${skill.key}-plain`"
+                class="plain-skill-card"
+              >
+                <div class="skill-icon-wrapper plain-skill-icon" tabindex="0">
+                  <IconImage
+                    v-if="skill.icon"
+                    :src="skill.icon"
+                    :alt="skill.name"
+                    width="48"
+                    height="48"
+                    imageClass="skill-card-icon"
+                    errorIcon="✨"
+                    :useProxy="true"
+                  />
+                    <div
+                      v-if="skill.descriptionText"
+                      class="skill-icon-tooltip popup-surface popup-surface--tooltip"
+                    >
+                      <p class="popup-surface__title skill-tooltip-title">{{ skill.name }}</p>
+                      <p
+                        class="popup-surface__body skill-tooltip-desc"
+                        v-html="formatDescriptionEmphasis(skill.descriptionText)"
+                      />
                     </div>
-                  </div>
                 </div>
+                <p class="plain-skill-name">{{ skill.name }}</p>
               </article>
             </div>
           </div>
@@ -423,7 +447,7 @@
  * - 트라이포드, 룬, 보석 정보 포함
  */
 
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import LoadingSpinner from './LoadingSpinner.vue'
 import EmptyState from './EmptyState.vue'
 import ErrorMessage from './ErrorMessage.vue'
@@ -555,6 +579,35 @@ const combatSkills = computed(() => props.response?.combatSkills ?? [])
 const skillGems = computed(() => props.response?.skillGems ?? [])
 
 const viewMode = ref<'detail' | 'summary'>('detail')
+const isSmallViewport = ref(false)
+
+const updateViewportFlag = () => {
+  if (typeof window === 'undefined') return
+  isSmallViewport.value = window.innerWidth <= 900
+  if (isSmallViewport.value) {
+    viewMode.value = 'summary'
+  }
+}
+
+if (typeof window !== 'undefined') {
+  updateViewportFlag()
+}
+
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  window.addEventListener('resize', updateViewportFlag, { passive: true })
+})
+
+onUnmounted(() => {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('resize', updateViewportFlag)
+})
+
+watch(isSmallViewport, value => {
+  if (value && viewMode.value === 'detail') {
+    viewMode.value = 'summary'
+  }
+})
 
 // ===== 유틸리티 함수 =====
 
@@ -895,11 +948,20 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
  * @param fallback - 기본값
  * @returns 요약된 텍스트
  */
-const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
+const summarizeTooltip = (tooltip?: string | null, fallback = '', preferElement004 = false) => {
   if (!tooltip) return fallback
 
   try {
     const parsed = JSON.parse(tooltip)
+
+    // 0순위: Element_004 (일부 스킬 설명이 여기에 위치, Element_003은 레벨/메타)
+    if (preferElement004 && parsed.Element_004?.value) {
+      let desc = sanitizeWithColors(parsed.Element_004.value)
+      desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
+      if (desc && desc.length >= 6) {
+        return desc
+      }
+    }
 
     // 1순위: Element_005에서 추출 (일반적으로 스킬 설명이 위치)
     if (parsed.Element_005?.value) {
@@ -990,6 +1052,39 @@ const summarizeTripodTooltip = (tooltip?: string | null, fallback = '') => {
 const formatLevelLabel = (level?: number | null, prefix = 'Lv.') => {
   if (typeof level !== 'number' || Number.isNaN(level)) return ''
   return `${prefix} ${level}`
+}
+
+/**
+ * 스킬 레벨 문구를 제거한 설명 텍스트 반환 (각성/초각성 팝업용)
+ */
+const stripSkillLevelLabel = (text?: string | null) => {
+  const clean = sanitizeInline(text)
+  if (!clean) return ''
+  const pieces = clean.split(/\s*[\r\n]+|\s*<br\s*\/?>\s*/i).filter(Boolean)
+  const filtered = pieces.filter(
+    line => !/^(?:스킬\s*)?레벨\s*\d+/i.test(line) && !/^Lv\.?\s*\d+/i.test(line)
+  )
+  let joined = filtered.join(' ').trim()
+  if (!joined) {
+    joined = clean
+  }
+  // remove inline level markers that are not at line start
+  joined = joined.replace(/(?:스킬\s*)?레벨\s*\d+/gi, '').replace(/Lv\.?\s*\d+/gi, '').replace(/\s{2,}/g, ' ').trim()
+  return joined
+}
+
+/**
+ * 숫자/퍼센트를 강조한 HTML 문자열 생성
+ */
+const formatDescriptionEmphasis = (text?: string | null) => {
+  const clean = sanitizeInline(text)
+  if (!clean) return ''
+  return clean.replace(/(\d{1,3}(?:,\d{3})*(?:\.\d+)?%?|\d+(?:\.\d+)?%?)/g, '<strong class="number-emphasis">$1</strong>')
+}
+
+const getAwakeningDescription = (skill?: SkillCardView | null) => {
+  if (!skill) return ''
+  return stripSkillLevelLabel(skill.descriptionText)
 }
 
 /**
@@ -1225,7 +1320,9 @@ const skillCards = computed<SkillCardView[]>(() => {
 
       // 메타 정보 추출 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
       const metadata = extractSkillMetadata(skill.tooltip)
-      const descriptionHtml = summarizeTooltip(skill.tooltip, '')
+      const preferElement004 =
+        parsedSkillType !== null && (parsedSkillType === 100 || parsedSkillType === 101)
+      const descriptionHtml = summarizeTooltip(skill.tooltip, '', preferElement004)
       const descriptionText = sanitizeInline(descriptionHtml)
 
       return {
@@ -1309,12 +1406,10 @@ const classicAwakeningPairs = computed<AwakeningPairGroup[]>(() => {
 })
 
 /**
- * 일반 전투 스킬 목록 (각성기 제외, skillTypeCode: 0) + 스킬포인트/룬이 있는 스킬만 노출
+ * 일반 전투 스킬 목록 (각성기 제외, skillTypeCode: 0)
  */
 const regularSkillCards = computed(() =>
-  skillCards.value.filter(
-    card => !card.isAwakening && card.skillTypeCode === 0 && (card.skillPointLabel || card.rune)
-  )
+  skillCards.value.filter(card => !card.isAwakening && card.skillTypeCode === 0)
 )
 
 /**
@@ -1424,7 +1519,26 @@ const getSectionRows = (section: SkillSectionView): SkillSectionRow[] => {
  * 강화된 스킬인지 판별 (트라이포드/룬/보석이 있는 스킬)
  */
 const isEnhancedSkill = (skill: SkillCardView) =>
-  Boolean(skill.pointLabel || skill.rune || skill.tripods.length || (skill.gemBadges && skill.gemBadges.length))
+  Boolean(
+    skill.levelLabel ||
+    skill.pointLabel ||
+    skill.skillPointLabel ||
+    skill.rune ||
+    skill.tripods.length ||
+    (skill.gemBadges && skill.gemBadges.length)
+  )
+
+/**
+ * 요약 뷰에서 강화된 스킬인지 판별 (레벨만 있는 스킬 제외)
+ */
+const hasSummaryEnhancement = (skill: SkillCardView) =>
+  Boolean(
+    skill.rune ||
+    skill.tripods.length ||
+    (skill.gemBadges && skill.gemBadges.length)
+  )
+
+const summarySkillCards = computed(() => regularSkillCards.value.filter(hasSummaryEnhancement))
 
 /**
  * 강화된 스킬 목록 필터링
@@ -1435,6 +1549,44 @@ const getEnhancedSkills = (cards: SkillCardView[]) => cards.filter(isEnhancedSki
  * 일반 스킬 목록 필터링 (강화 요소가 없는 스킬)
  */
 const getPlainSkills = (cards: SkillCardView[]) => cards.filter(card => !isEnhancedSkill(card))
+
+/**
+ * 팝업 툴팁이 화면 밖으로 나가지 않도록 위치를 조정 (기준: 아이콘 래퍼 중앙)
+ */
+const adjustTooltipWithinViewport = (tooltipEl: HTMLElement, anchorEl: HTMLElement) => {
+  const margin = 12
+  tooltipEl.style.setProperty('--tooltip-shift', '0px')
+  const anchorRect = anchorEl.getBoundingClientRect()
+  const width = tooltipEl.offsetWidth || tooltipEl.getBoundingClientRect().width
+  const centerX = anchorRect.left + anchorRect.width / 2
+  const left = centerX - width / 2
+  const right = centerX + width / 2
+  let shift = 0
+  if (left < margin) {
+    shift = margin - left
+  }
+  if (right > window.innerWidth - margin) {
+    shift = (window.innerWidth - margin) - right
+  }
+  tooltipEl.style.setProperty('--tooltip-shift', `${shift}px`)
+}
+
+/**
+ * 툴팁 호버/포커스 시 위치 보정 트리거
+ */
+const handleTooltipHover = (event: Event) => {
+  const target = event.target as HTMLElement | null
+  if (!target) return
+  const wrapper = target.closest('.skill-icon-wrapper') as HTMLElement | null
+  if (!wrapper) return
+  const tooltipEl = wrapper.querySelector<HTMLElement>('.skill-icon-tooltip')
+  if (!tooltipEl) return
+  // 두 번 연속 측정하여 초기 너비 확정 후 보정 (레이아웃 변동 방지)
+  requestAnimationFrame(() => {
+    adjustTooltipWithinViewport(tooltipEl, wrapper)
+    requestAnimationFrame(() => adjustTooltipWithinViewport(tooltipEl, wrapper))
+  })
+}
 
 /**
  * 각성기 페어 배열을 청크로 분할 (기본 2개씩 그룹화)
@@ -1543,8 +1695,8 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .skill-section {
   padding: 25px;
   border-radius: 16px;
-  background: var(--surface-color, #fff);
-  box-shadow: 0 10px 26px rgba(17, 24, 39, 0.06);
+  background: var(--bg-secondary);
+  /* box-shadow: 0 10px 26px rgba(17, 24, 39, 0.06); */
   width: fit-content;
 }
 
@@ -1577,6 +1729,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   /* grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); */
   gap: 14px;
   width: 100%;
+  flex-wrap: wrap;
 }
 
 .skill-summary-card {
@@ -1588,6 +1741,9 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   flex-direction: column;
   gap: 10px;
   box-shadow: 0 10px 26px rgba(17, 24, 39, 0.04);
+  /* flex: 1 1 220px; */
+  /* min-width: 220px; */
+  /* max-width: 320px; */
 }
 
 .skill-summary-head {
@@ -1743,10 +1899,40 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   padding: 10px;
 }
 
-.skill-card-inline-row {
+.plain-skill-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(50px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 12px;
+  width: 100%;
+}
+
+.plain-skill-card {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--surface-muted, #f9fafb);
+}
+
+.plain-skill-icon {
+  width: 50px;
+  height: 50px;
+}
+
+.plain-skill-name {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  text-align: center;
+  line-height: 1.2;
+  word-break: keep-all;
 }
 
 .skill-card--enhanced-row {
@@ -1756,13 +1942,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 .skill-card-main {
   background: transparent;
-}
-
-.skill-card--inline {
-  width: fit-content;
-  min-width: 200px;
-  flex: 1 1 220px;
-  max-width: 360px;
 }
 
 .skill-card-main {
@@ -1799,7 +1978,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   align-items: center;
   gap: 5px;
   text-align: center;
-  width: 55px;
+  width: 120px;
 }
 
 /* ===== 스킬 메타 정보 스타일 ===== */
@@ -1851,7 +2030,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 
 /* ===== 스킬 설명 스타일 ===== */
 .skill-description {
-  display: inline-flex;
+  display: block;
   margin: 0;
   padding: 10px 12px;
   background: var(--surface-muted, #f9fafb);
@@ -1860,12 +2039,9 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   font-size: 0.85rem;
   line-height: 1.5;
   text-align: left;
-  align-items: center;
   word-break: keep-all;
-  white-space: pre-wrap;
-  flex: 1 1 auto;
-  height: fit-content;
-  flex-wrap: wrap;
+  white-space: normal;
+  width: 100%;
 }
 
 .skill-card-icon {
@@ -1889,15 +2065,16 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .skill-icon-wrapper:hover .skill-icon-tooltip {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, 0);
+  transform: translate(calc(-50% + var(--tooltip-shift, 0px)), 0);
 }
 
 .skill-icon-tooltip {
+  --tooltip-shift: 0px;
   position: absolute;
   top: calc(100% + 10px);
   left: 50%;
-  transform: translate(-50%, 6px);
-  width: min(340px, 80vw);
+  transform: translate(calc(-50% + var(--tooltip-shift, 0px)), 6px);
+  width: min(340px, calc(100vw - 24px));
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
@@ -1913,6 +2090,11 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   margin: 0 0 10px;
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.number-emphasis {
+  font-weight: 800;
+  color: var(--text-primary, #111827);
 }
 
 .skill-tooltip-tripods {
@@ -1952,7 +2134,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 .tripod-name {
   /* flex: 1; */
   min-width: 130px;
-  padding: 0px 10px;
   font-weight: 600;
   color: var(--text-primary, #1f2937);
 }
@@ -2038,7 +2219,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
 /* 트라이포드 상세 인라인 레이아웃 */
 .tripod-detail-inline {
   display: grid;
-  grid-template-columns: 40px 1fr;
+  grid-template-columns: 36px 1fr;
   align-items: center;
   gap: 8px;
   padding: 10px;
@@ -2521,9 +2702,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   .skill-card {
     padding: 12px;
   }
-  .skill-card-inline-row {
-    grid-template-columns: repeat(3, minmax(70px, 1fr));
-  }
 }
 
 @media (max-width: 780px) {
@@ -2532,9 +2710,6 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   }
   .skill-card-grid {
     gap: 12px;
-  }
-  .skill-card-inline-row {
-    grid-template-columns: repeat(2, minmax(100px, 1fr));
   }
   .skill-card--compact .skill-card-info {
     flex-direction: column;
@@ -2596,7 +2771,7 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   }
 
   .skill-card-pair-row {
-    grid-template-columns: 1fr;
+    /* grid-template-columns: 1fr; */
   }
 
   .skill-card-pair-columns {

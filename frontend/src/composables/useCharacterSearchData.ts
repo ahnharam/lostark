@@ -64,6 +64,7 @@ export const useCharacterSearchData = () => {
   const characterAvailability = ref<Record<string, CharacterAvailability>>({})
   const selectedCharacterProfile = ref<CharacterProfile | null>(null)
   const detailEquipment = ref<Equipment[]>([])
+  const detailAvatars = ref<any[]>([])
   const detailEngravings = ref<Engraving[]>([])
   const detailLoading = ref(false)
   const detailError = ref<string | null>(null)
@@ -113,6 +114,7 @@ export const useCharacterSearchData = () => {
     siblings.value = []
     selectedCharacterProfile.value = null
     detailEquipment.value = []
+    detailAvatars.value = []
     detailEngravings.value = []
     detailError.value = null
     characterAvailability.value = {}
@@ -228,14 +230,16 @@ export const useCharacterSearchData = () => {
         ? Promise.resolve(options.profile)
         : lostarkApi.getCharacter(name, { force: options.forceRefresh }).then(res => res.data)
 
-      const [profile, equipmentResponse, engravingsResponse] = await Promise.all([
+      const [profile, equipmentResponse, engravingsResponse, avatarsResponse] = await Promise.all([
         profilePromise,
         lostarkApi.getEquipment(name, { force: options.forceRefresh }),
-        lostarkApi.getEngravings(name, { force: options.forceRefresh })
+        lostarkApi.getEngravings(name, { force: options.forceRefresh }),
+        lostarkApi.getAvatars(name, { force: options.forceRefresh }).catch(() => ({ data: [] as any[] }))
       ])
 
       selectedCharacterProfile.value = profile
       detailEquipment.value = equipmentResponse.data
+      detailAvatars.value = avatarsResponse.data
       detailEngravings.value = engravingsResponse.data
       characterAvailability.value[name] = 'available'
       lastRefreshedAt.value = new Date()
@@ -243,6 +247,7 @@ export const useCharacterSearchData = () => {
       characterAvailability.value[name] = 'unavailable'
       selectedCharacterProfile.value = options.profile || null
       detailEquipment.value = []
+      detailAvatars.value = []
       detailEngravings.value = []
       if (err.response?.status === 404) {
         detailError.value = `'${name}' 캐릭터 정보를 불러올 수 없어요. 오랜 기간 미접속 캐릭터일 수 있습니다.`
@@ -468,6 +473,7 @@ export const useCharacterSearchData = () => {
     characterAvailability,
     selectedCharacterProfile,
     detailEquipment,
+    detailAvatars,
     detailEngravings,
     detailLoading,
     detailError,

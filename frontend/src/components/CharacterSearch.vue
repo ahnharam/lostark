@@ -181,6 +181,8 @@
                   v-if="activeResultTab === 'summary'"
                   :active-character="activeCharacter"
                   :equipment-summary="equipmentSummary"
+                  :avatar-summary="avatarSummary"
+                  :character-image="characterImageSrc"
                   :detail-loading="detailLoading"
                   :detail-error="detailError"
                   :ark-summary="arkSummary"
@@ -443,6 +445,7 @@ const {
   history,
   selectedCharacterProfile,
   detailEquipment,
+  detailAvatars,
   detailEngravings,
   detailLoading,
   detailError,
@@ -1377,6 +1380,11 @@ const isAccessory = (item: Equipment) => {
   return /(목걸이|귀걸이|반지|팔찌|어빌리티|돌)/.test(label)
 }
 
+const isAvatarEquipment = (item: Equipment) => {
+  const label = inlineText(`${item.type} ${item.name}`).toLowerCase()
+  return /아바타|스킨|의상|페이스|헤어|가면/.test(label)
+}
+
 const isNecklace = (item: Equipment) => /목걸이/i.test(inlineText(item.type))
 const isEarring = (item: Equipment) => /귀걸이/i.test(inlineText(item.type))
 const isRing = (item: Equipment) => /반지/i.test(inlineText(item.type))
@@ -1789,6 +1797,31 @@ const equipmentSummary = computed(() => {
     left: sortedLeft.slice(0, 6),
     right: right.slice(0, 8)
   }
+})
+
+const avatarSummary = computed(() => {
+  const source =
+    detailAvatars.value.length > 0
+      ? detailAvatars.value
+      : detailEquipment.value.filter(item => isAvatarEquipment(item))
+
+  const avatars = source.map((item, index) => {
+    const name = inlineText((item as any).Name || (item as any).name) || '아바타'
+    const type = inlineText((item as any).Type || (item as any).type || name)
+    const grade = inlineText((item as any).Grade || (item as any).grade)
+    const icon = (item as any).Icon || (item as any).icon || ''
+    const tooltip = (item as any).Tooltip || (item as any).tooltip || ''
+    return {
+      key: `${name}-${index}`,
+      name,
+      type,
+      grade,
+      icon,
+      tooltip
+    }
+  })
+
+  return { items: avatars }
 })
 
 const collectionSummary = computed(() => {
@@ -4804,9 +4837,9 @@ const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 .detail-panel {
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 10px;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-md);
+  /* padding: 10px; */
+  /* border: 1px solid var(--border-color); */
+  /* box-shadow: var(--shadow-md); */
 }
 
 @media (max-width: 1280px) {

@@ -13,6 +13,7 @@ import type {
   SearchHistory,
   SkillMenuResponse,
   SiblingCharacter,
+  ArmoryAvatar,
   CardResponse,
   PageResponse,
   StoredMarketCategory,
@@ -28,6 +29,7 @@ import type {
 const CACHE_TTL = {
   CHARACTER: 5 * 60 * 1000,
   EQUIPMENT: 10 * 60 * 1000,
+  AVATARS: 10 * 60 * 1000,
   ENGRAVINGS: 10 * 60 * 1000,
   SIBLINGS: 15 * 60 * 1000,
   RANKING: 5 * 60 * 1000,
@@ -147,6 +149,24 @@ export const lostarkApi = {
         return response.data
       },
       CACHE_TTL.ENGRAVINGS,
+      options
+    )
+  },
+
+  async getAvatars(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<ArmoryAvatar[]>> {
+    return cachedRequest(
+      'avatars',
+      { name: characterName },
+      async () => {
+        const response = await apiClient.get<ArmoryAvatar[]>(`/armories/characters/${characterName}/avatars`, {
+          params: { force: options?.force }
+        })
+        return response.data
+      },
+      CACHE_TTL.AVATARS,
       options
     )
   },
