@@ -84,6 +84,7 @@ cd backend
 2) `docker compose logs backend database` 확인  
 3) 포트 충돌 여부(3307/8080/8082/5173)  
 4) 프론트 CORS/OPTIONS 실패: `VITE_API_BASE_URL` 확인 + 백엔드 기동 여부 확인  
+5) 프론트 툴팁: 브라우저 기본 `title` 기반 툴팁 사용 금지. `popup-surface--tooltip`로만 표출하고 `:title`/`title` 속성은 제거한다.  
 
 ## 10. 자주 찾는 위치
 - 문서: `docs/dev-quickstart.md`(본 문서)

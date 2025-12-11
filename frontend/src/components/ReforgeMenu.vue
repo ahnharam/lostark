@@ -213,7 +213,7 @@
           <p class="eyebrow">세팅 최적화</p>
           <h2>{{ activeOptimizationLabel }}</h2>
           <p class="lead">
-            아크패시브 뭉툭한 가시 효율을 빠르게 계산하고, 필요한 치명 스탯을 바로 확인하세요.
+            아크패시브 계산기를 통해 치명/신속 세팅을 빠르게 확인하세요.
           </p>
         </div>
         <div class="tab-switch">
@@ -231,6 +231,7 @@
       </header>
       <div class="optimization-layout">
         <BluntThornCalculator v-if="activeOptimizationTab === 'blunt-thorn'" />
+        <SupersonicCalculator v-else-if="activeOptimizationTab === 'supersonic'" />
       </div>
     </template>
   </div>
@@ -239,9 +240,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import BluntThornCalculator from './reforge/BluntThornCalculator.vue'
+import SupersonicCalculator from './reforge/SupersonicCalculator.vue'
 
 type ReforgeSection = 'reforge' | 'optimization'
-type OptimizationTab = 'blunt-thorn'
+type OptimizationTab = 'blunt-thorn' | 'supersonic'
 type ReforgeTab = 'normal' | 'advanced'
 type MaterialTab = 'price' | 'bound'
 type ScenarioTab = 'optimal' | 'partial' | 'full'
@@ -289,7 +291,8 @@ const reforgeTabs: Array<{ key: ReforgeTab; label: string }> = [
 ]
 
 const optimizationTabs: Array<{ key: OptimizationTab; label: string }> = [
-  { key: 'blunt-thorn', label: '뭉가 계산기' }
+  { key: 'blunt-thorn', label: '뭉가 계산기' },
+  { key: 'supersonic', label: '음돌 계산기' }
 ]
 
 const materialTabs: Array<{ key: MaterialTab; label: string }> = [

@@ -237,73 +237,182 @@
               </div>
             </div>
             <div v-else class="avatar-view">
-              <div class="avatar-hero">
-                <div class="avatar-hero__image" :style="{ backgroundImage: characterImage ? `url(${characterImage})` : undefined }">
-                  <span v-if="!characterImage" class="avatar-hero__placeholder">캐릭터 이미지 없음</span>
-                </div>
-              </div>
-              <div class="avatar-slot-columns">
-                <div class="avatar-slot-column">
-                  <div
-                    v-for="slot in avatarLeftSlots"
-                    :key="slot.key"
-                    class="avatar-slot"
-                    :title="slot.item?.tooltipLines?.join('\\n') || ''"
-                  >
-                    <div class="avatar-slot__icon" :class="`grade-${slot.item?.gradeKey || 'none'}`">
-                      <IconImage
-                        v-if="slot.item?.icon"
-                        :src="slot.item.icon"
-                        :alt="slot.item?.name || slot.label"
-                        width="46"
-                        height="46"
-                        imageClass="avatar-slot__img"
-                        errorIcon="👗"
-                      />
-                      <span v-else class="avatar-slot__placeholder">?</span>
-                    </div>
-                    <div class="avatar-slot__meta">
-                      <p class="avatar-slot__label">{{ slot.label }}</p>
-                      <p class="avatar-slot__name" :title="slot.item?.name">{{ slot.item?.name || '미착용' }}</p>
-                    </div>
-                    <div v-if="slot.item?.tooltipLines?.length" class="avatar-slot__tooltip popup-surface popup-surface--tooltip">
-                      <p
-                        v-for="(line, tipIdx) in slot.item.tooltipLines"
-                        :key="`avatar-tip-${slot.key}-${tipIdx}`"
-                        class="popup-surface__body"
+                <div class="avatar-hero avatar-hero--stacked">
+                  <div class="avatar-hero__image" :style="{ backgroundImage: characterImage ? `url(${characterImage})` : undefined }">
+                    <span v-if="!characterImage" class="avatar-hero__placeholder">캐릭터 이미지 없음</span>
+                    <div class="avatar-overlay-grid">
+                      <div class="avatar-slot-column">
+                      <div
+                        v-for="slot in avatarLeftSlots"
+                        :key="slot.key"
+                        class="avatar-slot"
                       >
-                        {{ line }}
-                      </p>
+                        <div class="avatar-slot__meta">
+                          <p class="avatar-slot__label">{{ slot.label }}</p>
+                        </div>
+                        <div class="avatar-slot__body" :class="slot.single ? 'avatar-slot__body--single-left' : 'avatar-slot__body--left'">
+                          <div
+                            class="avatar-slot__icon"
+                            :class="[`grade-${slot.base?.gradeKey || 'none'}`, { 'avatar-slot__icon--empty': !slot.base }]"
+                          >
+                          <IconImage
+                            v-if="slot.base?.icon"
+                            :src="slot.base.icon"
+                            :alt="slot.label"
+                            width="40"
+                            height="40"
+                            imageClass="avatar-slot__img"
+                            errorIcon="👗"
+                          />
+                            <span v-else class="avatar-slot__placeholder">✕</span>
+                            <div
+                              v-if="slot.base?.tooltipLines?.length"
+                              class="avatar-slot__tooltip avatar-slot__tooltip--icon popup-surface popup-surface--tooltip"
+                            >
+                              <p
+                                v-for="(line, tipIdx) in slot.base.tooltipLines"
+                                :key="`avatar-base-tip-${slot.key}-${tipIdx}`"
+                                class="popup-surface__body"
+                                :class="avatarTooltipLineClass(line, false)"
+                              >
+                                {{ line }}
+                              </p>
+                            </div>
+                          </div>
+                          <template v-if="!slot.single">
+                            <div
+                              class="avatar-slot__icon"
+                              :class="[`grade-${slot.overlay?.gradeKey || 'none'}`, { 'avatar-slot__icon--empty': !slot.overlay }]"
+                            >
+                              <IconImage
+                                v-if="slot.overlay?.icon"
+                                :src="slot.overlay.icon"
+                                :alt="slot.label"
+                                width="40"
+                                height="40"
+                                imageClass="avatar-slot__img"
+                                errorIcon="👗"
+                              />
+                              <span v-else class="avatar-slot__placeholder">✕</span>
+                              <div
+                                v-if="slot.overlay?.tooltipLines?.length"
+                                class="avatar-slot__tooltip avatar-slot__tooltip--icon popup-surface popup-surface--tooltip"
+                              >
+                                <p
+                                  v-for="(line, tipIdx) in slot.overlay.tooltipLines"
+                                  :key="`avatar-overlay-tip-${slot.key}-${tipIdx}`"
+                                  class="popup-surface__body"
+                                  :class="avatarTooltipLineClass(line, true)"
+                                >
+                                  {{ line }}
+                                </p>
+                              </div>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="avatar-slot-column avatar-slot-column--left">
+                      <div
+                        v-for="slot in avatarRightSlots"
+                        :key="slot.key"
+                        class="avatar-slot"
+                      >
+                        <div class="avatar-slot__meta">
+                          <p class="avatar-slot__label">{{ slot.label }}</p>
+                        </div>
+                        <div class="avatar-slot__body" :class="slot.single ? 'avatar-slot__body--single-right' : 'avatar-slot__body--right'">
+                          <template v-if="!slot.single">
+                            <div
+                              class="avatar-slot__icon"
+                              :class="[`grade-${slot.overlay?.gradeKey || 'none'}`, { 'avatar-slot__icon--empty': !slot.overlay }]"
+                            >
+                              <IconImage
+                                v-if="slot.overlay?.icon"
+                                :src="slot.overlay.icon"
+                                :alt="slot.label"
+                                width="40"
+                                height="40"
+                                imageClass="avatar-slot__img"
+                                errorIcon="🎭"
+                              />
+                              <span v-else class="avatar-slot__placeholder">✕</span>
+                              <div
+                                v-if="slot.overlay?.tooltipLines?.length"
+                                class="avatar-slot__tooltip avatar-slot__tooltip--icon popup-surface popup-surface--tooltip"
+                              >
+                                <p
+                                  v-for="(line, tipIdx) in slot.overlay.tooltipLines"
+                                  :key="`avatar-overlay-tip-${slot.key}-${tipIdx}`"
+                                  class="popup-surface__body"
+                                  :class="avatarTooltipLineClass(line, true)"
+                                >
+                                  {{ line }}
+                                </p>
+                              </div>
+                            </div>
+                          </template>
+                          <div
+                            class="avatar-slot__icon"
+                            :class="[`grade-${slot.base?.gradeKey || 'none'}`, { 'avatar-slot__icon--empty': !slot.base }]"
+                          >
+                            <IconImage
+                              v-if="slot.base?.icon"
+                              :src="slot.base.icon"
+                              :alt="slot.label"
+                              width="40"
+                              height="40"
+                              imageClass="avatar-slot__img"
+                              errorIcon="🎭"
+                            />
+                            <span v-else class="avatar-slot__placeholder">✕</span>
+                            <div
+                              v-if="slot.base?.tooltipLines?.length"
+                              class="avatar-slot__tooltip avatar-slot__tooltip--icon popup-surface popup-surface--tooltip"
+                            >
+                              <p
+                                v-for="(line, tipIdx) in slot.base.tooltipLines"
+                                :key="`avatar-base-tip-${slot.key}-${tipIdx}`"
+                                class="popup-surface__body"
+                                :class="avatarTooltipLineClass(line, false)"
+                              >
+                                {{ line }}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div class="avatar-slot-column">
+              </div>
+              <div v-if="avatarExtraSlots.length" class="avatar-extra-list">
+                <p class="avatar-extra-title">기타</p>
+                <div class="avatar-extra-grid">
                   <div
-                    v-for="slot in avatarRightSlots"
-                    :key="slot.key"
-                    class="avatar-slot"
-                    :title="slot.item?.tooltipLines?.join('\\n') || ''"
+                    v-for="(entry, idx) in avatarExtraSlots"
+                    :key="`avatar-extra-${idx}`"
+                    class="avatar-extra-card"
                   >
-                    <div class="avatar-slot__icon" :class="`grade-${slot.item?.gradeKey || 'none'}`">
+                    <div class="avatar-slot__icon" :class="`grade-${entry.item?.gradeKey || 'none'}`">
                       <IconImage
-                        v-if="slot.item?.icon"
-                        :src="slot.item.icon"
-                        :alt="slot.item?.name || slot.label"
+                        v-if="entry.item?.icon"
+                        :src="entry.item.icon"
+                        :alt="entry.item?.type || entry.item?.Type || '기타 아바타'"
                         width="46"
                         height="46"
                         imageClass="avatar-slot__img"
-                        errorIcon="🎭"
+                        errorIcon="✨"
                       />
                       <span v-else class="avatar-slot__placeholder">?</span>
                     </div>
-                    <div class="avatar-slot__meta">
-                      <p class="avatar-slot__label">{{ slot.label }}</p>
-                      <p class="avatar-slot__name" :title="slot.item?.name">{{ slot.item?.name || '미착용' }}</p>
-                    </div>
-                    <div v-if="slot.item?.tooltipLines?.length" class="avatar-slot__tooltip popup-surface popup-surface--tooltip">
+                    <p class="avatar-slot__label avatar-slot__label--center">
+                      {{ entry.item?.type || entry.item?.Type || '기타' }}
+                    </p>
+                    <div v-if="entry.item?.tooltipLines?.length" class="avatar-slot__tooltip popup-surface popup-surface--tooltip">
                       <p
-                        v-for="(line, tipIdx) in slot.item.tooltipLines"
-                        :key="`avatar-tip-${slot.key}-${tipIdx}`"
+                        v-for="(line, tipIdx) in entry.item.tooltipLines"
+                        :key="`avatar-extra-tip-${idx}-${tipIdx}`"
                         class="popup-surface__body"
                       >
                         {{ line }}
@@ -589,8 +698,8 @@ import { computed, ref } from 'vue'
 import IconImage from './IconImage.vue'
 import EmptyState from './EmptyState.vue'
 import type { CharacterProfile } from '@/api/types'
-import { getQualityColor } from '@/utils/tooltipParser'
-import { extractTooltipColor } from '@/utils/tooltipText'
+import { getQualityColor, stripHtml } from '@/utils/tooltipParser'
+import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import { getEngravingIcon } from '@/assets/BuffImage'
 import { getEngravingDisplayName, ENGRAVING_NAME_ENTRIES } from '@/data/engravingNames'
 import {
@@ -655,11 +764,17 @@ const AVATAR_SLOT_CONFIG = [
   { key: 'top', label: '상의', keywords: ['상의', '코트', '자켓', '상의아바타', '상의아바타', '상의 아바타', '상의(아바타)'] },
   { key: 'bottom', label: '하의', keywords: ['하의', '바지', '스커트', '하의아바타', '하의 아바타', '하의(아바타)'] },
   { key: 'full', label: '원피스', keywords: ['원피스', '한벌', '드레스', '전신', '세트', '원피스아바타'] },
-  { key: 'instrument', label: '악기', keywords: ['악기', 'instrument', '악기 아바타', '악기아바타'] }
+  { key: 'instrument', label: '악기', keywords: ['악기', 'instrument', '악기 아바타', '악기아바타'] },
+  { key: 'movement', label: '이동 효과', keywords: ['이동효과', '이동 효과', 'moving', '효과'] }
 ] as const
 
-const AVATAR_LEFT_KEYS = ['weapon', 'face1', 'face2', 'instrument']
-const AVATAR_RIGHT_KEYS = ['head', 'top', 'bottom', 'full']
+const AVATAR_LEFT_KEYS = ['weapon',  'instrument', 'movement']
+const AVATAR_RIGHT_KEYS = ['head', 'face1', 'face2','top', 'bottom', 'full']
+const AVATAR_SINGLE_SLOT_KEYS = ['face1', 'face2', 'instrument', 'movement', 'full']
+const AVATAR_TRADE_KEYWORDS = ['거래', '귀속']
+const AVATAR_LINEAGE_KEYWORDS = ['계열']
+const AVATAR_BASE_EFFECT_KEYWORDS = ['힘', '민첩', '지능', '체력', '치명', '특화', '신속', '제압', '인내', '숙련']
+const AVATAR_VIRTUE_KEYWORDS = ['매력', '친절', '지성', '담력']
 
 const avatarItems = computed(() => props.avatarSummary?.items || props.avatarSummary?.left || [])
 
@@ -696,53 +811,196 @@ const avatarTooltipLines = (item: any) => {
     .filter(Boolean)
 }
 
-const avatarSlots = computed(() => {
+const extractVirtueEntries = (text: string) => {
+  const entries: string[] = []
+  AVATAR_VIRTUE_KEYWORDS.forEach(virtue => {
+    const regex = new RegExp(`${virtue}\\s*[:：]?\\s*([\\d+.]+)`, 'gi')
+    let match
+    while ((match = regex.exec(text)) !== null) {
+      entries.push(`${virtue} : ${match[1]}`)
+    }
+  })
+  return entries
+}
+
+const formatAvatarTooltipLines = (item: any) => {
+  const name = inlineText(item?.name || item?.Name)
+  const gradeLabel = inlineText(item?.grade || item?.Grade)
+  const rawLines = avatarTooltipLines(item)
+  const result: string[] = []
+  const seen = new Set<string>()
+
+  const pushUnique = (line?: string) => {
+    const text = inlineText(line)
+    if (!text) return
+    if (seen.has(text)) return
+    seen.add(text)
+    result.push(text)
+  }
+
+  const cleanVirtuePrefix = (text: string) => text.replace(/&tdc_[a-z]+/gi, '').trim()
+
+  pushUnique(name)
+  pushUnique(gradeLabel)
+
+  const lineageLines: string[] = []
+  const baseLines: string[] = []
+  const virtueLines: string[] = []
+  const tradeLines: string[] = []
+
+  const splitTradeLine = (text: string) => {
+    const parts = text
+      .split('|')
+      .map(part => part.trim())
+      .filter(Boolean)
+    const rewritten: string[] = []
+    parts.forEach(part => {
+      if (/거래가능/.test(part)) return
+      const tradeCount = part.match(/거래\s*\d+\s*회\s*가능/)
+      if (tradeCount) rewritten.push(tradeCount[0].replace(/\s+/g, ' ').trim())
+      if (/거래\s*불가/.test(part)) rewritten.push('거래 불가')
+      if (part.includes('귀속')) rewritten.push('원정대 귀속됨')
+    })
+    return rewritten
+  }
+
+  rawLines.forEach(line => {
+    const rawText = inlineText(line)
+    if (!rawText) return
+    const text = cleanVirtuePrefix(rawText)
+    const virtueMatches = extractVirtueEntries(text)
+    if (virtueMatches.length) {
+      virtueMatches.forEach(v => virtueLines.push(v))
+      return
+    }
+    const hasTrade = AVATAR_TRADE_KEYWORDS.some(key => text.includes(key))
+    const hasLineage = AVATAR_LINEAGE_KEYWORDS.some(key => text.includes(key))
+    const hasBase = AVATAR_BASE_EFFECT_KEYWORDS.some(key => text.includes(key)) || text.toLowerCase().includes('기본효과')
+    const hasVirtue = AVATAR_VIRTUE_KEYWORDS.some(key => text.includes(key))
+
+    if (hasTrade) {
+      splitTradeLine(text).forEach(entry => tradeLines.push(entry))
+    } else if (hasLineage) {
+      lineageLines.push(text)
+    } else if (hasBase) {
+      baseLines.push(text)
+    } else if (hasVirtue) {
+      virtueLines.push(text)
+    }
+  })
+
+  lineageLines.forEach(pushUnique)
+  baseLines.forEach(pushUnique)
+  virtueLines.forEach(pushUnique)
+  // 거래/귀속 텍스트는 하단에만 표시 (중복 제거).
+  tradeLines.forEach(pushUnique)
+
+  return result
+}
+
+const avatarTooltipLineClass = (line: string, isOverlay: boolean) => {
+  const text = inlineText(line)
+  const isStat =
+    AVATAR_BASE_EFFECT_KEYWORDS.some(key => text.includes(key)) || text.toLowerCase().includes('기본효과')
+  const isVirtue = AVATAR_VIRTUE_KEYWORDS.some(key => text.includes(key))
+  const isTrade = AVATAR_TRADE_KEYWORDS.some(key => text.includes(key))
+  const gradeKeyFromText = avatarGradeKey(text)
+  const isGrade =
+    gradeKeyFromText !== 'none' &&
+    ['고대', '유물', '전설', '영웅', '희귀', '고급', '일반'].some(word => text.includes(word))
+  return {
+    'avatar-tooltip__stat': isStat,
+    'avatar-tooltip__stat--base': isStat && !isOverlay,
+    'avatar-tooltip__stat--overlay': isStat && isOverlay,
+    'avatar-tooltip__virtue': isVirtue,
+    'avatar-tooltip__trade': isTrade,
+    'avatar-tooltip__grade': isGrade,
+    [`avatar-tooltip__grade--${gradeKeyFromText}`]: isGrade && gradeKeyFromText !== 'none'
+  }
+}
+
+const avatarSlotBuckets = computed(() => {
   const entries = AVATAR_SLOT_CONFIG.map(cfg => ({
     key: cfg.key,
     label: cfg.label,
-    item: null as null | any
+    outer: null as null | any,
+    inner: null as null | any
   }))
-  const extras: any[] = []
+  const extras: Array<{ item: any; isInner: boolean }> = []
 
   avatarItems.value.forEach(item => {
     const slotKey = resolveAvatarSlotKey(item)
+    const normalized = {
+      ...item,
+      gradeKey: avatarGradeKey(item.grade || item.Grade),
+      tooltipLines: formatAvatarTooltipLines(item),
+      isInner: item.isInner ?? item.IsInner ?? false
+    }
     if (!slotKey) {
-      extras.push(item)
+      extras.push({ item: normalized, isInner: normalized.isInner })
       return
     }
     const target = entries.find(entry => entry.key === slotKey)
-    if (target && !target.item) {
-      target.item = {
-        ...item,
-        gradeKey: avatarGradeKey(item.grade || item.Grade),
-        tooltipLines: avatarTooltipLines(item)
-      }
+    if (!target) {
+      extras.push({ item: normalized, isInner: normalized.isInner })
+      return
+    }
+    if (normalized.isInner) {
+      if (!target.inner) target.inner = normalized
+    } else {
+      if (!target.outer) target.outer = normalized
     }
   })
 
-  extras.forEach((item, idx) => {
-    entries.push({
-      key: `extra-${idx}`,
-      label: inlineText(item.type || item.Type || item.name || item.Name) || `기타${idx + 1}`,
-      item: {
-        ...item,
-        gradeKey: avatarGradeKey(item.grade || item.Grade),
-        tooltipLines: avatarTooltipLines(item)
-      }
-    })
-  })
+  const fullSlot = entries.find(entry => entry.key === 'full')
+  const topSlot = entries.find(entry => entry.key === 'top')
+  const bottomSlot = entries.find(entry => entry.key === 'bottom')
+  const hasFull = (fullSlot?.inner || fullSlot?.outer) != null
+  const hasTopBottom = (topSlot?.inner || topSlot?.outer || bottomSlot?.inner || bottomSlot?.outer) != null
+  if (hasFull && topSlot) {
+    topSlot.inner = null
+    topSlot.outer = null
+  }
+  if (hasFull && bottomSlot) {
+    bottomSlot.inner = null
+    bottomSlot.outer = null
+  }
+  if (hasTopBottom && fullSlot && !hasFull) {
+    fullSlot.inner = null
+    fullSlot.outer = null
+  }
 
-  return entries
+  return { entries, extras }
 })
 
-const avatarLeftSlots = computed(() =>
-  avatarSlots.value.filter(slot => AVATAR_LEFT_KEYS.includes(slot.key))
-)
-const avatarRightSlots = computed(() =>
-  avatarSlots.value.filter(
-    slot => AVATAR_RIGHT_KEYS.includes(slot.key) || slot.key.startsWith('extra-')
-  )
-)
+const splitAvatarSlots = (slots: typeof avatarSlotBuckets.value.entries, layout: 'left' | 'right') =>
+  slots.map(slot => {
+    const single = AVATAR_SINGLE_SLOT_KEYS.includes(slot.key)
+    const preferredBase = layout === 'left' ? slot.outer : slot.inner
+    const preferredOverlay = layout === 'left' ? slot.inner : slot.outer
+    const base = single ? (slot.outer || slot.inner || null) : preferredBase || preferredOverlay || null
+    const overlay =
+      single || !preferredOverlay || preferredOverlay === base ? null : preferredOverlay
+
+    return {
+      ...slot,
+      base,
+      overlay,
+      single,
+      layout
+    }
+  })
+
+const avatarLeftSlots = computed(() => {
+  const slots = avatarSlotBuckets.value.entries.filter(slot => AVATAR_LEFT_KEYS.includes(slot.key))
+  return splitAvatarSlots(slots, 'left')
+})
+
+const avatarRightSlots = computed(() => {
+  const slots = avatarSlotBuckets.value.entries.filter(slot => AVATAR_RIGHT_KEYS.includes(slot.key))
+  return splitAvatarSlots(slots, 'right')
+})
+const avatarExtraSlots = computed(() => avatarSlotBuckets.value.extras)
 
 const qualityBadgeBackground = 'var(--quality-badge-bg, rgba(15, 23, 42, 0.333))'
 
@@ -1710,23 +1968,40 @@ const coreNameStyle = (slot: any) => {
 
 .avatar-hero__image {
   width: min(360px, 100%);
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 3 / 5;
   border-radius: 18px;
   background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.2)),
     linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 64, 175, 0.48));
   background-size: cover;
   background-position: center;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 18px 60px rgba(0, 0, 0, 0.25);
+  /* box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 18px 60px rgba(0, 0, 0, 0.25); */
   display: grid;
   place-items: center;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .avatar-hero__placeholder {
   color: var(--text-secondary);
   font-size: var(--font-sm);
+}
+
+.avatar-overlay-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 100px;
+  padding: 16px 12px;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.avatar-overlay-grid .avatar-slot-column {
+  pointer-events: auto;
 }
 
 .avatar-slot-columns {
@@ -1740,28 +2015,62 @@ const coreNameStyle = (slot: any) => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width:fit-content;
+}
+
+.avatar-slot-column--left{
+  align-items: flex-end;
 }
 
 .avatar-slot {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 5px;
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.158));
+  /* border: 1px solid rgba(255, 255, 255, 0.06); */
   position: relative;
+  width:fit-content;
+}
+
+.avatar-slot__body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+}
+
+.avatar-slot__body--left {
+  flex-direction: row-reverse;
+}
+
+.avatar-slot__body--right {
+  flex-direction: row;
+}
+
+.avatar-slot__body--single-left {
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+.avatar-slot__body--single-right {
+  flex-direction: row;
+  justify-content: flex-start;
 }
 
 .avatar-slot__icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  position: relative;
 }
 
 .avatar-slot__img {
@@ -1773,19 +2082,32 @@ const coreNameStyle = (slot: any) => {
   font-weight: 700;
 }
 
+.avatar-slot__icon--empty {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 .avatar-slot__meta {
-  min-width: 0;
+  width: 100%;
+  text-align: center;
 }
 
 .avatar-slot__label {
   margin: 0;
+  color: var(--text-inverse);
   font-size: var(--font-xxs);
-  color: var(--text-secondary);
+  font-weight: 700;
   letter-spacing: 0.01em;
 }
 
+.avatar-slot__label--center {
+  text-align: center;
+}
+
 .avatar-slot__name {
-  margin: 4px 0 0;
+  margin: 0;
   font-weight: 700;
   color: var(--text-primary);
   font-size: var(--font-sm);
@@ -1846,11 +2168,102 @@ const coreNameStyle = (slot: any) => {
   z-index: 10;
 }
 
-.avatar-slot:hover .avatar-slot__tooltip,
-.avatar-slot:focus-within .avatar-slot__tooltip {
+.avatar-slot__tooltip--icon {
+  left: 50%;
+  transform: translate(-50%, 6px);
+}
+
+.avatar-slot:hover .avatar-slot__tooltip:not(.avatar-slot__tooltip--icon),
+.avatar-slot:focus-within .avatar-slot__tooltip:not(.avatar-slot__tooltip--icon),
+.avatar-extra-card:hover .avatar-slot__tooltip,
+.avatar-extra-card:focus-within .avatar-slot__tooltip {
   visibility: visible;
   opacity: 1;
   transform: translateY(0);
+}
+
+.avatar-slot__icon:hover .avatar-slot__tooltip--icon,
+.avatar-slot__icon:focus-within .avatar-slot__tooltip--icon {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.avatar-slot__tooltip .popup-surface__body {
+  margin-bottom: 5px;
+}
+
+.avatar-slot__tooltip .popup-surface__body:last-child {
+  margin-bottom: 0;
+}
+
+.avatar-tooltip__stat--base {
+  font-weight: 700;
+}
+
+.avatar-tooltip__stat--overlay {
+  color: #9ca3af;
+}
+
+.avatar-tooltip__virtue {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.avatar-tooltip__grade--ancient {
+  color: var(--rarity-ancient, #eab308);
+}
+
+.avatar-tooltip__grade--relic {
+  color: var(--rarity-relic, #f97316);
+}
+
+.avatar-tooltip__grade--legendary {
+  color: var(--rarity-legendary, #fbbf24);
+}
+
+.avatar-tooltip__grade--epic {
+  color: var(--rarity-heroic, #a78bfa);
+}
+
+.avatar-tooltip__grade--rare {
+  color: var(--rarity-rare, #60a5fa);
+}
+
+.avatar-tooltip__grade--uncommon {
+  color: var(--rarity-uncommon, #6ee7b7);
+}
+
+.avatar-tooltip__grade--common {
+  color: var(--text-secondary, #9ca3af);
+}
+
+.avatar-extra-list {
+  margin-top: 16px;
+}
+
+.avatar-extra-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.avatar-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.avatar-extra-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  gap: 8px;
 }
 
 @media (max-width: 768px) {

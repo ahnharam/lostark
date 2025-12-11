@@ -1811,13 +1811,17 @@ const avatarSummary = computed(() => {
     const grade = inlineText((item as any).Grade || (item as any).grade)
     const icon = (item as any).Icon || (item as any).icon || ''
     const tooltip = (item as any).Tooltip || (item as any).tooltip || ''
+    const isInnerRaw = (item as any).IsInner ?? (item as any).isInner
+    const isSetRaw = (item as any).IsSet ?? (item as any).isSet
     return {
       key: `${name}-${index}`,
       name,
       type,
       grade,
       icon,
-      tooltip
+      tooltip,
+      isInner: typeof isInnerRaw === 'boolean' ? isInnerRaw : Boolean(isInnerRaw),
+      isSet: typeof isSetRaw === 'boolean' ? isSetRaw : Boolean(isSetRaw)
     }
   })
 
