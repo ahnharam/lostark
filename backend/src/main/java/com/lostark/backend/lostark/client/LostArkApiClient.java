@@ -122,6 +122,14 @@ public class LostArkApiClient {
                 .collectList();
     }
 
+    public Mono<List<com.lostark.backend.dto.AvatarDto>> getCharacterAvatars(String characterName) {
+        return webClient.get()
+                .uri("/armories/characters/{characterName}/avatars", characterName)
+                .retrieve()
+                .bodyToFlux(com.lostark.backend.dto.AvatarDto.class)
+                .collectList();
+    }
+
     public Mono<MarketOptionsResponse> getMarketOptions() {
         return webClient.get()
                 .uri("/markets/options")

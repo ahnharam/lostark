@@ -157,6 +157,26 @@ public class LostArkProfileDomainService {
         }
     }
 
+    public List<com.lostark.backend.dto.AvatarDto> fetchAvatars(String characterName) {
+        try {
+            List<com.lostark.backend.dto.AvatarDto> avatars = lostArkApiClient.getCharacterAvatars(characterName)
+                    .blockOptional()
+                    .orElse(Collections.emptyList());
+            if (avatars == null || avatars.isEmpty()) {
+                ArmoryDto armoryDto = fetchArmory(characterName);
+                if (armoryDto != null && armoryDto.getAvatars() != null) {
+                    return armoryDto.getAvatars();
+                }
+            }
+            return avatars;
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("아바타 정보를 찾을 수 없습니다: {}", characterName);
+            return Collections.emptyList();
+        } catch (Exception e) {
+            throw new ApiException("아바타 정보를 불러오는 중 오류가 발생했습니다.", e);
+        }
+    }
+
     private void enrichCombatPower(String characterName, CharacterProfileDto profile) {
         ArmoryDto armoryDto = fetchArmory(characterName);
         if (armoryDto == null || armoryDto.getProfile() == null) {

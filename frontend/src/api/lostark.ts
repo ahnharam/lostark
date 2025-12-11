@@ -161,7 +161,7 @@ export const lostarkApi = {
       'avatars',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<ArmoryAvatar[]>(`/armories/characters/${characterName}/avatars`, {
+        const response = await apiClient.get<ArmoryAvatar[]>(`/avatars/${characterName}`, {
           params: { force: options?.force }
         })
         return response.data

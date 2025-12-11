@@ -1,187 +1,247 @@
 <template>
   <div class="reforge-page">
-    <header class="reforge-header">
-      <div>
-        <p class="eyebrow">제련 메뉴</p>
-        <h2>{{ activeReforgeLabel }} 최적화</h2>
-        <p class="lead">
-          이미지에 맞춰 제련/상급 제련 흐름을 3단 구성으로 배치했어요. 재료, 장비 정보, 결과를 한눈에
-          확인해 주세요.
-        </p>
+    <div class="reforge-menu-bar">
+      <div class="reforge-menu-bar__title">
+        <span class="topbar-icon">⚒️</span>
+        <div>
+          <p class="eyebrow">제련 메뉴</p>
+          <h2>강화 & 세팅 최적화</h2>
+        </div>
       </div>
-      <div class="header-actions">
-        <button class="pill pill-warning" type="button">주의사항</button>
+      <div class="reforge-menu-bar__tabs">
+        <button
+          type="button"
+          class="reforge-menu-btn"
+          :class="{ active: activeSection === 'reforge' }"
+          @click="activeSection = 'reforge'"
+        >
+          제련
+        </button>
+        <button
+          type="button"
+          class="reforge-menu-btn"
+          :class="{ active: activeSection === 'optimization' }"
+          @click="activeSection = 'optimization'"
+        >
+          세팅 최적화
+        </button>
+      </div>
+    </div>
+
+    <template v-if="activeSection === 'reforge'">
+      <header class="reforge-header">
+        <div>
+          <p class="eyebrow">제련 메뉴</p>
+          <h2>{{ activeReforgeLabel }} 최적화</h2>
+          <p class="lead">
+            이미지에 맞춰 제련/상급 제련 흐름을 3단 구성으로 배치했어요. 재료, 장비 정보, 결과를 한눈에
+            확인해 주세요.
+          </p>
+        </div>
+        <div class="header-actions">
+          <button class="pill pill-warning" type="button">주의사항</button>
+          <div class="tab-switch">
+            <button
+              v-for="tab in reforgeTabs"
+              :key="tab.key"
+              type="button"
+              class="tab-switch__btn"
+              :class="{ active: activeReforgeTab === tab.key }"
+              @click="activeReforgeTab = tab.key"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="reforge-layout">
+        <section class="panel material-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">재료 정보</p>
+              <h3>{{ materialTabs.find(tab => tab.key === activeMaterialTab)?.label }}</h3>
+              <p class="muted">제련에 필요한 재료 수량을 빠르게 정리했습니다.</p>
+            </div>
+            <div class="segmented">
+              <button
+                v-for="tab in materialTabs"
+                :key="tab.key"
+                type="button"
+                class="segmented__btn"
+                :class="{ active: activeMaterialTab === tab.key }"
+                @click="activeMaterialTab = tab.key"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!activeMaterials.length" class="empty-hint">데이터를 입력하면 재료 목록이 표시됩니다.</div>
+          <ul v-else class="material-list">
+            <li v-for="item in activeMaterials" :key="item.name" class="material-item">
+              <div class="material-icon" :data-rarity="item.rarity">
+                <span>{{ item.badge || item.rarity.slice(0, 1).toUpperCase() }}</span>
+              </div>
+              <div class="material-meta">
+                <p class="material-name">{{ item.name }}</p>
+                <p class="material-subtitle">{{ item.subtitle }}</p>
+              </div>
+              <div class="material-count">{{ formatNumber(item.count) }}</div>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel equipment-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">장비 정보</p>
+              <h3>{{ activeEquipment.title }}</h3>
+              <p class="muted">장비 단계와 연구/버프 적용 여부를 선택하세요.</p>
+            </div>
+            <span class="chip">장인의 기운 {{ activeEquipment.artisanEnergy }}%</span>
+          </div>
+
+          <dl class="equipment-grid">
+            <div class="equipment-row">
+              <dt>장비 종류</dt>
+              <dd>{{ activeEquipment.type }}</dd>
+            </div>
+            <div class="equipment-row">
+              <dt>장비 등급</dt>
+              <dd>{{ activeEquipment.grade }}</dd>
+            </div>
+            <div class="equipment-row">
+              <dt>목표 단계</dt>
+              <dd>{{ activeEquipment.targetStep }}</dd>
+            </div>
+            <div class="equipment-row">
+              <dt>기본 확률</dt>
+              <dd>{{ activeEquipment.baseChance.toFixed(2) }}%</dd>
+            </div>
+            <div class="equipment-row">
+              <dt>성장 지원 & 영지 연구</dt>
+              <dd>{{ activeEquipment.researchBonus.toFixed(2) }}%</dd>
+            </div>
+            <div class="equipment-row">
+              <dt>추가 확률</dt>
+              <dd>{{ activeEquipment.supportBonus.toFixed(2) }}%</dd>
+            </div>
+            <div class="equipment-row total">
+              <dt>합계 확률</dt>
+              <dd>{{ totalChance }}%</dd>
+            </div>
+          </dl>
+
+          <div class="checkboxes">
+            <label class="checkbox">
+              <input v-model="applyResearch" type="checkbox" />
+              영지 연구 적용
+            </label>
+            <label class="checkbox">
+              <input v-model="applySupport" type="checkbox" />
+              슈모의 성장지원 적용
+            </label>
+          </div>
+        </section>
+
+        <section class="panel result-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">재련 시뮬레이션</p>
+              <h3>{{ scenarioTabs.find(tab => tab.key === activeScenarioTab)?.label }}</h3>
+              <p class="muted">노숲/풀숲 선택과 추가 재료 사용 여부를 분리했습니다.</p>
+            </div>
+            <div class="segmented">
+              <button
+                v-for="tab in scenarioTabs"
+                :key="tab.key"
+                type="button"
+                class="segmented__btn"
+                :class="{ active: activeScenarioTab === tab.key }"
+                @click="activeScenarioTab = tab.key"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="cost-summary">
+            <div class="cost-card">
+              <p class="eyebrow">평균</p>
+              <p class="cost-value">{{ formatGold(activeScenario.averageCost) }}</p>
+              <p class="muted">평균 비용</p>
+            </div>
+            <div class="cost-card">
+              <p class="eyebrow">장기백</p>
+              <p class="cost-value">{{ formatGold(activeScenario.pityCost) }}</p>
+              <p class="muted">장기백 비용</p>
+            </div>
+            <div class="cost-card highlight">
+              <p class="eyebrow">합계 확률</p>
+              <p class="cost-value">{{ totalChance }}%</p>
+              <p class="muted">현재 설정 기준</p>
+            </div>
+          </div>
+
+          <div class="results-table">
+            <div class="results-head">
+              <span>트라이</span>
+              <span>노숲 확률</span>
+              <span>장인의 기운</span>
+              <span>추가재료</span>
+              <span>트라이 확률</span>
+              <span>트라이 비용</span>
+            </div>
+            <div v-if="!activeScenario.rows.length" class="results-empty">결과 데이터가 없습니다.</div>
+            <div v-else v-for="row in activeScenario.rows" :key="row.tryLabel" class="results-row">
+              <span>{{ row.tryLabel }}</span>
+              <span>{{ row.forestChance }}</span>
+              <span>{{ row.artisanEnergy }}</span>
+              <span>{{ row.extra }}</span>
+              <span>{{ row.tryChance }}</span>
+              <span>{{ row.cost }}</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </template>
+
+    <template v-else>
+      <header class="reforge-header optimization-header">
+        <div>
+          <p class="eyebrow">세팅 최적화</p>
+          <h2>{{ activeOptimizationLabel }}</h2>
+          <p class="lead">
+            아크패시브 뭉툭한 가시 효율을 빠르게 계산하고, 필요한 치명 스탯을 바로 확인하세요.
+          </p>
+        </div>
         <div class="tab-switch">
           <button
-            v-for="tab in reforgeTabs"
+            v-for="tab in optimizationTabs"
             :key="tab.key"
             type="button"
             class="tab-switch__btn"
-            :class="{ active: activeReforgeTab === tab.key }"
-            @click="activeReforgeTab = tab.key"
+            :class="{ active: activeOptimizationTab === tab.key }"
+            @click="activeOptimizationTab = tab.key"
           >
             {{ tab.label }}
           </button>
         </div>
+      </header>
+      <div class="optimization-layout">
+        <BluntThornCalculator v-if="activeOptimizationTab === 'blunt-thorn'" />
       </div>
-    </header>
-
-    <div class="reforge-layout">
-      <section class="panel material-panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">재료 정보</p>
-            <h3>{{ materialTabs.find(tab => tab.key === activeMaterialTab)?.label }}</h3>
-            <p class="muted">제련에 필요한 재료 수량을 빠르게 정리했습니다.</p>
-          </div>
-          <div class="segmented">
-            <button
-              v-for="tab in materialTabs"
-              :key="tab.key"
-              type="button"
-              class="segmented__btn"
-              :class="{ active: activeMaterialTab === tab.key }"
-              @click="activeMaterialTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="!activeMaterials.length" class="empty-hint">데이터를 입력하면 재료 목록이 표시됩니다.</div>
-        <ul v-else class="material-list">
-          <li v-for="item in activeMaterials" :key="item.name" class="material-item">
-            <div class="material-icon" :data-rarity="item.rarity">
-              <span>{{ item.badge || item.rarity.slice(0, 1).toUpperCase() }}</span>
-            </div>
-            <div class="material-meta">
-              <p class="material-name">{{ item.name }}</p>
-              <p class="material-subtitle">{{ item.subtitle }}</p>
-            </div>
-            <div class="material-count">{{ formatNumber(item.count) }}</div>
-          </li>
-        </ul>
-      </section>
-
-      <section class="panel equipment-panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">장비 정보</p>
-            <h3>{{ activeEquipment.title }}</h3>
-            <p class="muted">장비 단계와 연구/버프 적용 여부를 선택하세요.</p>
-          </div>
-          <span class="chip">장인의 기운 {{ activeEquipment.artisanEnergy }}%</span>
-        </div>
-
-        <dl class="equipment-grid">
-          <div class="equipment-row">
-            <dt>장비 종류</dt>
-            <dd>{{ activeEquipment.type }}</dd>
-          </div>
-          <div class="equipment-row">
-            <dt>장비 등급</dt>
-            <dd>{{ activeEquipment.grade }}</dd>
-          </div>
-          <div class="equipment-row">
-            <dt>목표 단계</dt>
-            <dd>{{ activeEquipment.targetStep }}</dd>
-          </div>
-          <div class="equipment-row">
-            <dt>기본 확률</dt>
-            <dd>{{ activeEquipment.baseChance.toFixed(2) }}%</dd>
-          </div>
-          <div class="equipment-row">
-            <dt>성장 지원 & 영지 연구</dt>
-            <dd>{{ activeEquipment.researchBonus.toFixed(2) }}%</dd>
-          </div>
-          <div class="equipment-row">
-            <dt>추가 확률</dt>
-            <dd>{{ activeEquipment.supportBonus.toFixed(2) }}%</dd>
-          </div>
-          <div class="equipment-row total">
-            <dt>합계 확률</dt>
-            <dd>{{ totalChance }}%</dd>
-          </div>
-        </dl>
-
-        <div class="checkboxes">
-          <label class="checkbox">
-            <input v-model="applyResearch" type="checkbox" />
-            영지 연구 적용
-          </label>
-          <label class="checkbox">
-            <input v-model="applySupport" type="checkbox" />
-            슈모의 성장지원 적용
-          </label>
-        </div>
-      </section>
-
-      <section class="panel result-panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">재련 시뮬레이션</p>
-            <h3>{{ scenarioTabs.find(tab => tab.key === activeScenarioTab)?.label }}</h3>
-            <p class="muted">노숲/풀숲 선택과 추가 재료 사용 여부를 분리했습니다.</p>
-          </div>
-          <div class="segmented">
-            <button
-              v-for="tab in scenarioTabs"
-              :key="tab.key"
-              type="button"
-              class="segmented__btn"
-              :class="{ active: activeScenarioTab === tab.key }"
-              @click="activeScenarioTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-        </div>
-
-        <div class="cost-summary">
-          <div class="cost-card">
-            <p class="eyebrow">평균</p>
-            <p class="cost-value">{{ formatGold(activeScenario.averageCost) }}</p>
-            <p class="muted">평균 비용</p>
-          </div>
-          <div class="cost-card">
-            <p class="eyebrow">장기백</p>
-            <p class="cost-value">{{ formatGold(activeScenario.pityCost) }}</p>
-            <p class="muted">장기백 비용</p>
-          </div>
-          <div class="cost-card highlight">
-            <p class="eyebrow">합계 확률</p>
-            <p class="cost-value">{{ totalChance }}%</p>
-            <p class="muted">현재 설정 기준</p>
-          </div>
-        </div>
-
-        <div class="results-table">
-          <div class="results-head">
-            <span>트라이</span>
-            <span>노숲 확률</span>
-            <span>장인의 기운</span>
-            <span>추가재료</span>
-            <span>트라이 확률</span>
-            <span>트라이 비용</span>
-          </div>
-          <div v-if="!activeScenario.rows.length" class="results-empty">결과 데이터가 없습니다.</div>
-          <div v-else v-for="row in activeScenario.rows" :key="row.tryLabel" class="results-row">
-            <span>{{ row.tryLabel }}</span>
-            <span>{{ row.forestChance }}</span>
-            <span>{{ row.artisanEnergy }}</span>
-            <span>{{ row.extra }}</span>
-            <span>{{ row.tryChance }}</span>
-            <span>{{ row.cost }}</span>
-          </div>
-        </div>
-      </section>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import BluntThornCalculator from './reforge/BluntThornCalculator.vue'
 
+type ReforgeSection = 'reforge' | 'optimization'
+type OptimizationTab = 'blunt-thorn'
 type ReforgeTab = 'normal' | 'advanced'
 type MaterialTab = 'price' | 'bound'
 type ScenarioTab = 'optimal' | 'partial' | 'full'
@@ -226,6 +286,10 @@ interface ScenarioInfo {
 const reforgeTabs: Array<{ key: ReforgeTab; label: string }> = [
   { key: 'normal', label: '제련' },
   { key: 'advanced', label: '상급 제련' }
+]
+
+const optimizationTabs: Array<{ key: OptimizationTab; label: string }> = [
+  { key: 'blunt-thorn', label: '뭉가 계산기' }
 ]
 
 const materialTabs: Array<{ key: MaterialTab; label: string }> = [
@@ -281,6 +345,8 @@ const scenarioPresets: Record<ReforgeTab, Record<ScenarioTab, ScenarioInfo>> = {
   }
 }
 
+const activeSection = ref<ReforgeSection>('reforge')
+const activeOptimizationTab = ref<OptimizationTab>('blunt-thorn')
 const activeReforgeTab = ref<ReforgeTab>('normal')
 const activeMaterialTab = ref<MaterialTab>('price')
 const activeScenarioTab = ref<ScenarioTab>('optimal')
@@ -306,6 +372,10 @@ const activeReforgeLabel = computed(() => {
   return reforgeTabs.find(tab => tab.key === activeReforgeTab.value)?.label ?? '제련'
 })
 
+const activeOptimizationLabel = computed(() => {
+  return optimizationTabs.find(tab => tab.key === activeOptimizationTab.value)?.label ?? '세팅 최적화'
+})
+
 watch(activeReforgeTab, () => {
   const preset = equipmentPresets[activeReforgeTab.value]
   applyResearch.value = preset.applyResearch
@@ -326,6 +396,63 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
   color: var(--text-primary);
 }
 
+.reforge-menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.02));
+  box-shadow: var(--shadow-sm);
+}
+
+.reforge-menu-bar__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  font-size: 1rem;
+}
+
+.reforge-menu-bar__tabs {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.reforge-menu-btn {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reforge-menu-btn.active {
+  background: var(--primary-soft-bg);
+  color: var(--primary-color);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.08);
+}
+
+.reforge-menu-btn:hover {
+  transform: translateY(-1px);
+}
+
 .reforge-header {
   display: flex;
   align-items: flex-start;
@@ -336,6 +463,11 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
   border: 1px solid var(--border-color);
   background: var(--card-bg);
   box-shadow: var(--shadow-sm);
+}
+
+.optimization-header {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.08);
 }
 
 .header-actions {
@@ -632,6 +764,11 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
   padding: 12px;
   color: var(--text-secondary);
   text-align: center;
+}
+
+.optimization-layout {
+  display: flex;
+  width: 100%;
 }
 
 @media (max-width: 1200px) {

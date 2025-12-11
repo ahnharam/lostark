@@ -15,6 +15,9 @@ public class ArmoryDto {
     @JsonAlias("ArmoryEquipment")
     private List<EquipmentDto> equipment;
 
+    @JsonAlias("ArmoryAvatars")
+    private List<AvatarDto> avatars;
+
     @JsonAlias("ArmoryEngraving")
     private EngravingResponseDto engraving;
 

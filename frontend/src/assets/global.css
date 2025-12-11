@@ -49,7 +49,7 @@
   border: 1px solid var(--panel-border);
   border-radius: var(--card-radius);
   padding: var(--panel-padding);
-  box-shadow: var(--panel-shadow);
+  /* box-shadow: var(--panel-shadow); */
 }
 
 .panel-grid {

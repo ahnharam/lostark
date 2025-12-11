@@ -408,7 +408,7 @@ type ExpeditionSortKey = 'itemLevel' | 'characterLevel' | 'name' | 'class'
 const DEFAULT_RESULT_TAB: ResultTabKey = 'summary'
 const resultTabs: Array<{ key: ResultTabKey; label: string }> = [
   { key: 'summary', label: '통합' },
-  { key: 'detail', label: '장비' },
+  // { key: 'detail', label: '장비' },
   { key: 'arkGrid', label: '아크' },
   { key: 'skills', label: '스킬' },
   { key: 'collection', label: '수집' },
