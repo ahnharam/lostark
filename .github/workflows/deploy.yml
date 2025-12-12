@@ -2,7 +2,7 @@ name: Deploy to Oracle VM
 
 on:
   push:
-    branches: [ "main" ]   # main에 push될 때마다 실행
+    branches: [ "master" ]   # main에 push될 때마다 실행
 
 jobs:
   deploy:
