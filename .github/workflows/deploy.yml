@@ -1,18 +1,58 @@
-name: Deploy to Oracle VM
+name: Build & Deploy Backend
 
 on:
   push:
-    branches: [ "master" ]   # main에 push될 때마다 실행
+    branches: [ "master" ]
+    paths:
+      - "backend/**"
+      - "docker-compose.prod.yml"
+      - ".github/workflows/deploy-backend.yml"
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # SSH로 Oracle VM에 접속해서 배포 스크립트 실행
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build backend jar
+        working-directory: backend
+        run: ./gradlew bootJar -x test --no-daemon
+
+      - name: Upload jar as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/build/libs/*.jar
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download built jar
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: backend-build
+
+      - name: Copy jar to Oracle VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          source: "backend-build/*.jar"
+          target: "/home/ubuntu/lostark/backend/build/libs"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -20,17 +60,19 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: 22
+          command_timeout: 20m
           script: |
             set -e
-
-            # 1) 프로젝트 폴더로 이동
             cd ~/lostark
 
-            # 2) 최신 코드 가져오기
-            git pull origin main
+            echo ">>> git pull"
+            git pull origin master
 
-            # 3) (옵션) 환경변수/설정 파일이 있다면 여기서 갱신
+            echo ">>> build backend image"
+            docker compose -f docker-compose.prod.yml build backend
 
-            # 4) 백엔드 + DB만 재빌드 & 재시작
-            docker compose -f docker-compose.prod.yml pull || true
-            docker compose -f docker-compose.prod.yml up -d --build backend
+            echo ">>> restart backend"
+            docker compose -f docker-compose.prod.yml up -d backend
+
+            echo ">>> cleanup"
+            docker image prune -f
