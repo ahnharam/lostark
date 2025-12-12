@@ -38,7 +38,7 @@ jobs:
           port: 22
           # 빌드된 jar 는 레포 루트 기준으로 backend/build/libs에 있음
           source: "backend/build/libs/*.jar"
-          target: "/home/ubuntu/lostark/backend/build/libs/"
+          target: "/home/ubuntu/lostark/"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
