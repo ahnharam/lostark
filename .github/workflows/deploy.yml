@@ -33,4 +33,4 @@ jobs:
 
             # 4) 백엔드 + DB만 재빌드 & 재시작
             docker compose -f docker-compose.prod.yml pull || true
-            docker compose -f docker-compose.prod.yml up -d --build backend database
+            docker compose -f docker-compose.prod.yml up -d --build backend
