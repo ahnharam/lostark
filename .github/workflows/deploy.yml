@@ -67,9 +67,8 @@ jobs:
             set -e
             cd ~/lostark
 
-            echo ">>> sync with origin/master"
-            git fetch origin master
-            git reset --hard origin/master
+            echo ">>> git pull (optional)"
+            git pull origin master || true   # 로컬 변경 없으면 그냥 최신으로 맞추기
           
             echo ">>> build backend image"
             docker compose -f docker-compose.prod.yml build backend
