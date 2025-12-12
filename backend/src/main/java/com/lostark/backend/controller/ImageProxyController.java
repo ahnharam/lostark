@@ -75,20 +75,16 @@ public class ImageProxyController {
 
     @GetMapping("/image")
     public ResponseEntity<byte[]> proxyImage(@RequestParam String url) {
-        log.info("========================================");
-        log.info("Proxying image request");
-        log.info("Original URL: {}", url);
-        
         try {
             // URL 유효성 검사
             if (url == null || url.trim().isEmpty()) {
-                log.warn("Empty URL provided");
+                log.warn("Empty image URL provided");
                 return ResponseEntity.badRequest().build();
             }
 
             // https로 정규화
             String normalizedUrl = normalizeUrl(url);
-            log.info("Normalized URL: {}", normalizedUrl);
+            log.info("Proxy image request url={} normalized={}", url, normalizedUrl);
             
             // 헤더 설정
             HttpHeaders headers = new HttpHeaders();
@@ -100,7 +96,6 @@ public class ImageProxyController {
             HttpEntity<String> entity = new HttpEntity<>(headers);
             
             // 이미지 요청
-            log.info("Sending request to: {}", normalizedUrl);
             ResponseEntity<byte[]> response = restTemplate.exchange(
                 URI.create(normalizedUrl),
                 HttpMethod.GET,
@@ -109,46 +104,43 @@ public class ImageProxyController {
             );
 
             if (response.getBody() == null || response.getBody().length == 0) {
-                log.warn("Empty response body received");
+                log.warn("Empty image response url={} status={}", normalizedUrl, response.getStatusCode());
                 return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
             }
 
-            log.info("Image received successfully");
-            log.info("Status: {}", response.getStatusCode());
-            log.info("Size: {} bytes", response.getBody().length);
-            log.info("Content-Type: {}", response.getHeaders().getContentType());
-
             // 응답 헤더 설정 (CORS 헤더 제거 - WebConfig에서 처리)
             HttpHeaders responseHeaders = new HttpHeaders();
-            
+
+            MediaType contentType = response.getHeaders().getContentType();
             // Content-Type 설정
-            if (response.getHeaders().getContentType() != null) {
-                responseHeaders.setContentType(response.getHeaders().getContentType());
+            if (contentType != null) {
+                responseHeaders.setContentType(contentType);
             } else {
                 // URL에서 확장자 추출하여 Content-Type 설정
-                String contentType = guessContentType(normalizedUrl);
-                responseHeaders.setContentType(MediaType.parseMediaType(contentType));
+                contentType = MediaType.parseMediaType(guessContentType(normalizedUrl));
+                responseHeaders.setContentType(contentType);
             }
             
             // 캐시 설정
             responseHeaders.setCacheControl(CacheControl.maxAge(3600, java.util.concurrent.TimeUnit.SECONDS));
 
-            log.info("========================================");
+            log.info(
+                "Proxy image success url={} status={} size={} contentType={}",
+                normalizedUrl,
+                response.getStatusCode(),
+                response.getBody().length,
+                contentType
+            );
             return new ResponseEntity<>(response.getBody(), responseHeaders, HttpStatus.OK);
             
         } catch (RestClientException e) {
-            log.error("RestClient error while proxying image: {}", url);
-            log.error("Error details: ", e);
+            log.error("RestClient error while proxying image url={}", url, e);
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
         } catch (IllegalArgumentException e) {
-            log.error("Invalid URL: {}", url);
-            log.error("Error details: ", e);
+            log.error("Invalid image URL url={}", url, e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (Exception e) {
-            log.error("Unexpected error while proxying image: {}", url);
-            log.error("Error type: {}", e.getClass().getName());
-            log.error("Error message: {}", e.getMessage());
-            log.error("Error details: ", e);
+            log.error("Unexpected error while proxying image url={}", url, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
