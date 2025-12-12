@@ -67,14 +67,15 @@ jobs:
             set -e
             cd ~/lostark
 
-            echo ">>> git pull"
-            git pull origin master
-
+            echo ">>> sync with origin/master"
+            git fetch origin master
+            git reset --hard origin/master
+          
             echo ">>> build backend image"
             docker compose -f docker-compose.prod.yml build backend
-
+          
             echo ">>> restart backend"
             docker compose -f docker-compose.prod.yml up -d backend
-
+          
             echo ">>> cleanup"
             docker image prune -f
