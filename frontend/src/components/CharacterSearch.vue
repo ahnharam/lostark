@@ -163,6 +163,8 @@
                 :special-equipments="specialEquipmentsDetailed"
                 :combat-role="combatRole"
                 :combat-role-loading="arkGridLoading"
+                :combat-position="combatPositionLabel"
+                :combat-position-loading="detailLoading"
                 :honor-point="activeCharacter?.honorPoint"
                 :loading="loading"
                 :format-combat-power="formatCombatPower"
@@ -386,6 +388,7 @@ import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbb
 import { getEngravingDisplayName } from '@/data/engravingNames'
 import { formatItemLevel, formatNumberLocalized, formatCombatPower, formatInteger } from '@/utils/format'
 import { useCharacterSearchData } from '@/composables/useCharacterSearchData'
+import { resolveCombatPosition } from '@/data/classPositions'
 
 type ResultTabKey =
   | 'summary'
@@ -1249,6 +1252,18 @@ const skillLooseGems = computed(() => {
         typeLabel: skillName || inlineText(gem.skill?.name)
       }
     })
+})
+
+const classEngravingNames = computed(() =>
+  detailEngravings.value.map(engraving => inlineText(engraving.name)).filter(Boolean)
+)
+
+const combatPositionLabel = computed(() => {
+  const className = activeCharacter.value?.characterClassName
+  const position = resolveCombatPosition(className, classEngravingNames.value)
+  if (position === 'head') return '헤드'
+  if (position === 'back') return '백'
+  return '타대'
 })
 
 const summarizeEquipmentLine = (item: Equipment): string => {

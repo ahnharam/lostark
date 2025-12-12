@@ -121,34 +121,69 @@
                     </div>
                   </div>
                 </div>
-                <div v-if="skill.tripods.length" class="skill-summary-tripods">
-                  <div
-                    v-for="tripod in skill.tripods"
-                    :key="tripod.key"
-                    class="skill-summary-tripod"
-                  >
-                    <div class="skill-icon-wrapper" tabindex="0">
+                <div class="skill-summary-affix-stack">
+                  <div v-if="skill.tripods.length" class="skill-summary-tripods">
+                    <div
+                      v-for="tripod in skill.tripods"
+                      :key="tripod.key"
+                      class="skill-summary-tripod"
+                    >
+                      <div class="skill-icon-wrapper skill-summary-tripod-icon" tabindex="0">
+                        <IconImage
+                          v-if="tripod.icon"
+                          :src="tripod.icon"
+                          :alt="tripod.name"
+                          width="40"
+                          height="40"
+                          imageClass="tripod-image"
+                          errorIcon="🌀"
+                          :useProxy="true"
+                        />
+                        <span class="tripod-slot-badge">{{ tripod.slotLabel }}</span>
+                        <div class="skill-icon-tooltip popup-surface popup-surface--tooltip">
+                          <p class="popup-surface__title skill-tooltip-title">{{ tripod.name }}</p>
+                          <p
+                            v-if="tripod.description"
+                            class="popup-surface__body skill-tooltip-desc"
+                            v-html="formatDescriptionEmphasis(tripod.description)"
+                          />
+                          <p class="popup-surface__body skill-tooltip-desc">
+                            슬롯 {{ tripod.slotLabel }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="skill.rune" class="skill-summary-rune">
+                    <div class="skill-icon-wrapper skill-summary-rune-icon" tabindex="0">
                       <IconImage
-                        v-if="tripod.icon"
-                        :src="tripod.icon"
-                        :alt="tripod.name"
-                        width="42"
-                        height="42"
-                        imageClass="tripod-image"
-                        errorIcon="🌀"
+                        v-if="skill.rune.icon"
+                        :src="skill.rune.icon"
+                        :alt="skill.rune.name"
+                        width="36"
+                        height="36"
+                        imageClass="rune-image"
+                        errorIcon="💠"
                         :useProxy="true"
                       />
-                      <div class="skill-icon-tooltip popup-surface popup-surface--tooltip">
-                        <p class="popup-surface__title skill-tooltip-title">{{ tripod.name }}</p>
-                        <p
-                          v-if="tripod.description"
-                          class="popup-surface__body skill-tooltip-desc"
-                          v-html="formatDescriptionEmphasis(tripod.description)"
-                        />
+                      <div
+                        v-if="getRuneAffixView(skill.rune, skill.runeEffect)?.text"
+                        class="skill-icon-tooltip popup-surface popup-surface--tooltip"
+                      >
+                        <p class="popup-surface__title skill-tooltip-title">{{ skill.rune.name }}</p>
                         <p class="popup-surface__body skill-tooltip-desc">
-                          슬롯 {{ tripod.slotLabel }}
+                          {{ getRuneAffixView(skill.rune, skill.runeEffect)!.text }}
                         </p>
                       </div>
+                    </div>
+                    <div class="skill-summary-rune-meta">
+                      <span
+                        class="skill-summary-rune-grade"
+                        :style="{ color: skill.rune.gradeColor || undefined }"
+                      >
+                        {{ skill.rune.grade || '룬' }}
+                      </span>
+                      <span class="skill-summary-rune-name">{{ skill.rune.name }}</span>
                     </div>
                   </div>
                 </div>
@@ -164,7 +199,10 @@
               class="skill-card-pair-row">
               <!-- 각성기 페어 -->
               <div v-for="pair in pairRow" :key="pair.key" class="skill-card-pair">
-                <div class="skill-card-pair-columns">
+                <div
+                  class="skill-card-pair-columns"
+                  :class="{ 'skill-card-pair-columns--linked': pair.left && pair.right }"
+                >
                   <!-- 좌측 컬럼: 각성기 (skillTypeCode: 100) -->
                   <div class="skill-card-pair-column">
                     <template v-if="pair.left">
@@ -951,24 +989,55 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
 const summarizeTooltip = (tooltip?: string | null, fallback = '', preferElement004 = false) => {
   if (!tooltip) return fallback
 
+  const isMeaningful = (desc?: string | null, min = 8) => {
+    const plain = sanitizeInline(desc)
+    if (!plain || plain.length < min) return false
+    if (/^\(?최대\)?$/i.test(plain)) return false
+    if (/^\[object Object\]$/i.test(plain)) return false
+    return true
+  }
+
+  const isSkillLevelLine = (desc?: string | null) => {
+    const plain = sanitizeInline(desc)
+    if (!plain) return false
+    return /스킬\s*레벨/i.test(plain) || /\(최대\)/i.test(plain)
+  }
+
+  const isCostOrMetaLine = (desc?: string | null) => {
+    const plain = sanitizeInline(desc)
+    if (!plain) return false
+    return (
+      /소모/.test(plain) ||
+      /필요\s*레벨/.test(plain) ||
+      /필요\s*스킬\s*포인트/.test(plain) ||
+      /소켓/.test(plain) ||
+      /보석\s*효과/.test(plain) ||
+      /스킬\s*룬\s*효과/.test(plain)
+    )
+  }
+
   try {
     const parsed = JSON.parse(tooltip)
 
-    // 0순위: Element_004 (일부 스킬 설명이 여기에 위치, Element_003은 레벨/메타)
-    if (preferElement004 && parsed.Element_004?.value) {
+    // 항상 Element_004를 우선 확인 (스킬 설명이 주로 위치)
+    if (parsed.Element_004?.value) {
       let desc = sanitizeWithColors(parsed.Element_004.value)
       desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
-      if (desc && desc.length >= 6) {
+      const type = parsed.Element_004?.type
+      if (type !== 'MultiTextBox' && !isSkillLevelLine(desc) && !isCostOrMetaLine(desc) && isMeaningful(desc, 6)) {
         return desc
       }
     }
+
+    // 0순위: Element_004 (일부 스킬 설명이 여기에 위치, Element_003은 레벨/메타)
+    // preferElement004는 일부 케이스를 보강하는 플래그 (상단에서 이미 004 처리)
 
     // 1순위: Element_005에서 추출 (일반적으로 스킬 설명이 위치)
     if (parsed.Element_005?.value) {
       let desc = sanitizeWithColors(parsed.Element_005.value)
       // 메타 정보가 포함된 부분 제거 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
       desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
-      if (desc && desc.length >= 10) {
+      if (!isCostOrMetaLine(desc) && isMeaningful(desc, 8)) {
         return desc
       }
     }
@@ -979,7 +1048,10 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '', preferElement0
         let desc = sanitizeWithColors(element.value)
         // 메타 정보 제거
         desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
-        if (desc && desc.length >= 10) {
+        if (isSkillLevelLine(desc) || isCostOrMetaLine(desc)) {
+          continue
+        }
+        if (isMeaningful(desc, 8)) {
           return desc
         }
       }
@@ -992,23 +1064,22 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '', preferElement0
   const lines = flattenTooltipLines(tooltip)
   if (!lines.length) return fallback
 
-  const description = lines.find((line, index) => {
-    if (index === 0) return false
-    if (!line || line.trim().length < 10) return false
+  const meaningful = lines
+    .filter((line, index) => {
+      if (index === 0) return false
+      if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머|부위\s*파괴/i.test(line)) {
+        return false
+      }
+      if (isSkillLevelLine(line) || isCostOrMetaLine(line)) return false
+      return isMeaningful(line, 8)
+    })
+    .sort((a, b) => sanitizeInline(b).length - sanitizeInline(a).length)
 
-    // 메타 정보 제외
-    if (/레벨|Lv|재사용|마나.*소모|^\||PvE|PvP|무력화|공격\s*타입|슈퍼아머|부위\s*파괴/i.test(line)) {
-      return false
-    }
-
-    return true
-  })
-
-  if (description) return sanitizeWithColors(description)
+  if (meaningful.length) return sanitizeWithColors(meaningful[0])
 
   // 최종 폴백: 전체 툴팁에서 색상만 보존해 리턴
   const colored = sanitizeWithColors(tooltip)
-  if (colored) return colored
+  if (colored && isMeaningful(colored, 6)) return colored
 
   return fallback
 }
@@ -1257,15 +1328,10 @@ inventoryGems.forEach((gem, index) => {
 const skillCards = computed<SkillCardView[]>(() => {
   if (!combatSkills.value.length) return []
   const annotated = combatSkills.value.map((skill, originalIndex) => ({ skill, originalIndex }))
-  const sorted = annotated.sort((a, b) => {
-    const levelA = typeof a.skill.level === 'number' ? a.skill.level : -1
-    const levelB = typeof b.skill.level === 'number' ? b.skill.level : -1
-    if (levelA === levelB) {
-      return sanitizeInline(b.skill.name).localeCompare(sanitizeInline(a.skill.name))
-    }
-    return levelB - levelA
-  })
-  return sorted
+  const mainSkills = annotated.filter(entry => entry.skill.level !== 1)
+  const levelOneSkills = annotated.filter(entry => entry.skill.level === 1)
+  const ordered = [...mainSkills, ...levelOneSkills]
+  return ordered
     .filter(entry => entry.skill.name)
     .map((entry, index) => {
       const skill = entry.skill
@@ -1782,12 +1848,69 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 144px;
+  align-items: center;
+}
+
+.skill-summary-affix-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .skill-summary-tripod {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.skill-summary-tripod-icon {
+  position: relative;
+}
+
+.tripod-slot-badge {
+  position: absolute;
+  bottom: -6px;
+  right: -8px;
+  background: var(--surface-color);
+  color: var(--text-primary);
+  border: 1px solid lightgray;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  /* box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25); */
+}
+
+.skill-summary-rune {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.skill-summary-rune-icon {
+  border-radius: 10px;
+  background: var(--surface-muted, #f3f4f6);
+  padding: 4px;
+}
+
+.skill-summary-rune-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-summary-rune-grade {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted, #6b7280);
+}
+
+.skill-summary-rune-name {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
 }
 
 .skill-summary-tripod-level {
@@ -1855,6 +1978,24 @@ const getPairChunks = (pairs?: AwakeningPairGroup[] | null, chunkSize = 2): Awak
   display: flex;
   gap: 16px;
   flex-wrap: nowrap;
+  position: relative;
+}
+
+.skill-card-pair-columns--linked::after {
+  content: '';
+  position: absolute;
+  left: 80px;
+  right: 80px;
+  top: 28px;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    rgba(37, 99, 235, 0),
+    rgba(37, 99, 235, 0.35),
+    rgba(37, 99, 235, 0)
+  );
+  border-radius: 2px;
+  pointer-events: none;
 }
 
 .skill-card-pair-column {

@@ -13,8 +13,11 @@ export interface FlattenTooltipOptions {
 
 export function sanitizeInline(value?: string | number | null): string {
   if (value === null || value === undefined) return ''
-  return stripHtml(String(value))
-    .replace(/\\r\\n|\\n|\\r/g, ' ')
+  if (typeof value === 'object') return ''
+  const raw = String(value)
+  if (/^\[object Object\]$/i.test(raw)) return ''
+  return stripHtml(raw)
+    .replace(/\r\n|\n|\r/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }

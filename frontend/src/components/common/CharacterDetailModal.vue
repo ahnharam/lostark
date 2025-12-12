@@ -261,6 +261,7 @@ import {
 } from '@/utils/tooltipParser'
 import { parseEngravingDescription, calculateEngravingGrade, type ParsedEngraving } from '@/utils/engravingParser'
 import type { Equipment, Engraving } from '@/api/types'
+import { COMBAT_STATS } from '@/data/combatStats'
 
 interface Character {
   characterName: string
@@ -675,13 +676,11 @@ const statsWithoutMain = computed(() => {
   return distinctStats.value.filter(stat => !isMainStatType(stat.type))
 })
 
-const combatStatKeywords = ['치명', '특화', '제압', '신속', '인내', '숙련']
-
 const braceletFallbackStats = computed(() => {
   const existingKeys = new Set(
     statsWithoutMain.value.map(stat => stat.type?.replace(/\s+/g, '').toLowerCase())
   )
-  const normalizedKeywords = combatStatKeywords.map(keyword => keyword.replace(/\s+/g, '').toLowerCase())
+  const normalizedKeywords = COMBAT_STATS.map(keyword => keyword.replace(/\s+/g, '').toLowerCase())
 
   return fallbackBasicStats.value.filter(stat => {
     const normalized = stat.type?.replace(/\s+/g, '').toLowerCase() ?? ''
@@ -715,7 +714,7 @@ const parsedBraceletLines = computed<ParsedBraceletLine[]>(() => {
     const label = text.slice(0, plusIndex).trim()
     const value = text.slice(plusIndex + 1).trim()
     const normalized = normalizeKeyword(label)
-    const isPrimary = combatStatKeywords.some(keyword => normalized.includes(normalizeKeyword(keyword)))
+    const isPrimary = COMBAT_STATS.some(keyword => normalized.includes(normalizeKeyword(keyword)))
     if (!isPrimary) {
       return { isEffect: true, effect: line }
     }
@@ -789,12 +788,12 @@ const groupedBraceletStats = computed<BraceletStatGrouping>(() => {
 
   const baseCombatStats = makeUniqueStats(
     baseStats.filter(stat =>
-      combatStatKeywords.some(keyword => normalizeKeyword(stat.type).includes(normalizeKeyword(keyword)))
+      COMBAT_STATS.some(keyword => normalizeKeyword(stat.type).includes(normalizeKeyword(keyword)))
     )
   )
   const baseOtherStats = baseStats.filter(stat => !baseCombatStats.includes(stat))
 
-  const combatStatsOrdered = combatStatKeywords
+  const combatStatsOrdered = COMBAT_STATS
     .map(keyword => {
       const normalizedKeyword = normalizeKeyword(keyword)
       return (

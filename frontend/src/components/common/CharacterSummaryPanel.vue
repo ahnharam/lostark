@@ -702,6 +702,7 @@ import { getQualityColor, stripHtml } from '@/utils/tooltipParser'
 import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import { getEngravingIcon } from '@/assets/BuffImage'
 import { getEngravingDisplayName, ENGRAVING_NAME_ENTRIES } from '@/data/engravingNames'
+import { COMBAT_STATS } from '@/data/combatStats'
 import {
   applyEffectAbbreviations,
   hasAbbreviationMatch,
@@ -773,7 +774,7 @@ const AVATAR_RIGHT_KEYS = ['head', 'face1', 'face2','top', 'bottom', 'full']
 const AVATAR_SINGLE_SLOT_KEYS = ['face1', 'face2', 'instrument', 'movement', 'full']
 const AVATAR_TRADE_KEYWORDS = ['거래', '귀속']
 const AVATAR_LINEAGE_KEYWORDS = ['계열']
-const AVATAR_BASE_EFFECT_KEYWORDS = ['힘', '민첩', '지능', '체력', '치명', '특화', '신속', '제압', '인내', '숙련']
+const AVATAR_BASE_EFFECT_KEYWORDS = ['힘', '민첩', '지능', '체력', ...COMBAT_STATS]
 const AVATAR_VIRTUE_KEYWORDS = ['매력', '친절', '지성', '담력']
 
 const avatarItems = computed(() => props.avatarSummary?.items || props.avatarSummary?.left || [])
@@ -1376,12 +1377,10 @@ const effectFontWeight = (effect: any, item: any) => {
 const isAccessoryItem = (item?: any) =>
   Boolean(item?.isAccessory && !item?.isBracelet && !item?.isAbilityStone)
 
-const BRACELET_COMBAT_STATS = ['치명', '특화', '제압', '신속', '인내', '숙련']
-
 const isBraceletCombatStat = (label?: string) => {
   const normalized = (label || '').replace(/\s+/g, '')
   // 전투 특성 단일 라벨(또는 숫자/기호와 함께 시작)만 전투 특성으로 취급
-  return BRACELET_COMBAT_STATS.some(
+  return COMBAT_STATS.some(
     stat => new RegExp(`^${stat}(\\+|\\s|$)`).test(normalized)
   )
 }

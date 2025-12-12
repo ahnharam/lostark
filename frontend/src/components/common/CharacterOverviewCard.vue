@@ -37,8 +37,8 @@
           <strong :class="combatRoleBadgeClass">{{ combatRoleLabel }}</strong>
         </div>
         <div class="profile-stat">
-          <span>명예 점수</span>
-          <strong>{{ honorPointLabel }}</strong>
+          <span>포지션</span>
+          <strong class="position-badge">{{ combatPositionLabel }}</strong>
         </div>
       </div>
     </div>
@@ -117,6 +117,10 @@
         <div class="meta-item" v-if="activeCharacter?.pvpGradeName">
           <span>PVP</span>
           <strong>{{ activeCharacter?.pvpGradeName }}</strong>
+        </div>
+        <div class="meta-item">
+          <span>명예 점수</span>
+          <strong>{{ honorPointLabel }}</strong>
         </div>
       </div>
     </div>
@@ -237,6 +241,8 @@ const props = defineProps<{
   combatRole?: 'dealer' | 'support' | null
   combatRoleLoading?: boolean
   honorPoint?: string | number | null
+  combatPosition?: string | null
+  combatPositionLoading?: boolean
   loading: boolean
   formatCombatPower: (value: unknown) => string
   formatInteger: (value: unknown) => string
@@ -256,6 +262,8 @@ const {
   combatRole,
   combatRoleLoading,
   honorPoint,
+  combatPosition,
+  combatPositionLoading,
   loading,
   formatCombatPower,
   formatInteger,
@@ -282,6 +290,12 @@ const combatRoleLabel = computed(() => {
   if (combatRole.value === 'support') return '서폿'
   if (combatRole.value === 'dealer') return '딜러'
   return '정보 없음'
+})
+
+const combatPositionLabel = computed(() => {
+  if (combatPositionLoading?.value) return '분석 중'
+  if (!combatPosition?.value) return '정보 없음'
+  return combatPosition.value
 })
 
 const combatRoleBadgeClass = computed(() => {
@@ -585,6 +599,16 @@ onBeforeUnmount(() => {
 
 .profile-stat strong.role-badge.role-badge--unknown {
   color: var(--text-secondary);
+}
+
+.profile-stat strong.position-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  font-size: 0.85rem;
 }
 
 .hero-row--paradise h3 {
