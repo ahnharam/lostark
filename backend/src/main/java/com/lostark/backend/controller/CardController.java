@@ -3,12 +3,14 @@ package com.lostark.backend.controller;
 import com.lostark.backend.dto.CardResponseDto;
 import com.lostark.backend.service.CardService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/cards")
 @RequiredArgsConstructor
@@ -19,6 +21,7 @@ public class CardController {
     @GetMapping("/{characterName}")
     public ResponseEntity<CardResponseDto> getCards(@PathVariable String characterName) {
         try {
+            log.info("Fetching card data. characterName={}", characterName);
             CardResponseDto response = cardService.getCards(characterName);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
