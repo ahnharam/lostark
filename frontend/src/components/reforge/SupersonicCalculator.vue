@@ -207,7 +207,10 @@ const targetAttack = ref(140)
 const targetMove = ref(140)
 const swiftStat = ref(0)
 
-const selectedStar = computed(() => starOptions.find(option => option.key === starSpeedKey.value) ?? starOptions[0])
+const defaultStar = starOptions[0] ?? { key: 'none', label: '없음', attack: 0, move: 0 }
+const selectedStar = computed(
+  () => starOptions.find(option => option.key === starSpeedKey.value) ?? defaultStar
+)
 
 const buffAttack = computed(() => {
   let value = 0

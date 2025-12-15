@@ -14,10 +14,9 @@ import type {
   SkillMenuResponse,
   SiblingCharacter,
   ArmoryAvatar,
+  ArmoryGem,
   CardResponse,
-  PageResponse,
   StoredMarketCategory,
-  StoredMarketItem,
   MarketOptionsResponse,
   MarketSearchResponse,
   MarketItemSummary,
@@ -279,12 +278,12 @@ export const lostarkApi = {
   async getArmoryGems(
     characterName: string,
     options?: { force?: boolean }
-  ): Promise<ApiResult<any>> {
+  ): Promise<ApiResult<ArmoryGem>> {
     return cachedRequest(
       'armoryGems',
       { name: characterName },
       async () => {
-        const response = await apiClient.get<any>(`/gems/${characterName}`, {
+        const response = await apiClient.get<ArmoryGem>(`/gems/${characterName}`, {
           params: { force: options?.force }
         })
         return response.data

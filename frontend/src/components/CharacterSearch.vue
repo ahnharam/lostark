@@ -363,10 +363,10 @@ import type {
   CharacterProfile,
   SiblingCharacter,
   Equipment,
-  Engraving,
   CharacterStat,
   ArkPassiveEffect,
-  Collectible,
+  ArmoryGemEffectSkill,
+  ArmoryGemItem,
   CombatSkill,
   SkillGem
 } from '@/api/types'
@@ -389,6 +389,7 @@ import { getEngravingDisplayName } from '@/data/engravingNames'
 import { formatItemLevel, formatNumberLocalized, formatCombatPower, formatInteger } from '@/utils/format'
 import { useCharacterSearchData } from '@/composables/useCharacterSearchData'
 import { resolveCombatPosition } from '@/data/classPositions'
+import { isNumber, isRecord, isString } from '@/utils/typeGuards'
 
 type ResultTabKey =
   | 'summary'
@@ -471,13 +472,12 @@ const {
   toggleFavorite: toggleFavoriteBase,
   loadHistory,
   clearHistory,
-  ensureSkillData,
-  ensureCollectiblesData,
-  ensureArkGridData,
-  ensureCardData,
-  searchCharacter: searchCharacterData,
-  clearSearch: clearSearchData
-} = useCharacterSearchData()
+	  ensureSkillData,
+	  ensureCollectiblesData,
+	  ensureArkGridData,
+	  ensureCardData,
+	  searchCharacter: searchCharacterData
+	} = useCharacterSearchData()
 
 const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
 const expeditionSortKey = ref<ExpeditionSortKey>('itemLevel')
@@ -558,9 +558,22 @@ const specialEquipmentsDetailed = computed(() => {
   return [...slots, ...extras]
 })
 
-const inlineText = (value?: string | number | null) => {
+const inlineText = (value: unknown): string => {
   if (value === undefined || value === null) return ''
+  if (typeof value !== 'string' && typeof value !== 'number') return ''
   return cleanTooltipLine(String(value)).replace(/\s+/g, ' ').trim()
+}
+
+const readString = (value: unknown): string => (isString(value) ? value : '')
+
+const readStringFromRecord = (record: Record<string, unknown>, key: string): string => {
+  const value = record[key]
+  return isString(value) ? value : ''
+}
+
+const readNumberFromRecord = (record: Record<string, unknown>, key: string): number | undefined => {
+  const value = record[key]
+  return isNumber(value) ? value : undefined
 }
 
 const normalizeHexColor = (value?: string | null) => {
@@ -573,7 +586,7 @@ const normalizeHexColor = (value?: string | null) => {
 const parseSkillIconFromTooltip = (tooltip?: string | null): string => {
   if (!tooltip) return ''
   const pick = (icon?: string | null) => (typeof icon === 'string' && icon.trim().length ? icon.trim() : '')
-  const search = (node: any): string => {
+  const search = (node: unknown): string => {
     if (!node) return ''
     if (typeof node === 'string') return ''
     if (Array.isArray(node)) {
@@ -583,10 +596,13 @@ const parseSkillIconFromTooltip = (tooltip?: string | null): string => {
       }
       return ''
     }
-    if (typeof node === 'object') {
-      if (pick((node as any).iconPath)) return pick((node as any).iconPath)
-      if (pick((node as any).Icon)) return pick((node as any).Icon)
-      if (node.slotData && pick((node as any).slotData?.iconPath)) return pick((node as any).slotData?.iconPath)
+    if (isRecord(node)) {
+      if (pick(readStringFromRecord(node, 'iconPath'))) return pick(readStringFromRecord(node, 'iconPath'))
+      if (pick(readStringFromRecord(node, 'Icon'))) return pick(readStringFromRecord(node, 'Icon'))
+      const slotData = node['slotData']
+      if (isRecord(slotData) && pick(readStringFromRecord(slotData, 'iconPath'))) {
+        return pick(readStringFromRecord(slotData, 'iconPath'))
+      }
       for (const value of Object.values(node)) {
         const found = search(value)
         if (found) return found
@@ -630,8 +646,9 @@ const scanTooltipForColor = (node: unknown): string => {
   if (typeof node === 'object') {
     const record = node as Record<string, unknown>
     // Element_000.value에 우선 접근
-    if (record.Element_000 && typeof record.Element_000 === 'object') {
-      const valueField = (record.Element_000 as any).value
+    const element000 = record['Element_000']
+    if (isRecord(element000)) {
+      const valueField = element000['value'] ?? element000['Value']
       const fromElement = scanTooltipForColor(valueField)
       if (fromElement) return fromElement
     }
@@ -713,12 +730,13 @@ const extractRuneColor = (tooltip?: string | null, grade?: string | null) => {
 
   if (tooltip) {
     try {
-      const parsed = JSON.parse(tooltip)
-      const candidates = Object.values(parsed || {})
+      const parsed = JSON.parse(tooltip) as unknown
+      const candidates = isRecord(parsed) ? Object.values(parsed) : []
       for (const cand of candidates) {
-        const candidateValue = (cand as any)?.value || cand
-        const found = scanRaw(typeof candidateValue === 'string' ? candidateValue : undefined) ||
-          extractTooltipColor(candidateValue as any)
+        const candidateValue = isRecord(cand) ? (cand['value'] ?? cand['Value'] ?? cand) : cand
+        const candidateText =
+          typeof candidateValue === 'string' ? candidateValue : JSON.stringify(candidateValue)
+        const found = scanRaw(candidateText) || extractTooltipColor(candidateText)
         if (found) return found
       }
     } catch {
@@ -805,12 +823,19 @@ const extractSkillNameFromGemTooltip = (tooltip?: string | null) => {
     return ''
   }
   try {
-    const parsed = JSON.parse(tooltip)
-    const part = (parsed as any)?.Element_007?.value?.Element_001 ?? (parsed as any)?.Element_007?.value?.Element_000
+    const parsed = JSON.parse(tooltip) as unknown
+    const part = (() => {
+      if (!isRecord(parsed)) return undefined
+      const element007 = parsed['Element_007']
+      if (!isRecord(element007)) return undefined
+      const value = element007['value'] ?? element007['Value']
+      if (!isRecord(value)) return undefined
+      return value['Element_001'] ?? value['Element_000']
+    })()
     if (part) {
       const fromPart = extractFromString(String(part))
       if (fromPart) return fromPart
-      const firstLine = flattenTooltipLines(part).find(Boolean)
+      const firstLine = flattenTooltipLines(String(part)).find(Boolean)
       if (firstLine) {
         const fromLine = extractFromString(firstLine)
         if (fromLine) return fromLine
@@ -818,7 +843,7 @@ const extractSkillNameFromGemTooltip = (tooltip?: string | null) => {
       }
     }
     // fallback: scan every string in parsed tooltip
-    const findInNode = (node: any): string => {
+    const findInNode = (node: unknown): string => {
       if (!node) return ''
       if (typeof node === 'string') return extractFromString(node)
       if (Array.isArray(node)) {
@@ -828,7 +853,7 @@ const extractSkillNameFromGemTooltip = (tooltip?: string | null) => {
         }
         return ''
       }
-      if (typeof node === 'object') {
+      if (isRecord(node)) {
         for (const value of Object.values(node)) {
           const found = findInNode(value)
           if (found) return found
@@ -905,44 +930,69 @@ const pickHigherGem = (current: SkillGemSlot | null, next: SkillGemSlot) => {
   return next.levelValue > current.levelValue ? next : current
 }
 
-const armoryEffectGemSlots = computed<SkillGem[]>(() => {
-  const armoryGems = armoryGemsResponse.value?.Gems ?? armoryGemsResponse.value?.gems ?? []
-  const rawEffects = armoryGemsResponse.value?.Effects ?? armoryGemsResponse.value?.effects ?? []
+const resolveArmoryGems = (): ArmoryGemItem[] => {
+  const resp = armoryGemsResponse.value
+  if (!resp) return []
+  if (Array.isArray(resp.Gems)) return resp.Gems
+  const record = resp as unknown as Record<string, unknown>
+  const alt = record['gems']
+  return Array.isArray(alt) ? (alt as ArmoryGemItem[]) : []
+}
+
+const resolveArmoryEffectSkills = (): ArmoryGemEffectSkill[] => {
+  const resp = armoryGemsResponse.value
+  if (!resp) return []
+  const rawEffects: unknown =
+    resp.Effects ?? ((resp as unknown as Record<string, unknown>)['effects'] as unknown)
   const effectsArray = Array.isArray(rawEffects) ? rawEffects : rawEffects ? [rawEffects] : []
-  return effectsArray
-    .flatMap((eff: any) => {
-      const skills = (eff?.Skills ?? eff?.skills) as any
-      return Array.isArray(skills) ? skills : []
-    })
-    .map((sk: any, idx: number) => {
-      const skillName = inlineText(sk?.Name || sk?.name)
-      const description = Array.isArray(sk?.Description)
-        ? sk.Description.join(' ')
-        : inlineText(sk?.Description)
-      const matchedGem =
-        typeof sk?.GemSlot === 'number'
-          ? armoryGems.find((g: any) => g?.Slot === sk.GemSlot || g?.slot === sk.GemSlot)
-          : undefined
-      const gemName = inlineText(matchedGem?.Name || matchedGem?.name)
-      const gemTooltip = matchedGem?.Tooltip || matchedGem?.tooltip || sk?.Tooltip || sk?.tooltip
-      const gemIcon =
-        matchedGem?.Icon ||
-        parseSkillIconFromTooltip(gemTooltip) ||
-        sk?.Icon ||
-        parseSkillIconFromTooltip(sk?.Tooltip || sk?.tooltip)
-      return {
-        slot: typeof sk?.GemSlot === 'number' ? sk.GemSlot : undefined,
-        name: gemName || skillName || `gem-effect-${idx}`,
-        icon: gemIcon || '',
-        tooltip: gemTooltip,
-        level: typeof matchedGem?.Level === 'number' ? matchedGem.Level : undefined,
-        grade: inlineText(matchedGem?.Grade),
-        skill: {
-          name: skillName,
-          description
-        }
-      } as SkillGem
-    })
+  const skills: ArmoryGemEffectSkill[] = []
+  effectsArray.forEach(effect => {
+    if (!isRecord(effect)) return
+    const rawSkills = effect['Skills'] ?? effect['skills']
+    if (Array.isArray(rawSkills)) {
+      skills.push(...(rawSkills as ArmoryGemEffectSkill[]))
+    }
+  })
+  return skills
+}
+
+const armoryEffectGemSlots = computed<SkillGem[]>(() => {
+  const armoryGems = resolveArmoryGems()
+  return resolveArmoryEffectSkills().map((skill, idx) => {
+    const skillRecord = skill as unknown as Record<string, unknown>
+    const gemSlot = readNumberFromRecord(skillRecord, 'GemSlot')
+    const skillName = inlineText(readStringFromRecord(skillRecord, 'Name') || readStringFromRecord(skillRecord, 'name'))
+    const descriptionRaw = skillRecord['Description']
+    const description = Array.isArray(descriptionRaw)
+      ? descriptionRaw.map(entry => String(entry)).join(' ')
+      : inlineText(readString(descriptionRaw))
+    const matchedGem = typeof gemSlot === 'number' ? armoryGems.find(g => g?.Slot === gemSlot) : undefined
+    const matchedGemRecord = (matchedGem ?? {}) as unknown as Record<string, unknown>
+    const gemName = inlineText(matchedGem?.Name || readStringFromRecord(matchedGemRecord, 'name'))
+    const gemTooltip =
+      matchedGem?.Tooltip ||
+      readStringFromRecord(matchedGemRecord, 'tooltip') ||
+      readStringFromRecord(skillRecord, 'Tooltip') ||
+      readStringFromRecord(skillRecord, 'tooltip')
+    const gemIcon =
+      matchedGem?.Icon ||
+      readStringFromRecord(matchedGemRecord, 'icon') ||
+      parseSkillIconFromTooltip(gemTooltip) ||
+      readStringFromRecord(skillRecord, 'Icon') ||
+      parseSkillIconFromTooltip(readStringFromRecord(skillRecord, 'Tooltip') || readStringFromRecord(skillRecord, 'tooltip'))
+    return {
+      slot: gemSlot,
+      name: gemName || skillName || `gem-effect-${idx}`,
+      icon: gemIcon || '',
+      tooltip: gemTooltip,
+      level: matchedGem?.Level ?? readNumberFromRecord(matchedGemRecord, 'level'),
+      grade: inlineText(matchedGem?.Grade || readStringFromRecord(matchedGemRecord, 'grade')),
+      skill: {
+        name: skillName,
+        description
+      }
+    }
+  })
 })
 
 const combatSkillCatalog = computed<CombatSkillCatalogEntry[]>(() => {
@@ -998,17 +1048,13 @@ const armoryGemIconMaps = computed(() => {
 
   const pickIcon = (icon?: string | null) => (typeof icon === 'string' && icon.trim().length ? icon : '')
 
-  const armoryGems = armoryGemsResponse.value?.Gems ?? armoryGemsResponse.value?.gems ?? []
-  const rawEffects = armoryGemsResponse.value?.Effects ?? armoryGemsResponse.value?.effects ?? []
-  const effectsArray = Array.isArray(rawEffects) ? rawEffects : rawEffects ? [rawEffects] : []
-  const effectSkills = effectsArray.flatMap((eff: any) => {
-    const skills = (eff?.Skills ?? eff?.skills) as any
-    return Array.isArray(skills) ? skills : []
-  })
+  const armoryGems = resolveArmoryGems()
+  const effectSkills = resolveArmoryEffectSkills()
 
-  effectSkills.forEach((sk: any) => {
-    const skKey = normalizeSkillKey(sk?.Name || sk?.name)
-    const icon = pickIcon(sk?.Icon) || parseSkillIconFromTooltip(sk?.Tooltip || sk?.tooltip)
+  effectSkills.forEach(effectSkill => {
+    const record = effectSkill as unknown as Record<string, unknown>
+    const skKey = normalizeSkillKey(readStringFromRecord(record, 'Name') || readStringFromRecord(record, 'name'))
+    const icon = pickIcon(readStringFromRecord(record, 'Icon')) || parseSkillIconFromTooltip(readStringFromRecord(record, 'Tooltip') || readStringFromRecord(record, 'tooltip'))
     if (skKey && icon) {
       if (!skillByKey.has(skKey)) skillByKey.set(skKey, icon)
       if (!skillByName.has(skKey)) skillByName.set(skKey, icon)
@@ -1016,8 +1062,9 @@ const armoryGemIconMaps = computed(() => {
   })
 
   armoryGems.forEach(gem => {
-    const nameKey = normalizeSkillKey(inlineText(gem?.Name || gem?.name))
-    const tooltipIcon = parseSkillIconFromTooltip(gem?.Tooltip || gem?.tooltip)
+    const gemRecord = gem as unknown as Record<string, unknown>
+    const nameKey = normalizeSkillKey(inlineText(gem?.Name || readStringFromRecord(gemRecord, 'name')))
+    const tooltipIcon = parseSkillIconFromTooltip(gem?.Tooltip || readStringFromRecord(gemRecord, 'tooltip'))
     if (nameKey && tooltipIcon && !gemTooltipIconByName.has(nameKey)) {
       gemTooltipIconByName.set(nameKey, tooltipIcon)
     }
@@ -1070,17 +1117,22 @@ const skillHighlights = computed(() => {
     .map((skill, index) => {
       const key = normalizeSkillKey(skill.name || `skill-${index}`)
       const gem = key ? gemSlots.get(key) : undefined
-      const runePayload = (skill as any).rune || (skill as any).Rune || skill.rune
-      const runeTooltip = runePayload?.tooltip ?? runePayload?.Tooltip
-      const runeName = runePayload?.name ?? runePayload?.Name
-      const runeGrade = runePayload?.grade ?? runePayload?.Grade
-      const runeIcon = runePayload?.icon ?? runePayload?.Icon
+      const skillRecord = skill as unknown as Record<string, unknown>
+      const runePayload: unknown = skill.rune ?? skillRecord['rune'] ?? skillRecord['Rune']
+      const runeRecord = isRecord(runePayload) ? runePayload : null
+      const runeTooltipRaw = runeRecord ? (runeRecord['tooltip'] ?? runeRecord['Tooltip']) : undefined
+      const runeName = runeRecord ? (runeRecord['name'] ?? runeRecord['Name']) : undefined
+      const runeGrade = runeRecord ? (runeRecord['grade'] ?? runeRecord['Grade']) : undefined
+      const runeIcon = runeRecord ? (runeRecord['icon'] ?? runeRecord['Icon']) : undefined
+      const runeTooltip = isString(runeTooltipRaw) ? runeTooltipRaw : null
+      const runeNameText = isString(runeName) ? runeName : null
+      const runeGradeText = isString(runeGrade) ? runeGrade : null
       const rune = runeName
         ? {
-          name: inlineText(runeName),
-          icon: runeIcon || '',
-          grade: inlineText(runeGrade),
-          color: extractRuneColor(runeTooltip, runeGrade) || undefined
+          name: inlineText(runeNameText),
+          icon: isString(runeIcon) ? runeIcon : '',
+          grade: inlineText(runeGradeText),
+          color: extractRuneColor(runeTooltip, runeGradeText) || undefined
         }
         : null
       const tripods =
@@ -1098,7 +1150,7 @@ const skillHighlights = computed(() => {
               levelLabel: formatLevelLabel(tripod.level)
             }
           }) ?? []
-      const isGemOnly = (skill as any).isGemOnly === true
+      const isGemOnly = skillRecord['isGemOnly'] === true
       const skillPointValue = Number(skill.skillPoints ?? 0)
       const hasSkillPoints = Number.isFinite(skillPointValue) && skillPointValue > 0
       const hasRune = Boolean(rune)
@@ -1170,11 +1222,12 @@ const skillLooseGems = computed(() => {
     gemTooltipIconByName
   } = armoryGemIconMaps.value
 
-  const armoryGemBySlot = new Map<number, any>()
-  const armoryGems = armoryGemsResponse.value?.Gems ?? armoryGemsResponse.value?.gems ?? []
-  armoryGems.forEach(gem => {
-    if (typeof gem?.Slot === 'number' && !armoryGemBySlot.has(gem.Slot)) {
-      armoryGemBySlot.set(gem.Slot, gem)
+  const armoryGemBySlot = new Map<number, ArmoryGemItem>()
+  resolveArmoryGems().forEach(gem => {
+    const gemRecord = gem as unknown as Record<string, unknown>
+    const slot = typeof gem.Slot === 'number' ? gem.Slot : readNumberFromRecord(gemRecord, 'slot')
+    if (typeof slot === 'number' && !armoryGemBySlot.has(slot)) {
+      armoryGemBySlot.set(slot, gem)
     }
   })
 
@@ -1190,8 +1243,12 @@ const skillLooseGems = computed(() => {
   const skillKeys = combatSkillKeySet.value
   return gems
     .filter(gem => {
-      const armoryGem = typeof (gem as any).Slot === 'number' ? armoryGemBySlot.get((gem as any).Slot) : undefined
-      const key = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip, combatSkillCatalog.value)
+      const gemRecord = gem as unknown as Record<string, unknown>
+      const gemSlot = gem.slot ?? readNumberFromRecord(gemRecord, 'Slot') ?? readNumberFromRecord(gemRecord, 'GemSlot')
+      const armoryGem = typeof gemSlot === 'number' ? armoryGemBySlot.get(gemSlot) : undefined
+      const armoryGemRecord = (armoryGem ?? {}) as unknown as Record<string, unknown>
+      const armoryTooltip = armoryGem?.Tooltip || readStringFromRecord(armoryGemRecord, 'tooltip')
+      const key = normalizeGemSkillKey(gem, armoryTooltip, combatSkillCatalog.value)
       if (key && skillKeys.has(key)) return false
       const skillName = inlineText(gem.skill?.name || gem.skill?.description)
       if (!skillName && !key) return false
@@ -1200,18 +1257,22 @@ const skillLooseGems = computed(() => {
     })
     .map((gem, index) => {
       const effectLabel = extractGemLabel(gem)
-      const armoryGem = typeof (gem as any).Slot === 'number' ? armoryGemBySlot.get((gem as any).Slot) : undefined
-      const normalizedKey = normalizeGemSkillKey(gem, armoryGem?.Tooltip || armoryGem?.tooltip, combatSkillCatalog.value)
+      const gemRecord = gem as unknown as Record<string, unknown>
+      const gemSlot = gem.slot ?? readNumberFromRecord(gemRecord, 'Slot') ?? readNumberFromRecord(gemRecord, 'GemSlot')
+      const armoryGem = typeof gemSlot === 'number' ? armoryGemBySlot.get(gemSlot) : undefined
+      const armoryGemRecord = (armoryGem ?? {}) as unknown as Record<string, unknown>
+      const armoryTooltip = armoryGem?.Tooltip || readStringFromRecord(armoryGemRecord, 'tooltip')
+      const normalizedKey = normalizeGemSkillKey(gem, armoryTooltip, combatSkillCatalog.value)
       const catalogHit = normalizedKey
         ? combatSkillCatalog.value.find(entry => entry.key === normalizedKey)
         : null
       const skillName =
-        catalogHit?.name || skillNameFromGem(gem, armoryGem?.Tooltip || armoryGem?.tooltip, combatSkillCatalog.value)
+        catalogHit?.name || skillNameFromGem(gem, armoryTooltip, combatSkillCatalog.value)
       const candidateKeys = [
         normalizedKey,
-        normalizeSkillKey(extractSkillNameFromGemTooltip(armoryGem?.Tooltip || armoryGem?.tooltip)),
+        normalizeSkillKey(extractSkillNameFromGemTooltip(armoryTooltip)),
         normalizeSkillKey(effectLabel),
-        normalizeSkillKey(armoryGem?.Name || armoryGem?.name)
+        normalizeSkillKey(armoryGem?.Name || readStringFromRecord(armoryGemRecord, 'name'))
       ].filter(Boolean) as string[]
       const pickIconFromKeys = (keys: string[], ...maps: Array<Map<string, string>>) => {
         for (const key of keys) {
@@ -1224,7 +1285,7 @@ const skillLooseGems = computed(() => {
       }
       const skillIcon = pickIconFromKeys(candidateKeys, armorySkillIconBySkillKey, armorySkillIconByName, skillIconByKey)
       const tooltipIcon = parseSkillIconFromTooltip(
-        (gem as any).tooltip || (gem as any).Tooltip || armoryGem?.Tooltip || armoryGem?.tooltip
+        gem.tooltip || readStringFromRecord(gemRecord, 'Tooltip') || armoryTooltip
       )
       const armoryIcon =
         pickIconFromKeys(candidateKeys, armorySkillIconBySkillKey, armorySkillIconByName, gemTooltipIconByName) || ''
@@ -1236,7 +1297,7 @@ const skillLooseGems = computed(() => {
           skillIcon,
           tooltipIcon,
           gemIcon: gem.icon || '',
-          armoryGemSlot: (gem as any).Slot ?? (gem as any).slot ?? (gem as any).GemSlot,
+          armoryGemSlot: gemSlot,
           source: armoryIcon ? 'armory' : skillIcon ? 'skillMatch' : tooltipIcon ? 'tooltip' : 'gemIcon'
         })
       }
@@ -1350,7 +1411,7 @@ const parseEquipmentMeta = (item: Equipment) => {
     return ''
   }
 
-  const transcend = extractTranscendValue()
+  let transcend = extractTranscendValue()
 
   if ((!quality || !quality.length) && item.tooltip) {
     try {
@@ -1444,8 +1505,26 @@ const equipmentSummary = computed(() => {
     return found === -1 ? 99 : found
   }
 
-  const left: any[] = []
-  const right: any[] = []
+  type EquipmentSummaryEffect = { label: string; full?: string }
+  type EquipmentSummaryItem = {
+    key: string
+    name: string
+    typeLabel: string
+    grade: string
+    icon: string
+    itemLevel: string
+    quality: number | null
+    transcend: string
+    harmony: string
+    meta: string
+    isAccessory: boolean
+    isBracelet: boolean
+    isAbilityStone: boolean
+    enhancement: string
+  }
+
+  const left: Array<{ item: EquipmentSummaryItem; orderRank: number; orderSeq: number }> = []
+  const right: Array<EquipmentSummaryItem & { special?: string; effects?: EquipmentSummaryEffect[] }> = []
 
   const stoneCraft = detailEngravings.value.find(eng => typeof eng.abilityStoneLevel === 'number')
     ?.abilityStoneLevel
@@ -1541,7 +1620,7 @@ const equipmentSummary = computed(() => {
           const color = normalizeHexColor(colorMatch?.[1] || null)
           const label = inlineText(seg.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
           if (!label) return
-          addEffect(label, label, color)
+          addEffect(label, label, color || undefined)
         })
       }
     } catch {
@@ -1557,7 +1636,7 @@ const equipmentSummary = computed(() => {
       const meaningful = candidates.filter(line => effectPattern.test(line))
       meaningful.forEach(line => {
         const decorated = decorateEffect({ label: inlineText(line) })
-        if (decorated) effects.push(decorated as any)
+        if (decorated) effects.push(decorated)
       })
     }
 
@@ -1578,7 +1657,7 @@ const equipmentSummary = computed(() => {
   }
 
   const extractBraceletEffects = (item: Equipment) => {
-    const effects: Array<{ label: string; full?: string; bgColor: string; textColor: string }> = []
+    const effects: Array<{ label: string; full?: string; richLabel?: string; bgColor: string; textColor: string }> = []
     const combatStatKeywords = /(치명|특화|제압|신속|인내|숙련)/i
 
     const hexToRgba = (hex: string, alpha = 0.16) => {
@@ -1620,14 +1699,16 @@ const equipmentSummary = computed(() => {
 
     const pickTierAlignedColor = (colors: string[]) => {
       if (!colors.length) return null
-      let best: { color: string; dist: number } | null = null
+      let bestColor: string | null = null
+      let bestDist = Number.POSITIVE_INFINITY
       colors.forEach(color => {
         const dist = colorTierDistance(color)
-        if (best === null || dist < best.dist) {
-          best = { color, dist }
+        if (dist < bestDist) {
+          bestDist = dist
+          bestColor = color
         }
       })
-      return best?.color || colors[0]
+      return bestColor ?? colors[0] ?? null
     }
 
     const sanitizeColoredText = (value?: string | null) => {
@@ -1659,7 +1740,13 @@ const equipmentSummary = computed(() => {
         : hasAbbrev
           ? 'var(--bg-secondary)'
           : 'rgba(107, 114, 128, 0.15)'
-      effects.push({ label: normalizedLabel, full: richLabel || full || normalizedLabel, richLabel, textColor, bgColor })
+      effects.push({
+        label: normalizedLabel,
+        full: richLabel || full || normalizedLabel,
+        richLabel,
+        textColor,
+        bgColor
+      })
     }
 
     try {
@@ -1682,7 +1769,7 @@ const equipmentSummary = computed(() => {
           const label = inlineText(seg.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
           if (!label) return
           const richLabel = sanitizeColoredText(seg)
-          addEffect(label, label, color, richLabel)
+          addEffect(label, label, color || undefined, richLabel)
         })
       }
     } catch {
@@ -1729,8 +1816,10 @@ const equipmentSummary = computed(() => {
       }
 
       const rawLevel =
-        parseLevel((item as any).itemLevel) ||
-        parseLevel((item as any).ItemLevel)
+        (() => {
+          const record = item as unknown as Record<string, unknown>
+          return parseLevel(record['itemLevel']) || parseLevel(record['ItemLevel'])
+        })()
 
       if (rawLevel) {
         return `iLv. ${formatNumberLocalized(rawLevel, 0)}`
@@ -1747,6 +1836,13 @@ const equipmentSummary = computed(() => {
       return ''
     })()
 
+    const qualityNumber = (() => {
+      if (!meta.quality) return null
+      const cleaned = meta.quality.replace(/[^0-9.\-]/g, '')
+      const num = Number(cleaned)
+      return Number.isFinite(num) ? num : null
+    })()
+
     const base = {
       key: `${item.name || 'equipment'}-${index}`,
       name: enhancement ? `+${enhancement}` : inlineText(item.name) || `장비 ${index + 1}`,
@@ -1754,7 +1850,7 @@ const equipmentSummary = computed(() => {
       grade: gradeLabel,
       icon: item.icon || '',
       itemLevel: accessory || bracelet || abilityStone ? '' : meta.itemLevel || fallbackItemLevel,
-      quality: meta.quality,
+      quality: qualityNumber,
       transcend: accessory ? '' : meta.transcend,
       harmony: accessory ? '' : meta.harmony,
       meta: summarizeEquipmentLine(item),
@@ -1792,9 +1888,9 @@ const equipmentSummary = computed(() => {
       })
     } else {
       left.push({
-        ...base,
         orderRank: gearOrderIndex(typeLabel),
-        orderSeq: left.length
+        orderSeq: left.length,
+        item: base
       })
     }
   })
@@ -1805,7 +1901,7 @@ const equipmentSummary = computed(() => {
       (a, b) =>
         (a.orderRank ?? 99) - (b.orderRank ?? 99) || (a.orderSeq ?? 0) - (b.orderSeq ?? 0)
     )
-    .map(({ orderRank, orderSeq, ...rest }) => rest)
+    .map(entry => entry.item)
 
   return {
     gradeBadges,
@@ -1821,13 +1917,14 @@ const avatarSummary = computed(() => {
       : detailEquipment.value.filter(item => isAvatarEquipment(item))
 
   const avatars = source.map((item, index) => {
-    const name = inlineText((item as any).Name || (item as any).name) || '아바타'
-    const type = inlineText((item as any).Type || (item as any).type || name)
-    const grade = inlineText((item as any).Grade || (item as any).grade)
-    const icon = (item as any).Icon || (item as any).icon || ''
-    const tooltip = (item as any).Tooltip || (item as any).tooltip || ''
-    const isInnerRaw = (item as any).IsInner ?? (item as any).isInner
-    const isSetRaw = (item as any).IsSet ?? (item as any).isSet
+    const record = item as unknown as Record<string, unknown>
+    const name = inlineText(record['Name'] ?? record['name']) || '아바타'
+    const type = inlineText(record['Type'] ?? record['type'] ?? name)
+    const grade = inlineText(record['Grade'] ?? record['grade'])
+    const icon = readString(record['Icon'] ?? record['icon'])
+    const tooltip = readString(record['Tooltip'] ?? record['tooltip'])
+    const isInnerRaw = record['IsInner'] ?? record['isInner']
+    const isSetRaw = record['IsSet'] ?? record['isSet']
     return {
       key: `${name}-${index}`,
       name,
@@ -2094,7 +2191,9 @@ const buildArkPassiveMatrix = (effects: ArkPassiveEffect[] = []): PassiveSummary
       rows.push(row)
     }
     const targetSection = row.sections.find(section => section.key === card.sectionKey) ?? row.sections[0]
-    targetSection.effects.push(card)
+    if (targetSection) {
+      targetSection.effects.push(card)
+    }
   })
 
   const tierValue = (label: string) => {
@@ -2113,18 +2212,19 @@ const buildArkPassiveMatrix = (effects: ArkPassiveEffect[] = []): PassiveSummary
   return rows.sort((a, b) => tierValue(a.label) - tierValue(b.label))
 }
 
+type CoreAlignment = 'order' | 'chaos' | 'unknown'
+type CoreCelestial = 'sun' | 'moon' | 'star' | 'unknown'
+
 const parseCoreMeta = (rawName: string) => {
   const alignmentMatch = rawName.match(/(질서|혼돈)/)
-  const alignment: 'order' | 'chaos' | 'unknown' =
+  const alignment: CoreAlignment =
     alignmentMatch?.[1] === '질서' ? 'order' : alignmentMatch?.[1] === '혼돈' ? 'chaos' : 'unknown'
 
   const celestialMatch = rawName.match(/(해|달|별)/)
-  const celestialMap: Record<string, 'sun' | 'moon' | 'star'> = {
-    '해': 'sun',
-    '달': 'moon',
-    '별': 'star'
-  }
-  const celestial = celestialMap[celestialMatch?.[1] ?? ''] ?? 'unknown'
+  let celestial: CoreCelestial = 'unknown'
+  if (celestialMatch?.[1] === '해') celestial = 'sun'
+  if (celestialMatch?.[1] === '달') celestial = 'moon'
+  if (celestialMatch?.[1] === '별') celestial = 'star'
 
   const cleaned = rawName.replace(/^(질서|혼돈)?\s*의?\s*(해|달|별)?\s*코어\s*[:：]?\s*/i, '').trim()
   const displayName = cleaned || rawName
@@ -2136,11 +2236,28 @@ const parseCoreMeta = (rawName: string) => {
   }
 }
 
-const buildCoreMatrix = (coreSlots: Array<{ alignment: string; celestial: string }>) => {
-  const hasSlots = coreSlots.length > 0
-  if (!hasSlots) return { headers: [] as Array<{ key: string; label: string }>, rows: [] as any[] }
+type CoreSlot = {
+  key: string
+  name: string
+  icon: string
+  initial: string
+  pointLabel: string
+  grade: string
+  gradeColor: string
+  nameColor: string
+  tooltip: string
+  alignment: CoreAlignment
+  celestial: CoreCelestial
+}
+type CoreMatrixHeader = { key: string; label: string }
+type CoreMatrixCell = { key: string; label: string; slots: CoreSlot[] }
+type CoreMatrixRow = { key: string; label: string; cells: CoreMatrixCell[] }
 
-  const baseHeaders: Array<{ key: string; label: string }> = [
+const buildCoreMatrix = (coreSlots: CoreSlot[]): { headers: CoreMatrixHeader[]; rows: CoreMatrixRow[] } => {
+  const hasSlots = coreSlots.length > 0
+  if (!hasSlots) return { headers: [], rows: [] }
+
+  const baseHeaders: CoreMatrixHeader[] = [
     { key: 'sun', label: '해' },
     { key: 'moon', label: '달' },
     { key: 'star', label: '별' }
@@ -2249,39 +2366,57 @@ const arkSummary = computed(() => {
   }
 
   const bestRankBySection = (sectionKey: PassiveSectionKey) => {
+    type PassiveEffectCandidate = {
+      name?: string
+      tierValue?: number
+      tierLabel?: string
+      tierGroup?: string
+      levelLabel?: string
+      levelDisplay?: string
+      levelLine?: string
+    }
+
     const candidatesFromMatrix = passiveMatrix.flatMap(row =>
       row.sections.find(section => section.key === sectionKey)?.effects ?? []
-    )
-    const candidates =
+    ) as PassiveEffectCandidate[]
+
+    const candidates: PassiveEffectCandidate[] =
       candidatesFromMatrix.length > 0
         ? candidatesFromMatrix
-        : passiveEffects.filter(effect => effect.sectionKey === sectionKey)
+        : (passiveEffects.filter(effect => effect.sectionKey === sectionKey) as PassiveEffectCandidate[])
     if (!candidates.length) return null
 
     const best = candidates
       .slice()
       .sort((a, b) => {
-        const tierA = Number.isFinite((a as any).tierValue) ? (a as any).tierValue : -Infinity
-        const tierB = Number.isFinite((b as any).tierValue) ? (b as any).tierValue : -Infinity
+        const tierA = typeof a.tierValue === 'number' && Number.isFinite(a.tierValue) ? a.tierValue : -Infinity
+        const tierB = typeof b.tierValue === 'number' && Number.isFinite(b.tierValue) ? b.tierValue : -Infinity
         if (tierA !== tierB) return tierB - tierA
-        const levelA = parseLevelNumeric((a as any).levelLabel || (a as any).levelDisplay || (a as any).levelLine)
-        const levelB = parseLevelNumeric((b as any).levelLabel || (b as any).levelDisplay || (b as any).levelLine)
+        const levelA = parseLevelNumeric(a.levelLabel || a.levelDisplay || a.levelLine)
+        const levelB = parseLevelNumeric(b.levelLabel || b.levelDisplay || b.levelLine)
         if (levelA !== levelB) return levelB - levelA
         return 0
       })[0]
     return {
-      name: (best as any).name || '',
-      tier: (best as any).tierLabel || (best as any).tierGroup || (best as any).levelLine || '',
-      level: (best as any).levelLabel || (best as any).levelDisplay || (best as any).levelLine || ''
+      name: best?.name || '',
+      tier: best?.tierLabel || best?.tierGroup || best?.levelLine || '',
+      level: best?.levelLabel || best?.levelDisplay || best?.levelLine || ''
     }
   }
 
-  const rawSlots = (grid?.slots ?? (grid as any)?.Slots ?? []) as any[]
+  const rawSlots = (() => {
+    if (Array.isArray(grid?.slots)) return grid.slots as unknown[]
+    const gridRecord = (grid ?? {}) as unknown as Record<string, unknown>
+    const alt = gridRecord['Slots']
+    return Array.isArray(alt) ? alt : []
+  })()
   const coreSlots = rawSlots
     .map((slot, index) => {
       const getField = (...keys: string[]) => {
+        const slotRecord = (slot ?? {}) as unknown as Record<string, unknown>
         for (const key of keys) {
-          if (slot[key] !== undefined && slot[key] !== null && slot[key] !== '') return slot[key]
+          const value = slotRecord[key]
+          if (value !== undefined && value !== null && value !== '') return value
         }
         return null
       }
@@ -2292,16 +2427,21 @@ const arkSummary = computed(() => {
       const name = meta.displayName
       const gradeLabel = inlineText(getField('grade', 'Grade', 'gradeName', 'GradeName'))
       const tooltipRaw = getField('tooltip', 'Tooltip')
-      const nameColor = coreNameColorFromTooltip(tooltipRaw) || extractTooltipColor(tooltipRaw)
+      const tooltipText = readString(tooltipRaw)
+      const nameColor = coreNameColorFromTooltip(tooltipRaw) || extractTooltipColor(tooltipText) || ''
       const gradeColor =
         nameColor ||
         coreGradeColor(gradeLabel) ||
         (meta.alignment === 'order' ? '#e11d48' : meta.alignment === 'chaos' ? '#2563eb' : '')
       const pointValue = getField('point', 'Point')
-      const pointLabel = pointValue !== null && pointValue !== undefined ? `${pointValue}P` : ''
-      const icon = getField('icon', 'Icon') || ''
+      const pointLabel =
+        typeof pointValue === 'number' || typeof pointValue === 'string' ? `${String(pointValue).trim()}P` : ''
+      const icon = readString(getField('icon', 'Icon'))
+      const indexValue = getField('index', 'Index')
+      const keySuffix =
+        typeof indexValue === 'number' || typeof indexValue === 'string' ? indexValue : index
       return {
-        key: `slot-${getField('index', 'Index') ?? index}`,
+        key: `slot-${keySuffix}`,
         name,
         alignment: meta.alignment,
         celestial: meta.celestial,
@@ -2309,7 +2449,7 @@ const arkSummary = computed(() => {
         grade: gradeLabel,
         gradeColor,
         nameColor,
-        tooltip: tooltipRaw || '',
+        tooltip: tooltipText,
         pointLabel,
         initial: name.charAt(0) || 'C'
       }
@@ -2364,8 +2504,35 @@ const arkSummary = computed(() => {
 })
 
 const cardSummary = computed(() => {
+  type CardSlotEntry = {
+    slot?: number | string | null
+    name?: string | null
+    icon?: string | null
+    grade?: string | null
+    awakeCount?: number | string | null
+    awakeTotal?: number | string | null
+  }
+
+  type CardEffectItem = {
+    name?: string | null
+    description?: string | null
+  }
+
+  type CardEffectEntry = {
+    index?: number | null
+    cardSlots?: number[] | null
+    items?: CardEffectItem[] | null
+  }
+
+  const cardData = cardResponse.value?.card as
+    | {
+        cards?: CardSlotEntry[] | null
+        effects?: CardEffectEntry[] | null
+      }
+    | null
+
   const cards =
-    cardResponse.value?.card?.cards
+    cardData?.cards
       ?.filter(card => inlineText(card.name))
       .map((card, index) => {
         const awakeCountRaw = Number(card.awakeCount)
@@ -2389,13 +2556,13 @@ const cardSummary = computed(() => {
   const equippedCount = cards.length
 
   const effects =
-    cardResponse.value?.card?.effects?.map((effect, index) => {
+    cardData?.effects?.map((effect, index) => {
       const slots = effect.cardSlots ?? []
       const slotWithIndex = slots.map((slot, idx) => ({ slot, idx }))
       const activeSlot =
         slotWithIndex
           .filter(entry => equippedCount >= entry.slot)
-          .reduce((best, entry) => {
+          .reduce<{ slot: number; idx: number } | null>((best, entry) => {
             if (!best) return entry
             return entry.slot >= best.slot ? entry : best
           }, null) ?? null
@@ -2677,11 +2844,6 @@ const dismissError = () => {
   error.value = null
 }
 
-const clearSearch = () => {
-  clearSearchData()
-  activeResultTab.value = DEFAULT_RESULT_TAB
-}
-
 const executeSearch = (name: string) => {
   const trimmed = name.trim()
   if (!trimmed) return
@@ -2737,10 +2899,13 @@ const getSpecialLabel = (item: Equipment): string => {
   return '항해 장비'
 }
 
-const normalizeStatValue = (value?: string | string[]) => {
-  if (!value) return ''
+const normalizeStatValue = (value?: string | string[] | number | null) => {
+  if (value === undefined || value === null) return ''
   if (Array.isArray(value)) {
     return value.join(' / ')
+  }
+  if (typeof value === 'number') {
+    return String(value)
   }
   return value
     .replace(/<br\s*\/?>/gi, ' / ')
@@ -2749,7 +2914,7 @@ const normalizeStatValue = (value?: string | string[]) => {
     .trim()
 }
 
-const formatProfileStat = (value?: string | string[]) => {
+const formatProfileStat = (value?: string | string[] | number | null) => {
   const normalized = normalizeStatValue(value)
   if (!normalized.length) return '—'
   const percentMatch = normalized.match(/^([+-]?\d+(?:\.\d+)?)\s*%$/)
@@ -2772,10 +2937,6 @@ const formatProfileStat = (value?: string | string[]) => {
   }
   return normalized
 }
-
-const formatCombatPower = (value?: number | string) => formatNumberLocalized(value)
-
-const formatInteger = (value?: number | string) => formatNumberLocalized(value)
 </script>
 
 <style>

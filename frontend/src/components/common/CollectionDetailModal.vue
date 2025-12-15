@@ -168,12 +168,6 @@ const completionRate = computed(() => {
   return Math.min(100, (point / maxPoint) * 100)
 })
 
-const remainingPoints = computed(() => {
-  const point = props.collection.point || 0
-  const maxPoint = props.collection.maxPoint || point
-  return Math.max(0, maxPoint - point)
-})
-
 const hasCollectiblePoints = computed(() => {
   return props.collection.collectiblePoints && props.collection.collectiblePoints.length > 0
 })

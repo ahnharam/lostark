@@ -32,7 +32,7 @@
                 <template v-if="row.right?.isBracelet && !row.left">
                   <div class="equipment-side equipment-side--bracelet">
                     <div class="equipment-icon-stack">
-                      <IconImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
+                      <IconImage :src="row.right.icon || ''" :alt="row.right.name || ''" width="40" height="40"
                         imageClass="summary-icon" errorIcon="💍" :useProxy="true" />
                       <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--stacked">
                         {{ row.right.itemLevel }}
@@ -83,7 +83,7 @@
                   <div class="equipment-side equipment-side--left">
                     <template v-if="row.left">
                       <div class="equipment-icon-stack">
-                        <IconImage :src="row.left.icon" :alt="row.left.name" width="40" height="40"
+                        <IconImage :src="row.left.icon || ''" :alt="row.left.name || ''" width="40" height="40"
                           imageClass="summary-icon" errorIcon="🗡️" :useProxy="true" />
                         <div v-if="qualityValue(row.left.quality) !== null && Number(row.left.quality) !== -1"
                           class="equipment-quality equipment-quality--stacked">
@@ -131,7 +131,7 @@
                   <div class="equipment-side">
                     <template v-if="row.right">
                       <div class="equipment-icon-stack">
-                        <IconImage :src="row.right.icon" :alt="row.right.name" width="40" height="40"
+                        <IconImage :src="row.right.icon || ''" :alt="row.right.name || ''" width="40" height="40"
                           imageClass="summary-icon" errorIcon="💍" :useProxy="true" />
                         <span v-if="row.right.itemLevel" class="equipment-item-level equipment-item-level--stacked">
                           {{ row.right.itemLevel }}
@@ -446,7 +446,7 @@
                     </div>
                   </span>
                 </div>
-                <div v-for="(row, rowIndex) in arkSummary.passiveMatrix.slice(0, 4)" :key="row.id"
+                <div v-for="(row, rowIndex) in (arkSummary.passiveMatrix ?? [])" :key="row.id"
                   class="ark-passive-grid-row" :class="{ 'ark-passive-grid-row--with-divider': rowIndex > 0 }">
                   <div v-for="section in row.sections" :key="`${row.id}-${section.key}`" class="ark-passive-cell">
                     <div v-if="section.effects.length" class="ark-passive-cell-list">
@@ -539,7 +539,7 @@
                   <!-- <div v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="summary-tripod-icon"
                     :class="`summary-tripod-icon--${index + 1}`" :title="tripod.name">
                   </div> -->
-                  <span v-for="(tripod, index) in skill.tripods" :key="tripod.key" class="summary-tripod-slot-dot"
+                  <span v-for="(tripod, index) in (skill.tripods ?? [])" :key="tripod.key" class="summary-tripod-slot-dot"
                     :class="`summary-tripod-icon--${index + 1}`">{{ tripod.slotLabel }}</span>
                 </div>
               </div>
@@ -551,11 +551,11 @@
                         :style="{ color: skill.rune?.color || undefined }">
                         {{ skill.rune?.name || '' }}
                       </span>
-                      <span class="summary-gem-label" :title="skill.gems.damage?.name || ''">
-                        {{ skill.gems.damage?.label || skill.gems.damage?.name || '' }}
+                      <span class="summary-gem-label" :title="skill.gems?.damage?.name || ''">
+                        {{ skill.gems?.damage?.label || skill.gems?.damage?.name || '' }}
                       </span>
-                      <span class="summary-gem-label" :title="skill.gems.cooldown?.name || ''">
-                        {{ skill.gems.cooldown?.label || skill.gems.cooldown?.name || '' }}
+                      <span class="summary-gem-label" :title="skill.gems?.cooldown?.name || ''">
+                        {{ skill.gems?.cooldown?.label || skill.gems?.cooldown?.name || '' }}
                       </span>
                     </div>
                   </div>
@@ -563,13 +563,13 @@
                     <div class="summary-gem-cell">
                     </div>
                     <div class="summary-gem-cell">
-                      <span v-if="skill.gems.damage?.label != undefined" class="summary-gem-level-dot">
-                        {{ skill.gems.damage?.levelLabel?.replace('Lv.', '') || '-' }}
+                      <span v-if="skill.gems?.damage?.label != undefined" class="summary-gem-level-dot">
+                        {{ skill.gems?.damage?.levelLabel?.replace('Lv.', '') || '-' }}
                       </span>
                     </div>
-                    <div v-if="skill.gems.cooldown?.label != undefined" class="summary-gem-cell">
+                    <div v-if="skill.gems?.cooldown?.label != undefined" class="summary-gem-cell">
                       <span class="summary-gem-level-dot">
-                        {{ skill.gems.cooldown?.levelLabel?.replace('Lv.', '') || '-' }}
+                        {{ skill.gems?.cooldown?.levelLabel?.replace('Lv.', '') || '-' }}
                       </span>
                     </div>
                   </div>
@@ -698,40 +698,177 @@ import { computed, ref } from 'vue'
 import IconImage from './IconImage.vue'
 import EmptyState from './EmptyState.vue'
 import type { CharacterProfile } from '@/api/types'
-import { getQualityColor, stripHtml } from '@/utils/tooltipParser'
-import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
+import { stripHtml } from '@/utils/tooltipParser'
+import { extractTooltipColor, flattenTooltipLines } from '@/utils/tooltipText'
 import { getEngravingIcon } from '@/assets/BuffImage'
 import { getEngravingDisplayName, ENGRAVING_NAME_ENTRIES } from '@/data/engravingNames'
 import { COMBAT_STATS } from '@/data/combatStats'
+import { isRecord } from '@/utils/typeGuards'
 import {
   applyEffectAbbreviations,
   hasAbbreviationMatch,
   EFFECT_ABBREVIATION_REPLACEMENTS,
-  abbreviationCategory,
   expandDemeritAbbreviation,
   DEALER_ABBREVIATIONS,
   SUPPORT_ABBREVIATIONS
 } from '@/data/effectAbbreviations'
 
+type EquipmentEffect = {
+  label?: string
+  full?: string
+  richLabel?: string
+  bgColor?: string
+  textColor?: string
+  isCombat?: boolean
+}
+
+type EquipmentSummaryItem = {
+  key?: string
+  name?: string
+  typeLabel?: string
+  grade?: string
+  icon?: string
+  itemLevel?: string
+  enhancement?: string
+  harmony?: string
+  transcend?: string
+  quality?: number | null
+  isAccessory?: boolean
+  isBracelet?: boolean
+  isAbilityStone?: boolean
+  special?: string
+  effects?: EquipmentEffect[]
+}
+
+type EquipmentSummary = {
+  gradeBadges?: Array<{ grade: string; count: number }>
+  left?: EquipmentSummaryItem[]
+  right?: EquipmentSummaryItem[]
+}
+
+type AvatarLike = {
+  type?: string
+  Type?: string
+  name?: string
+  Name?: string
+  grade?: string
+  Grade?: string
+  icon?: string
+  Icon?: string
+  tooltip?: string
+  Tooltip?: string
+  isInner?: boolean
+  IsInner?: boolean
+  isSet?: boolean
+  IsSet?: boolean
+  tooltipLines?: string[]
+  gradeKey?: string
+}
+
+type AvatarSummary = {
+  items?: AvatarLike[]
+  left?: AvatarLike[]
+}
+
+type SkillHighlight = {
+  key: string
+  name: string
+  icon: string
+  levelLabel?: string
+  pointLabel?: string
+  rune?: { name: string; icon?: string; grade?: string; color?: string } | null
+  gems?: {
+    damage?: { name?: string; label?: string; levelLabel?: string } | null
+    cooldown?: { name?: string; label?: string; levelLabel?: string } | null
+  } | null
+  tripods?: Array<{ key: string; slotLabel: string; name?: string }> | null
+  hasGem?: boolean
+  isGemOnly?: boolean
+}
+
+type LooseGem = {
+  key: string
+  name: string
+  skillName?: string
+  icon: string
+  levelLabel?: string
+  grade?: string
+  effectLabel?: string
+  typeLabel?: string
+}
+
+type EngravingSummaryItem = {
+  key: string
+  name: string
+  displayName: string
+  gradeLabel: string
+  levelLabel: string
+  craftLabel: string
+  icon: string
+}
+
+type CardSummary = {
+  cards: Array<{
+    key: string
+    name: string
+    icon: string
+    grade: string
+    awakeLabel: string | null
+    awakeCount: number | null
+    awakeTotal: number | null
+  }>
+  effects: Array<{ key: string; label: string; descriptions: string[]; setLabel: string }>
+}
+
+type CollectionSummaryItem = {
+  key: string
+  name: string
+  levelLabel?: string
+  pointLabel?: string
+  percentLabel: string
+  percentValue: number
+}
+
+type ArkCoreSlot = {
+  key: string
+  name: string
+  icon?: string
+  initial: string
+  pointLabel?: string
+  nameColor?: string
+  gradeColor?: string
+  tooltip?: unknown
+  grade?: string
+  gradeLabel?: string
+  gradeName?: string
+}
+
+type ArkSummary = {
+  passiveTitle?: string
+  appliedPoints?: Array<{ key: string; label: string; value?: string; description?: string }>
+  passiveMatrix?: Array<{ id: string; sections: Array<{ key: string; effects: Array<{ key: string; name: string; icon?: string; levelDisplay?: string; levelLine?: string }> }> }>
+  coreMatrix: { rows: Array<{ key: string; label: string; cells: Array<{ key: string; label: string; slots: ArkCoreSlot[] }> }> }
+}
+
 const props = defineProps<{
   activeCharacter: CharacterProfile | null
-  equipmentSummary: any
-  avatarSummary?: any
+  equipmentSummary: EquipmentSummary
+  avatarSummary?: AvatarSummary
   characterImage?: string
   detailLoading: boolean
   detailError: string | null
-  arkSummary: any
+  arkSummary: ArkSummary
   arkGridLoading: boolean
   arkGridError: string | null
-  skillHighlights: any[]
-  skillLooseGems?: any[]
+  skillHighlights: SkillHighlight[]
+  skillLooseGems?: LooseGem[]
   skillLoading: boolean
   skillError: string | null
-  engravingSummary: any[]
-  cardSummary: any
+  engravingSummary: EngravingSummaryItem[]
+  cardSummary: CardSummary
   cardLoading: boolean
   cardError: string | null
-  collectionSummary: any[]
+  collectionSummary: CollectionSummaryItem[]
   collectiblesLoading: boolean
   collectiblesError: string | null
   combatRole?: 'dealer' | 'support' | null
@@ -739,10 +876,6 @@ const props = defineProps<{
 
 const equipmentView = ref<'equipment' | 'avatar'>('equipment')
 const inlineText = (value?: string | number | null) => (value ?? '').toString().replace(/\s+/g, ' ').trim()
-const normalizeSkillKey = (value?: string) =>
-  (value || '')
-    .replace(/[\s\[\]\(\)<>{}]/g, '')
-    .toLowerCase()
 
 const displaySkillHighlights = computed(() => props.skillHighlights || [])
 
@@ -794,7 +927,7 @@ const avatarGradeKey = (grade?: string | null) => {
 const normalizeAvatarLabel = (value?: string | null) =>
   inlineText(value).toLowerCase().replace(/[\s()[\]{}]/g, '')
 
-const resolveAvatarSlotKey = (item: any) => {
+const resolveAvatarSlotKey = (item: AvatarLike) => {
   const label = normalizeAvatarLabel(item?.type || item?.Type || item?.name || item?.Name)
   const name = normalizeAvatarLabel(item?.name || item?.Name)
   const combined = `${label} ${name}`
@@ -804,7 +937,7 @@ const resolveAvatarSlotKey = (item: any) => {
   return hit?.key || null
 }
 
-const avatarTooltipLines = (item: any) => {
+const avatarTooltipLines = (item: AvatarLike) => {
   const tooltip = item?.tooltip || item?.Tooltip || ''
   if (!tooltip) return []
   return flattenTooltipLines(tooltip)
@@ -824,7 +957,7 @@ const extractVirtueEntries = (text: string) => {
   return entries
 }
 
-const formatAvatarTooltipLines = (item: any) => {
+const formatAvatarTooltipLines = (item: AvatarLike) => {
   const name = inlineText(item?.name || item?.Name)
   const gradeLabel = inlineText(item?.grade || item?.Grade)
   const rawLines = avatarTooltipLines(item)
@@ -916,22 +1049,23 @@ const avatarTooltipLineClass = (line: string, isOverlay: boolean) => {
     'avatar-tooltip__virtue': isVirtue,
     'avatar-tooltip__trade': isTrade,
     'avatar-tooltip__grade': isGrade,
-    [`avatar-tooltip__grade--${gradeKeyFromText}`]: isGrade && gradeKeyFromText !== 'none'
+    [`avatar-tooltip__grade--${gradeKeyFromText}`]: isGrade
   }
 }
 
 const avatarSlotBuckets = computed(() => {
+  type AvatarSlotItem = AvatarLike & { gradeKey: string; tooltipLines: string[]; isInner: boolean }
   const entries = AVATAR_SLOT_CONFIG.map(cfg => ({
     key: cfg.key,
     label: cfg.label,
-    outer: null as null | any,
-    inner: null as null | any
+    outer: null as AvatarSlotItem | null,
+    inner: null as AvatarSlotItem | null
   }))
-  const extras: Array<{ item: any; isInner: boolean }> = []
+  const extras: Array<{ item: AvatarSlotItem; isInner: boolean }> = []
 
   avatarItems.value.forEach(item => {
     const slotKey = resolveAvatarSlotKey(item)
-    const normalized = {
+    const normalized: AvatarSlotItem = {
       ...item,
       gradeKey: avatarGradeKey(item.grade || item.Grade),
       tooltipLines: formatAvatarTooltipLines(item),
@@ -1003,19 +1137,6 @@ const avatarRightSlots = computed(() => {
 })
 const avatarExtraSlots = computed(() => avatarSlotBuckets.value.extras)
 
-const qualityBadgeBackground = 'var(--quality-badge-bg, rgba(15, 23, 42, 0.333))'
-
-const qualityStyle = (quality?: number | string) => {
-  const num = typeof quality === 'number' ? quality : Number(quality)
-  const color = getQualityColor(Number.isFinite(num) ? num : undefined)
-  const fallbackText = '#f9fafb'
-  return {
-    color: color || fallbackText,
-    backgroundColor: qualityBadgeBackground,
-    borderColor: color ? `${color}55` : 'rgba(255,255,255,0.15)'
-  }
-}
-
 const engravingIcon = (name?: string) => getEngravingIcon(name || '')
 
 const engravingColor = (grade?: string | null) => {
@@ -1050,16 +1171,16 @@ const ENGRAVING_LEVEL_SPRITE =
 
 type EngravingBadgeSlice = 'stone' | 'default' | 'legendary' | 'heroic' | 'relic'
 
-const engravingBadgeSlice = (engrave: any): EngravingBadgeSlice => {
-  if (typeof engrave?.abilityStoneLevel === 'number') return 'stone'
-  const grade = (engrave?.gradeLabel || engrave?.grade || '').toLowerCase()
+const engravingBadgeSlice = (engrave: EngravingSummaryItem): EngravingBadgeSlice => {
+  if (engrave.craftLabel) return 'stone'
+  const grade = (engrave.gradeLabel || '').toLowerCase()
   if (grade.includes('유물')) return 'relic'
   if (grade.includes('영웅')) return 'heroic'
   if (grade.includes('전설')) return 'legendary'
   return 'default'
 }
 
-const engravingLevelBadgeStyle = (engrave: any) => {
+const engravingLevelBadgeStyle = (engrave: EngravingSummaryItem) => {
   const slice = engravingBadgeSlice(engrave)
   const positionMap: Record<EngravingBadgeSlice, string> = {
     stone: '0% 0%',
@@ -1162,25 +1283,6 @@ const transcendBarStyle = (value?: string | number | null) => {
   }
 }
 
-const formatGearEnhanceLabel = (item?: any) => {
-  if (!item || item.isAccessory || item.isBracelet || item.isAbilityStone) return ''
-  const toNumber = (val?: string | number | null) => {
-    if (val === null || val === undefined) return null
-    const num = Number(String(val).replace(/[^0-9.\-]/g, ''))
-    return Number.isFinite(num) ? num : null
-  }
-  const enhanceNum = toNumber(item.enhancement)
-  const harmonyNum = toNumber(item.harmony)
-  const harmonyAdjusted = harmonyNum !== null ? (harmonyNum >= 20 ? harmonyNum - 10 : harmonyNum) : null
-
-  const parts: string[] = []
-  parts.push(String(item.typeLabel || '').trim())
-  if (enhanceNum !== null) parts.push(`+${enhanceNum}`)
-  if (harmonyAdjusted !== null) parts.push(`+${harmonyAdjusted}`)
-
-  return parts.filter(Boolean).join(' ')
-}
-
 const enhanceHarmonyParts = (enhancement?: string | number, harmony?: string | number) => {
   const toNumber = (val?: string | number | null) => {
     if (val === null || val === undefined) return null
@@ -1202,7 +1304,7 @@ const enhanceHarmonyParts = (enhancement?: string | number, harmony?: string | n
   }
 }
 
-const gearEnhanceParts = (item?: any) => {
+const gearEnhanceParts = (item?: EquipmentSummaryItem) => {
   if (!item || item.isAccessory || item.isBracelet || item.isAbilityStone) {
     return { typeLabel: '', enhanceLabel: '', harmonyLabel: '', hasValue: false }
   }
@@ -1219,20 +1321,7 @@ const gearEnhanceParts = (item?: any) => {
   }
 }
 
-const effectBg = (color?: string | null) => {
-  const cleaned = (color || '').trim()
-  const isNeutral =
-    !cleaned ||
-    /var\(--bg-secondary/i.test(cleaned) ||
-    cleaned.toLowerCase() === 'transparent' ||
-    cleaned === '#ffffff' ||
-    cleaned === '#fff'
-
-  if (!isNeutral) return cleaned
-  return 'rgba(148, 163, 184, 0.18)'
-}
-
-const effectDisplayColor = (effect: any, item: any) => {
+const effectDisplayColor = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   if (item?.isAbilityStone) return 'var(--text-primary)'
   const source = (effect?.bgColor || '').trim()
   if (source) {
@@ -1264,13 +1353,18 @@ const parseRgbColor = (value?: string | null) => {
   const hexMatch = color.match(/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i)
   if (hexMatch) {
     const hex = hexMatch[1]
+    if (!hex) return null
     const toChannel = (chunk: string) => parseInt(chunk.length === 1 ? chunk.repeat(2) : chunk, 16)
 
     if (hex.length === 3 || hex.length === 4) {
+      const rChunk = hex[0]
+      const gChunk = hex[1]
+      const bChunk = hex[2]
+      if (!rChunk || !gChunk || !bChunk) return null
       return {
-        r: toChannel(hex[0]),
-        g: toChannel(hex[1]),
-        b: toChannel(hex[2])
+        r: toChannel(rChunk),
+        g: toChannel(gChunk),
+        b: toChannel(bChunk)
       }
     }
 
@@ -1312,11 +1406,9 @@ const effectTierPrefix = (color?: string | null) => {
   return closest.tier.label
 }
 
-const effectLabelText = (effect: any) => effect?.label || ''
+const effectLabelText = (effect: EquipmentEffect) => effect.label || ''
 
-const effectHasPercent = (effect: any) => /%/.test(effectLabelText(effect))
-
-const accessoryDisplayLabel = (effect: any, item: any) => {
+const accessoryDisplayLabel = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   if (!isAccessoryItem(item)) return effectLabelText(effect)
   const raw = effectLabelText(effect)
   const hasPercent = /%/.test(raw)
@@ -1334,12 +1426,12 @@ const accessoryDisplayLabel = (effect: any, item: any) => {
   return base
 }
 
-const effectDisplayLabel = (effect: any, item: any) =>
+const effectDisplayLabel = (effect: EquipmentEffect, item: EquipmentSummaryItem) =>
   isAccessoryItem(item) ? accessoryDisplayLabel(effect, item) : effectLabelText(effect)
 
 const normalizeRoleLabel = (value?: string | null) => (value || '').toLowerCase().trim()
 
-const detectEffectRole = (effect: any, item: any): 'dealer' | 'support' | null => {
+const detectEffectRole = (effect: EquipmentEffect, item: EquipmentSummaryItem): 'dealer' | 'support' | null => {
   if (!isAccessoryItem(item)) return null
   const rawLabel = effectDisplayLabel(effect, item)
   const hasPercent = /%/.test(rawLabel)
@@ -1361,7 +1453,7 @@ const detectEffectRole = (effect: any, item: any): 'dealer' | 'support' | null =
   return null
 }
 
-const effectFontWeight = (effect: any, item: any) => {
+const effectFontWeight = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   if (!isAccessoryItem(item)) return undefined
   const display = effectDisplayLabel(effect, item)
   if (display === '잡옵') return 400
@@ -1374,7 +1466,7 @@ const effectFontWeight = (effect: any, item: any) => {
   return 400
 }
 
-const isAccessoryItem = (item?: any) =>
+const isAccessoryItem = (item?: EquipmentSummaryItem) =>
   Boolean(item?.isAccessory && !item?.isBracelet && !item?.isAbilityStone)
 
 const isBraceletCombatStat = (label?: string) => {
@@ -1385,13 +1477,13 @@ const isBraceletCombatStat = (label?: string) => {
   )
 }
 
-const effectPrefixLabel = (effect: any, item: any) => {
+const effectPrefixLabel = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   if (!isAccessoryItem(item)) return ''
   const prefix = effectTierPrefix(effectDisplayColor(effect, item))
   return prefix.trim()
 }
 
-const effectTextDisplayColor = (effect: any, item: any) => {
+const effectTextDisplayColor = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   if (isAccessoryItem(item)) return 'var(--text-primary)'
   return effectDisplayColor(effect, item)
 }
@@ -1406,7 +1498,7 @@ const COMMON_FLAT_KEYWORDS = ['무공', '공', '공격력', '무기공격력']
 
 type EffectCategory = 'dealer' | 'support' | 'common' | 'junk'
 
-const detectEffectCategory = (effect: any, item: any): EffectCategory => {
+const detectEffectCategory = (effect: EquipmentEffect, item: EquipmentSummaryItem): EffectCategory => {
   if (!isAccessoryItem(item)) return 'common'
   const display = effectDisplayLabel(effect, item)
   if (display === '잡옵') return 'junk'
@@ -1432,7 +1524,7 @@ const detectEffectCategory = (effect: any, item: any): EffectCategory => {
   return 'common'
 }
 
-const effectCategoryPriority = (effect: any, item: any) => {
+const effectCategoryPriority = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   const combatRole = normalizeRoleLabel(props.combatRole)
   const roleOrder: EffectCategory[] = combatRole === 'support'
     ? ['support', 'common', 'dealer', 'junk']
@@ -1443,7 +1535,7 @@ const effectCategoryPriority = (effect: any, item: any) => {
   return index === -1 ? roleOrder.length : index
 }
 
-const effectDetailPriority = (effect: any, item: any) => {
+const effectDetailPriority = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   if (detectEffectCategory(effect, item) !== 'common') return 0
   const raw = normalizeCategoryLabel(`${effect?.full || ''}${effect?.label || ''}${effectDisplayLabel(effect, item)}`)
   if (!raw) return 0
@@ -1454,7 +1546,7 @@ const effectDetailPriority = (effect: any, item: any) => {
   return 3
 }
 
-const effectTierPriority = (effect: any, item: any) => {
+const effectTierPriority = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   const prefix = effectPrefixLabel(effect, item)
   if (prefix.startsWith('상')) return 0
   if (prefix.startsWith('중')) return 1
@@ -1462,7 +1554,7 @@ const effectTierPriority = (effect: any, item: any) => {
   return 3
 }
 
-const sortedEffects = (effects: any[] = [], item: any) =>
+const sortedEffects = (effects: EquipmentEffect[] = [], item: EquipmentSummaryItem) =>
   effects
     .slice()
     .sort((a, b) => {
@@ -1475,13 +1567,14 @@ const sortedEffects = (effects: any[] = [], item: any) =>
       return effectDisplayLabel(a, item).localeCompare(effectDisplayLabel(b, item))
     })
 
-const effectsForDisplay = (effects?: any[], item?: any) => {
+const effectsForDisplay = (effects?: EquipmentEffect[], item?: EquipmentSummaryItem) => {
   if (!effects) return []
   if (item?.isBracelet || item?.isAbilityStone) return effects
+  if (!item) return effects
   return sortedEffects(effects, item)
 }
 
-const braceletEffectParts = (effect: any, item: any) => {
+const braceletEffectParts = (effect: EquipmentEffect, item: EquipmentSummaryItem) => {
   const rawLabel = effect.full || effect.label || effectDisplayLabel(effect, item) || ''
   const baseLabel = rawLabel.replace(/<[^>]+>/g, '')
   const prefix = isBraceletCombatStat(baseLabel) ? '' : effectTierPrefix(effectDisplayColor(effect, item)).trim()
@@ -1541,8 +1634,9 @@ const scanTooltipForCoreColor = (node: unknown): string => {
   }
   if (typeof node === 'object') {
     const record = node as Record<string, unknown>
-    if (record.Element_000 && typeof record.Element_000 === 'object') {
-      const valueField = (record.Element_000 as any).value
+    const element000 = record['Element_000']
+    if (isRecord(element000)) {
+      const valueField = element000['value'] ?? element000['Value']
       const fromElement = scanTooltipForCoreColor(valueField)
       if (fromElement) return fromElement
     }
@@ -1571,13 +1665,13 @@ const coreNameColorFromTooltip = (tooltip?: unknown) => {
   return scanTooltipForCoreColor(tooltip)
 }
 
-const coreNameStyle = (slot: any) => {
-  const gradeText = slot?.grade || slot?.gradeLabel || slot?.gradeName
+const coreNameStyle = (slot: ArkCoreSlot) => {
+  const gradeText = slot.grade || slot.gradeLabel || slot.gradeName
   const color =
-    slot?.nameColor ||
-    coreNameColorFromTooltip(slot?.tooltip) ||
-    slot?.gradeColor ||
-    extractTooltipColor(slot?.tooltip) ||
+    slot.nameColor ||
+    coreNameColorFromTooltip(slot.tooltip) ||
+    slot.gradeColor ||
+    extractTooltipColor(typeof slot.tooltip === 'string' ? slot.tooltip : null) ||
     engravingColor(gradeText) ||
     ''
   return color ? { color } : undefined

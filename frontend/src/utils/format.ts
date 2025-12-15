@@ -1,7 +1,7 @@
 /**
  * 숫자 포매팅 유틸 모음
  */
-export const formatNumberLocalized = (value?: number | string, fractionDigits?: number): string => {
+export const formatNumberLocalized = (value?: number | string | null, fractionDigits?: number): string => {
   if (value === undefined || value === null || value === '') return '—'
 
   const numeric =
@@ -27,8 +27,8 @@ export const formatNumberLocalized = (value?: number | string, fractionDigits?: 
   return numeric.toLocaleString(undefined, options)
 }
 
-export const formatItemLevel = (value?: number | string): string => formatNumberLocalized(value, 2)
+export const formatItemLevel = (value?: number | string | null): string => formatNumberLocalized(value, 2)
 
-export const formatInteger = (value?: number | string): string => formatNumberLocalized(value, 0)
+export const formatInteger = (value?: number | string | null): string => formatNumberLocalized(value, 0)
 
-export const formatCombatPower = (value?: number | string): string => formatNumberLocalized(value)
+export const formatCombatPower = (value?: number | string | null): string => formatNumberLocalized(value)

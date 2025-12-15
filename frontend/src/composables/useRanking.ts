@@ -1,6 +1,7 @@
 import { reactive, ref } from 'vue'
 import { lostarkApi } from '@/api/lostark'
 import type { RankingEntry, RankingResponse, RankingSummary } from '@/api/types'
+import { getHttpErrorMessage } from '@/utils/httpError'
 
 export interface RankingFilters {
   leaderboardCode: string
@@ -60,8 +61,8 @@ export const useRanking = (initialFilters?: Partial<RankingFilters>) => {
       cache.set(cacheKey, data)
       applyResponse(data)
       error.value = null
-    } catch (err: any) {
-      error.value = err?.response?.data?.message || '랭킹 정보를 불러오는 중 문제가 발생했습니다.'
+    } catch (err: unknown) {
+      error.value = getHttpErrorMessage(err) || '랭킹 정보를 불러오는 중 문제가 발생했습니다.'
     } finally {
       loading.value = false
     }

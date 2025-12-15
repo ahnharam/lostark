@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import type { RankingMetric } from '@/api/types'
 
-const props = defineProps<{
+defineProps<{
   title: string
   subtitle: string
   hint: string

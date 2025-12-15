@@ -211,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, toRefs } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRefs, type ComponentPublicInstance } from 'vue'
 import LazyImage from './LazyImage.vue'
 import type { CharacterProfile, CharacterStat, Equipment } from '@/api/types'
 
@@ -244,10 +244,10 @@ const props = defineProps<{
   combatPosition?: string | null
   combatPositionLoading?: boolean
   loading: boolean
-  formatCombatPower: (value: unknown) => string
-  formatInteger: (value: unknown) => string
-  formatItemLevel: (value: unknown) => string
-  formatProfileStat: (value: unknown) => string
+  formatCombatPower: (value?: number | string | null) => string
+  formatInteger: (value?: number | string | null) => string
+  formatItemLevel: (value?: number | string | null) => string
+  formatProfileStat: (value?: string | string[] | number | null) => string
 }>()
 
 const {
@@ -314,8 +314,16 @@ const specialEquipmentsWithFallback = computed(() =>
   }))
 )
 
-const setTooltipRef = (el: HTMLElement | null) => {
-  tooltipRef.value = el
+const setTooltipRef = (el: Element | ComponentPublicInstance | null) => {
+  if (el instanceof HTMLElement) {
+    tooltipRef.value = el
+    return
+  }
+  if (el && typeof el === 'object' && '$el' in el && (el as { $el?: unknown }).$el instanceof HTMLElement) {
+    tooltipRef.value = (el as { $el: HTMLElement }).$el
+    return
+  }
+  tooltipRef.value = null
 }
 
 const updateTooltipPlacement = () => {

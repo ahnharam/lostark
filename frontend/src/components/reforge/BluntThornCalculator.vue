@@ -286,7 +286,8 @@ const toggleSynergy = (key: SynergyKey) => {
 
 const maxBluntValue = computed(() => {
   const level = bluntLevels.find(item => item.key === selectedBluntLevel.value)
-  return Number((level?.value ?? bluntLevels[0].value).toFixed(2))
+  const fallback = bluntLevels[0]?.value ?? 0
+  return Number((level?.value ?? fallback).toFixed(2))
 })
 
 const bluntLevelLabel = computed(() => {

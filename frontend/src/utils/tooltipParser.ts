@@ -3,6 +3,8 @@
  * 복잡한 JSON 구조의 툴팁을 구조화된 데이터로 변환
  */
 
+import { isRecord, isString } from './typeGuards'
+
 export interface ParsedTooltip {
   title?: string
   titleColor?: string
@@ -28,7 +30,7 @@ export interface ParsedTooltip {
   setEffects?: SetEffect[]
   engravingEffects?: string[]
   abilityStoneEngravings?: string[]
-  rawElements?: Record<string, any>
+  rawElements?: Record<string, unknown>
 }
 
 export interface StatItem {
@@ -84,14 +86,6 @@ function cleanText(input?: string | null): string {
 }
 
 /**
- * HTML에서 색상 정보 추출
- */
-function extractColor(html: string): string | null {
-  const colorMatch = html.match(/color:\s*#([0-9a-fA-F]{6})/i)
-  return colorMatch ? `#${colorMatch[1]}` : null
-}
-
-/**
  * 품질 값 추출
  */
 function parseQualityText(input: string): number | null {
@@ -113,20 +107,22 @@ function toNumber(value: unknown): number | null {
 
 function parseQuality(element: unknown): number | null {
   if (!element) return null
-  if (typeof element === 'object') {
-    const value = (element as any).value || (element as any).Value
-    if (value) {
+  if (isRecord(element)) {
+    const rawValue = element.value ?? element.Value
+    if (isRecord(rawValue)) {
       const direct =
-        toNumber(value.QualityValue) ??
-        toNumber(value.qualityValue) ??
-        toNumber(value.ProgressValue) ??
-        toNumber(value.progressValue)
+        toNumber(rawValue.QualityValue) ??
+        toNumber(rawValue.qualityValue) ??
+        toNumber(rawValue.ProgressValue) ??
+        toNumber(rawValue.progressValue)
       if (direct !== null) {
         return direct
       }
-      if (value.leftStr || value.rightStr) {
-        const normalized = [value.leftStr, value.rightStr]
-          .filter(Boolean)
+      const leftStr = rawValue.leftStr
+      const rightStr = rawValue.rightStr
+      if (leftStr || rightStr) {
+        const normalized = [leftStr, rightStr]
+          .filter((str): str is unknown => Boolean(str))
           .map(str => parseQualityText(String(str)))
           .find(q => q !== null)
         if (normalized !== undefined) {
@@ -162,13 +158,13 @@ function extractFontColor(html: string): string | undefined {
   return color ? `#${color.toUpperCase()}` : undefined
 }
 
-function flattenValue(value: any): string[] {
+function flattenValue(value: unknown): string[] {
   if (value == null) return []
   if (typeof value === 'string') return [value]
   if (Array.isArray(value)) {
     return value.flatMap(flat => flattenValue(flat))
   }
-  if (typeof value === 'object') {
+  if (isRecord(value)) {
     return Object.values(value).flatMap(flattenValue)
   }
   return []
@@ -203,13 +199,16 @@ function extractStatFragments(input: string): string[] {
     .filter(Boolean)
 }
 
-function extractIndentGroupLines(group: any): string[] {
-  if (!group?.Element_000?.contentStr) return []
-  const content = group.Element_000.contentStr
+function extractIndentGroupLines(group: unknown): string[] {
+  if (!isRecord(group)) return []
+  const element000 = group.Element_000
+  if (!isRecord(element000)) return []
+  const content = element000.contentStr
+  if (!isRecord(content)) return []
   return Object.values(content)
-    .map((entry: any) => entry?.contentStr)
-    .filter(Boolean)
-    .map((line: string) => stripHtml(String(line)).replace(/\s+/g, ' ').trim())
+    .map(entry => (isRecord(entry) ? entry.contentStr : null))
+    .filter((line): line is string => typeof line === 'string')
+    .map(line => stripHtml(line).replace(/\s+/g, ' ').trim())
     .filter(Boolean)
 }
 
@@ -319,19 +318,15 @@ function extractElixirTopStrDetail(raw: string): { headline?: string; detail?: s
   return { headline, detail }
 }
 
-function findNestedTopStr(value: any): string | undefined {
+function findNestedTopStr(value: unknown): string | undefined {
   if (!value) return undefined
-  if (typeof value === 'string') return undefined
-  if (typeof value === 'object') {
-    if (typeof value.topStr === 'string') {
-      return value.topStr
-    }
-    for (const nested of Object.values(value)) {
-      if (nested && typeof nested === 'object') {
-        const found = findNestedTopStr(nested)
-        if (found) return found
-      }
-    }
+  if (!isRecord(value)) return undefined
+  if (isString(value.topStr)) {
+    return value.topStr
+  }
+  for (const nested of Object.values(value)) {
+    const found = findNestedTopStr(nested)
+    if (found) return found
   }
   return undefined
 }
@@ -366,20 +361,25 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
         parsed.quality = quality
       }
       if (typeof tooltip.Element_001 === 'object') {
-        const valueBlock = (tooltip.Element_001 as any).value
-        const leftStr0 = valueBlock?.leftStr0
-        if (leftStr0) {
-          parsed.gradeColor = extractFontColor(
-            typeof leftStr0 === 'string' ? leftStr0 : JSON.stringify(leftStr0)
-          )
-        }
-        const leftStr2 = valueBlock?.leftStr2 ?? valueBlock?.leftStr1 ?? valueBlock?.leftStr0
-        if (leftStr2 && !parsed.itemLevel) {
-          const level = parseItemLevel(
-            typeof leftStr2 === 'string' ? leftStr2 : JSON.stringify(leftStr2)
-          )
-          if (level) {
-            parsed.itemLevel = level
+        const element001 = tooltip.Element_001 as unknown
+        if (isRecord(element001)) {
+          const valueBlock = element001['value'] ?? element001['Value']
+          if (isRecord(valueBlock)) {
+            const leftStr0 = valueBlock['leftStr0']
+            if (leftStr0) {
+              parsed.gradeColor = extractFontColor(
+                typeof leftStr0 === 'string' ? leftStr0 : JSON.stringify(leftStr0)
+              )
+            }
+            const leftStr2 = valueBlock['leftStr2'] ?? valueBlock['leftStr1'] ?? valueBlock['leftStr0']
+            if (leftStr2 && !parsed.itemLevel) {
+              const level = parseItemLevel(
+                typeof leftStr2 === 'string' ? leftStr2 : JSON.stringify(leftStr2)
+              )
+              if (level) {
+                parsed.itemLevel = level
+              }
+            }
           }
         }
       }
@@ -512,9 +512,17 @@ export function parseTooltip(tooltipJson: string): ParsedTooltip {
 
       const value =
         tooltip.Element_007 && typeof tooltip.Element_007 === 'object'
-          ? (tooltip.Element_007 as any).value
+          ? (() => {
+              const element = tooltip.Element_007 as unknown
+              if (!isRecord(element)) return undefined
+              return element['value'] ?? element['Value']
+            })()
           : undefined
-      const topStr = typeof value?.topStr === 'string' ? cleanText(value.topStr) : ''
+      const topStr = (() => {
+        if (!isRecord(value)) return ''
+        const top = value['topStr']
+        return isString(top) ? cleanText(top) : ''
+      })()
       const indentLines = extractIndentGroupLines(value)
       const abilityStoneLines = [topStr, ...indentLines]
         .map(line => cleanText(line))

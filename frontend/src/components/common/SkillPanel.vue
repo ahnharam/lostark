@@ -492,6 +492,7 @@ import ErrorMessage from './ErrorMessage.vue'
 import IconImage from './IconImage.vue'
 import { extractTooltipColor, flattenTooltipLines, sanitizeInline } from '@/utils/tooltipText'
 import type { CombatSkill, SkillMenuResponse } from '@/api/types'
+import { isRecord, isString } from '@/utils/typeGuards'
 
 // ===== Props 정의 =====
 const props = defineProps<{
@@ -803,19 +804,6 @@ const extractNextLineAfterKeyword = (tooltip?: string | null, keyword?: string) 
 }
 
 /**
- * 툴팁에서 특정 키워드가 포함된 줄 추출
- * @param tooltip - 툴팁 문자열
- * @param keyword - 검색할 키워드
- * @returns 키워드가 포함된 줄의 텍스트
- */
-const extractLineWithKeyword = (tooltip?: string | null, keyword?: string) => {
-  if (!tooltip || !keyword) return ''
-  const lines = flattenTooltipLines(tooltip)
-  const line = lines.find(line => line.includes(keyword))
-  return line || ''
-}
-
-/**
  * 스킬 메타 정보 추출 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
  * @param tooltip - 스킬 툴팁 문자열
  * @returns 메타 정보 객체
@@ -831,13 +819,14 @@ const extractSkillMetadata = (tooltip?: string | null) => {
   } = {}
 
   try {
-    const parsed = JSON.parse(tooltip)
+    const parsed = JSON.parse(tooltip) as unknown
+    if (!isRecord(parsed)) return metadata
 
     // 모든 Element를 순회하면서 메타 정보 추출
-    Object.values(parsed).forEach((element: any) => {
-      if (!element?.value) return
-
-      const value = typeof element.value === 'string' ? element.value : ''
+    Object.values(parsed).forEach(element => {
+      if (!isRecord(element)) return
+      const rawValue = element['value'] ?? element['Value']
+      const value = isString(rawValue) ? rawValue : ''
       const cleanValue = sanitizeInline(value)
 
       // 무력화: "무력화 : 중", "무력화: 상" - 한 글자만 추출
@@ -986,7 +975,7 @@ const getRuneAffixView = (rune: SkillRuneView | null, effect?: string) => {
  * @param fallback - 기본값
  * @returns 요약된 텍스트
  */
-const summarizeTooltip = (tooltip?: string | null, fallback = '', preferElement004 = false) => {
+const summarizeTooltip = (tooltip?: string | null, fallback = '') => {
   if (!tooltip) return fallback
 
   const isMeaningful = (desc?: string | null, min = 8) => {
@@ -1017,35 +1006,46 @@ const summarizeTooltip = (tooltip?: string | null, fallback = '', preferElement0
   }
 
   try {
-    const parsed = JSON.parse(tooltip)
+    const parsed = JSON.parse(tooltip) as unknown
+    if (!isRecord(parsed)) return fallback
 
     // 항상 Element_004를 우선 확인 (스킬 설명이 주로 위치)
-    if (parsed.Element_004?.value) {
-      let desc = sanitizeWithColors(parsed.Element_004.value)
+    const element004 = parsed['Element_004']
+    if (isRecord(element004)) {
+      const value = element004['value'] ?? element004['Value']
+      if (isString(value)) {
+        let desc = sanitizeWithColors(value)
       desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
-      const type = parsed.Element_004?.type
-      if (type !== 'MultiTextBox' && !isSkillLevelLine(desc) && !isCostOrMetaLine(desc) && isMeaningful(desc, 6)) {
-        return desc
+        const type = element004['type']
+        if (type !== 'MultiTextBox' && !isSkillLevelLine(desc) && !isCostOrMetaLine(desc) && isMeaningful(desc, 6)) {
+          return desc
+        }
       }
     }
 
     // 0순위: Element_004 (일부 스킬 설명이 여기에 위치, Element_003은 레벨/메타)
-    // preferElement004는 일부 케이스를 보강하는 플래그 (상단에서 이미 004 처리)
 
     // 1순위: Element_005에서 추출 (일반적으로 스킬 설명이 위치)
-    if (parsed.Element_005?.value) {
-      let desc = sanitizeWithColors(parsed.Element_005.value)
+    const element005 = parsed['Element_005']
+    if (isRecord(element005)) {
+      const value = element005['value'] ?? element005['Value']
+      if (isString(value)) {
+        let desc = sanitizeWithColors(value)
       // 메타 정보가 포함된 부분 제거 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
       desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
       if (!isCostOrMetaLine(desc) && isMeaningful(desc, 8)) {
         return desc
       }
+      }
     }
 
     // 2순위: SingleTextBox 타입의 Element 찾기
-    for (const element of Object.values(parsed) as any[]) {
-      if (element?.type === 'SingleTextBox' && element?.value) {
-        let desc = sanitizeWithColors(element.value)
+    for (const element of Object.values(parsed)) {
+      if (!isRecord(element)) continue
+      const type = element['type']
+      const rawValue = element['value'] ?? element['Value']
+      if (type === 'SingleTextBox' && isString(rawValue)) {
+        let desc = sanitizeWithColors(rawValue)
         // 메타 정보 제거
         desc = desc.replace(/(?:무력화|공격\s*타입|슈퍼아머|부위\s*파괴).*$/i, '').trim()
         if (isSkillLevelLine(desc) || isCostOrMetaLine(desc)) {
@@ -1229,12 +1229,17 @@ const parseGemTooltipMapping = (tooltip?: string | null) => {
  */
 const gemBadgesBySkill = computed(() => {
   const map = new Map<string, SkillGemBadge[]>()
-  const effectSkills = ((props.response as any)?.effects?.skills ??
-    (props.response as any)?.Effects?.Skills ??
-    []) as any[]
-  const inventoryGems = ((props.response as any)?.gems ??
-    (props.response as any)?.Gems ??
-    []) as any[]
+  const responseRecord = (props.response ?? {}) as unknown as Record<string, unknown>
+  const effectSkills = (() => {
+    const effects = responseRecord['effects'] ?? responseRecord['Effects']
+    if (!isRecord(effects)) return []
+    const skills = effects['skills'] ?? effects['Skills']
+    return Array.isArray(skills) ? skills : []
+  })()
+  const inventoryGems = (() => {
+    const gems = responseRecord['gems'] ?? responseRecord['Gems']
+    return Array.isArray(gems) ? gems : []
+  })()
 
   skillGems.value.forEach((gem, index) => {
     const skillName = sanitizeInline(gem.skill?.name) || ''
@@ -1275,18 +1280,22 @@ const gemBadgesBySkill = computed(() => {
   })
 
   effectSkills.forEach((effect, index) => {
-    const skillName = sanitizeInline(effect?.Name) || ''
+    const record = isRecord(effect) ? effect : {}
+    const skillName = sanitizeInline(
+      isString(record['Name']) ? record['Name'] : isString(record['name']) ? record['name'] : ''
+    )
     const key = normalizeSkillKey(skillName)
     if (!key) return
+    const descRaw = record['Description'] ?? record['description']
     const effectText = sanitizeInline(
-      Array.isArray(effect?.Description) ? effect.Description.join(' ') : effect?.Description
+      Array.isArray(descRaw) ? descRaw.map(entry => String(entry)).join(' ') : isString(descRaw) ? descRaw : ''
     )
     const splitEffect = splitGemEffectText(effectText)
     const badge: SkillGemBadge = {
       key: `${skillName}-effect-${index}`,
-      name: sanitizeInline(effect?.Name) || '보석',
-      icon: effect?.Icon || undefined,
-      levelLabel: sanitizeInline(effect?.Option),
+      name: skillName || '보석',
+      icon: isString(record['Icon']) ? record['Icon'] : undefined,
+      levelLabel: sanitizeInline(isString(record['Option']) ? record['Option'] : ''),
       effectText: splitEffect.main,
       extraEffect: splitEffect.extra || undefined,
       effectLabel: normalizeGemEffectLabel(effectText)
@@ -1295,18 +1304,20 @@ const gemBadgesBySkill = computed(() => {
     map.get(key)!.push(badge)
   })
 
-inventoryGems.forEach((gem, index) => {
-  const parsed = parseGemTooltipMapping(gem?.Tooltip)
-  if (!parsed) return
-  const skillName = parsed.skillName
-  const key = normalizeSkillKey(skillName)
-  if (!key) return
-  const splitEffect = splitGemEffectText(parsed.effectText, parsed.extraEffect)
+  inventoryGems.forEach((gem, index) => {
+    const record = isRecord(gem) ? gem : {}
+    const parsed = parseGemTooltipMapping(isString(record['Tooltip']) ? record['Tooltip'] : null)
+    if (!parsed) return
+    const skillName = parsed.skillName
+    const key = normalizeSkillKey(skillName)
+    if (!key) return
+    const splitEffect = splitGemEffectText(parsed.effectText, parsed.extraEffect)
+    const level = typeof record['Level'] === 'number' ? record['Level'] : undefined
     const badge: SkillGemBadge = {
       key: `${skillName}-inv-${index}`,
-      name: sanitizeInline(gem?.Name) || '보석',
-      icon: gem?.Icon || undefined,
-      levelLabel: formatLevelLabel(gem?.Level),
+      name: sanitizeInline(isString(record['Name']) ? record['Name'] : '') || '보석',
+      icon: isString(record['Icon']) ? record['Icon'] : undefined,
+      levelLabel: formatLevelLabel(level),
       effectText: splitEffect.main,
       extraEffect: splitEffect.extra || undefined,
       effectLabel: normalizeGemEffectLabel(parsed.effectText || parsed.extraEffect)
@@ -1386,9 +1397,7 @@ const skillCards = computed<SkillCardView[]>(() => {
 
       // 메타 정보 추출 (무력화, 공격 타입, 슈퍼아머, 부위파괴)
       const metadata = extractSkillMetadata(skill.tooltip)
-      const preferElement004 =
-        parsedSkillType !== null && (parsedSkillType === 100 || parsedSkillType === 101)
-      const descriptionHtml = summarizeTooltip(skill.tooltip, '', preferElement004)
+      const descriptionHtml = summarizeTooltip(skill.tooltip, '')
       const descriptionText = sanitizeInline(descriptionHtml)
 
       return {
@@ -1453,7 +1462,7 @@ const classicAwakeningPairs = computed<AwakeningPairGroup[]>(() => {
       ordered.push(pair)
       pendingLeft.push(pair)
     } else if (card.skillTypeCode === 101) {
-      let target = pendingLeft.find(p => !p.right)
+      const target = pendingLeft.find(p => !p.right)
       if (target) {
         target.right = card
         pendingLeft.splice(pendingLeft.indexOf(target), 1)

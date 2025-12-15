@@ -54,7 +54,7 @@ export function addFallbackLineBreaks(value: string): string {
   let start = 0
   const length = value.length
   while (start < length) {
-    let end = Math.min(start + 70, length)
+    const end = Math.min(start + 70, length)
     if (end === length) {
       segments.push(value.slice(start).trim())
       break

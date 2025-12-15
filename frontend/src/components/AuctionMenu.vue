@@ -97,6 +97,14 @@
         </label>
 
         <div class="actions">
+          <button
+            type="button"
+            class="btn ghost"
+            :disabled="loadingCategories || syncingSnapshot"
+            @click="syncSnapshot"
+          >
+            {{ syncingSnapshot ? '동기화 중...' : '스냅샷 동기화' }}
+          </button>
           <button type="button" class="btn" @click="handleSearch">검색</button>
           <button type="button" class="btn ghost" @click="clearSearch">검색 초기화</button>
           <button type="button" class="btn ghost refresh-btn" @click="resetAndLoad">
@@ -107,8 +115,9 @@
       </div>
 
       <p v-if="!leafCategories.length" class="inline-hint">
-        백엔드에서 `/api/markets/options/sync` 호출 후 다시 시도하세요.
+        거래소 스냅샷이 없습니다. 위에서 "스냅샷 동기화"를 눌러주세요.
       </p>
+      <p v-if="snapshotNotice" class="inline-hint">{{ snapshotNotice }}</p>
     </section>
 
     <section class="items-panel panel-card">
@@ -355,12 +364,12 @@
                           :cx="dot.x"
                           :cy="dot.y"
                           r="5"
-                          @pointerenter="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
-                          @pointermove="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
-                          @mouseenter="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
-                          @mousemove="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event)"
-                          @touchstart.passive="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event as any)"
-                          @touchmove.passive="handleTooltip({ ...dot, tradeVolume: dot.value }, 'volume', $event as any)"
+                          @pointerenter="handleTooltip(dot, 'volume')"
+                          @pointermove="handleTooltip(dot, 'volume')"
+                          @mouseenter="handleTooltip(dot, 'volume')"
+                          @mousemove="handleTooltip(dot, 'volume')"
+                          @touchstart.passive="handleTooltip(dot, 'volume')"
+                          @touchmove.passive="handleTooltip(dot, 'volume')"
                           @mouseleave="clearTooltip()"
                         />
                       </g>
@@ -372,12 +381,12 @@
                           r="5"
                           stroke="#16a34a"
                           fill="#fff"
-                          @pointerenter="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
-                          @pointermove="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
-                          @mouseenter="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
-                          @mousemove="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event)"
-                          @touchstart.passive="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event as any)"
-                          @touchmove.passive="handleTooltip({ ...dot, avgPrice: dot.value }, 'price', $event as any)"
+                          @pointerenter="handleTooltip(dot, 'price')"
+                          @pointermove="handleTooltip(dot, 'price')"
+                          @mouseenter="handleTooltip(dot, 'price')"
+                          @mousemove="handleTooltip(dot, 'price')"
+                          @touchstart.passive="handleTooltip(dot, 'price')"
+                          @touchmove.passive="handleTooltip(dot, 'price')"
                           @mouseleave="clearTooltip()"
                         />
                       </g>
@@ -421,8 +430,16 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { apiClient } from '@/api/http'
 import { lostarkApi } from '@/api/lostark'
-import type { StoredMarketCategory, MarketOptionsResponse, MarketItemSummary, MarketItemDetail } from '@/api/types'
+import type {
+  StoredMarketCategory,
+  MarketOptionsResponse,
+  MarketItemSummary,
+  MarketItemDetail,
+  MarketCategory
+} from '@/api/types'
+import { getHttpErrorMessage } from '@/utils/httpError'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import LazyImage from './common/LazyImage.vue'
 
@@ -500,7 +517,7 @@ const toDateValue = (value?: string | null) => {
 }
 
 const categories = ref<StoredMarketCategory[]>([])
-const pageCache = ref<Record<number, MarketItemSummary[]>>({})
+const pageCache = ref<Record<string, MarketItemSummary[]>>({})
 const selectedCategory = ref<number | null>(null)
 const searchText = ref('')
 const page = ref(1)
@@ -521,6 +538,9 @@ const itemTiers = ref<number[]>([])
 const itemGrades = ref<string[]>([])
 const lastFetchedAt = ref<number | null>(null)
 const lastCenterPage = ref(1)
+const syncingSnapshot = ref(false)
+const snapshotNotice = ref('')
+let snapshotNoticeTimer: number | undefined
 
 const detailOpen = ref(false)
 const detailLoading = ref(false)
@@ -536,15 +556,24 @@ const detailStats = computed(() => {
   const bundleCountForVolume =
     toNumberOrUndefined(detailData.value?.bundleCount ?? selectedItem.value?.bundleCount ?? 1) ?? 1
   const mapped = stats.map(stat => {
-    const date = stat.Date || stat.date
-    const tradeCount = toNumberOrUndefined(stat.TradeCount ?? stat.tradeCount ?? 0) ?? 0
-    const avgPrice = toNumberOrUndefined(stat.AvgPrice ?? stat.avgPrice ?? 0) ?? 0
+    const statRecord = stat as unknown as Record<string, unknown>
+    const date =
+      typeof stat.Date === 'string'
+        ? stat.Date
+        : typeof statRecord['date'] === 'string'
+          ? statRecord['date']
+          : typeof statRecord['Date'] === 'string'
+            ? statRecord['Date']
+            : undefined
+    const tradeCount =
+      toNumberOrUndefined(stat.TradeCount ?? statRecord['tradeCount'] ?? statRecord['TradeCount'] ?? 0) ?? 0
+    const avgPrice = toNumberOrUndefined(stat.AvgPrice ?? statRecord['avgPrice'] ?? statRecord['AvgPrice'] ?? 0) ?? 0
     const rawVolume =
-      (stat as any).TradeVolume ??
-      (stat as any).tradeVolume ??
-      (stat as any).trade_volume ??
-      (stat as any).Volume ??
-      (stat as any).volume
+      stat.TradeVolume ??
+      statRecord['tradeVolume'] ??
+      statRecord['trade_volume'] ??
+      statRecord['Volume'] ??
+      statRecord['volume']
     const rawVolumeNumber = rawVolume !== undefined && rawVolume !== null ? toNumberOrUndefined(rawVolume) : undefined
     const tradeVolumeCandidate = rawVolumeNumber !== undefined ? rawVolumeNumber : tradeCount * bundleCountForVolume
     const tradeVolume =
@@ -650,15 +679,15 @@ const selectedYDayAvgPrice = computed(() => {
   if (normalized !== undefined && normalized !== null) return normalized
   // fallback: use previous day avg from stats if available
   const stats = detailStats.value
-  if (stats.length > 1 && stats[1].avgPrice) return stats[1].avgPrice
-  if (stats.length && stats[0].avgPrice) return stats[0].avgPrice
+  if (stats[1]?.avgPrice) return stats[1].avgPrice
+  if (stats[0]?.avgPrice) return stats[0].avgPrice
   return null
 })
 
 const leafCategories = computed(() => categories.value.filter(cat => !cat.hasSubs))
 const categoryCount = computed(() => categories.value.length)
 
-const currentItems = computed(() => pageCache.value[page.value] ?? pageCache.value[String(page.value)] ?? [])
+const currentItems = computed(() => pageCache.value[String(page.value)] ?? [])
 
 const filteredItems = computed(() => {
   return currentItems.value
@@ -669,11 +698,7 @@ const lastFetchedLabel = computed(() => {
   return formatDateTime(new Date(lastFetchedAt.value).toISOString())
 })
 
-const handleTooltip = (
-  dot: { x: number; y: number; value: number; date?: string; avgPrice?: number; tradeVolume?: number },
-  type: 'volume' | 'price',
-  _evt?: PointerEvent
-) => {
+const handleTooltip = (dot: { x: number; y: number; value: number; date?: string }, type: 'volume' | 'price') => {
   const svg = chartRef.value
   if (!svg) return
 
@@ -727,10 +752,12 @@ const handleChartMove = (evt: PointerEvent | MouseEvent) => {
   const priceDots = sparkline.value.price.dots.map(d => ({ ...d, type: 'price' as const }))
   const dots = [...volumeDots, ...priceDots]
   if (!dots.length) return
+  const firstDot = dots[0]
+  if (!firstDot) return
   const svgPoint = toSvgCoords(ref, evt.clientX, evt.clientY)
   const cursorX = svgPoint.x
   const cursorY = svgPoint.y
-  let closest = dots[0]
+  let closest = firstDot
   let minDist = Number.MAX_VALUE
   dots.forEach(d => {
     const dx = d.x - cursorX
@@ -741,19 +768,21 @@ const handleChartMove = (evt: PointerEvent | MouseEvent) => {
       closest = d
     }
   })
-  const stepGuess = volumeDots.length > 1 ? Math.abs(volumeDots[1].x - volumeDots[0].x) : 0
+  const stepGuess =
+    volumeDots.length > 1 && volumeDots[0] && volumeDots[1] ? Math.abs(volumeDots[1].x - volumeDots[0].x) : 0
   const threshold = stepGuess > 0 ? Math.max(8, Math.min(24, stepGuess / 2)) : 14
   if (minDist <= threshold) {
-    handleTooltip(closest, closest.type, evt as PointerEvent)
+    handleTooltip(closest, closest.type)
   } else {
     clearTooltip()
   }
 }
 
-const normalizeItem = (item: any): MarketItemSummary => {
+const normalizeItem = (item: unknown): MarketItemSummary => {
+  const record = (item ?? {}) as Record<string, unknown>
   const pickNumber = (keys: string[]) => {
     for (const key of keys) {
-      const v = item?.[key]
+      const v = record[key]
       if (v !== undefined && v !== null) {
         const num = Number(v)
         return Number.isNaN(num) ? undefined : num
@@ -763,10 +792,20 @@ const normalizeItem = (item: any): MarketItemSummary => {
   }
 
   return {
-    id: item?.id ?? item?.Id ?? 0,
-    name: item?.name ?? item?.Name ?? '',
-    grade: item?.grade ?? item?.Grade,
-    icon: item?.icon ?? item?.Icon,
+    id: Number(record.id ?? record.Id ?? 0),
+    name: String(record.name ?? record.Name ?? ''),
+    grade:
+      typeof record.grade === 'string'
+        ? record.grade
+        : typeof record.Grade === 'string'
+          ? record.Grade
+          : undefined,
+    icon:
+      typeof record.icon === 'string'
+        ? record.icon
+        : typeof record.Icon === 'string'
+          ? record.Icon
+          : undefined,
     bundleCount: pickNumber(['bundleCount', 'BundleCount']),
     tradeRemainCount: pickNumber(['tradeRemainCount', 'TradeRemainCount']),
     yDayAvgPrice: pickNumber(['yDayAvgPrice', 'YDayAvgPrice', 'ydayAvgPrice', 'ydayavgprice', 'y_day_avg_price']),
@@ -827,7 +866,7 @@ const clearSearch = () => {
 const changePage = (nextPage: number) => {
   if (nextPage < 1 || nextPage > totalPages.value) return
   page.value = nextPage
-  if (pageCache.value[nextPage] && Math.abs(nextPage - lastCenterPage.value) <= prefetchRange) {
+  if (pageCache.value[String(nextPage)] && Math.abs(nextPage - lastCenterPage.value) <= prefetchRange) {
     return
   }
   loadItems()
@@ -837,6 +876,33 @@ const resetAndLoad = () => {
   page.value = 1
   lastCenterPage.value = 1
   loadItems()
+}
+
+const setSnapshotNotice = (message: string) => {
+  snapshotNotice.value = message
+  if (snapshotNoticeTimer) window.clearTimeout(snapshotNoticeTimer)
+  snapshotNoticeTimer = window.setTimeout(() => {
+    snapshotNotice.value = ''
+  }, 2500)
+}
+
+const syncSnapshot = async () => {
+  if (syncingSnapshot.value) return
+  try {
+    syncingSnapshot.value = true
+    setSnapshotNotice('거래소 스냅샷을 동기화하는 중...')
+    await apiClient.post('/markets/options/sync')
+    await loadCategories()
+    if (selectedCategory.value) {
+      await loadItems()
+    }
+    setSnapshotNotice('동기화 완료!')
+  } catch (error: unknown) {
+    console.error(error)
+    setSnapshotNotice(getHttpErrorMessage(error) || '동기화에 실패했습니다.')
+  } finally {
+    syncingSnapshot.value = false
+  }
 }
 
 const loadCategories = async () => {
@@ -851,17 +917,17 @@ const loadCategories = async () => {
     // 카테고리가 비어있으면 옵션 응답으로 채움
     if (!categories.value.length && options.Categories?.length) {
       const flattened: StoredMarketCategory[] = []
-      const walk = (list: any[], parentCode: number | null, depth = 0) => {
+      const walk = (list: MarketCategory[], parentCode: number | null, depth = 0) => {
         list.forEach(cat => {
           flattened.push({
-            id: cat.Code,
-            code: cat.Code,
-            codeName: cat.CodeName,
+            id: cat.Code ?? 0,
+            code: cat.Code ?? 0,
+            codeName: cat.CodeName ?? '',
             parentCode: parentCode || undefined,
             hasSubs: Boolean(cat.Subs && cat.Subs.length),
             depth
-          } as StoredMarketCategory)
-          if (cat.Subs?.length) {
+          })
+          if (cat.Subs?.length && cat.Code != null) {
             walk(cat.Subs, cat.Code, depth + 1)
           }
         })
@@ -870,7 +936,10 @@ const loadCategories = async () => {
       categories.value = flattened
     }
     if (!selectedCategory.value && leafCategories.value.length) {
-      selectedCategory.value = leafCategories.value[0].code ?? null
+      const firstLeaf = leafCategories.value[0]
+      if (firstLeaf) {
+        selectedCategory.value = firstLeaf.code ?? null
+      }
     }
   } catch (error) {
     console.error(error)
@@ -901,11 +970,11 @@ const loadItems = async () => {
       prefetchRange
     })
 
-    const normalized: Record<number, MarketItemSummary[]> = {}
+    const normalized: Record<string, MarketItemSummary[]> = {}
     Object.entries(data.pages || {}).forEach(([key, value]) => {
       const numKey = Number(key)
       const items = (value || []).map(normalizeItem)
-      normalized[Number.isNaN(numKey) ? (key as any) : numKey] = items
+      normalized[Number.isNaN(numKey) ? key : String(numKey)] = items
     })
     pageCache.value = normalized
     totalPages.value = data.totalPages ?? 1
@@ -943,14 +1012,15 @@ const openDetail = async (item: MarketItemSummary) => {
     selectedItem.value = normalizedRefreshed
     // 캐시 업데이트
     const cache = { ...pageCache.value }
-    const currentPageItems = cache[page.value] || []
-    cache[page.value] = currentPageItems.map(i => (i.id === normalizedRefreshed.id ? normalizedRefreshed : i))
+    const pageKey = String(page.value)
+    const currentPageItems = cache[pageKey] || []
+    cache[pageKey] = currentPageItems.map(i => (i.id === normalizedRefreshed.id ? normalizedRefreshed : i))
     pageCache.value = cache
 
     detailData.value = await lostarkApi.getMarketItemDetail(item.id)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error)
-    detailError.value = error?.response?.data?.message || '아이템 상세를 불러오지 못했습니다.'
+    detailError.value = getHttpErrorMessage(error) || '아이템 상세를 불러오지 못했습니다.'
   } finally {
     detailLoading.value = false
   }

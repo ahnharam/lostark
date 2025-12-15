@@ -100,6 +100,7 @@
 import { onMounted, ref, onBeforeUnmount } from 'vue'
 import { lostarkApi } from '@/api/lostark'
 import type { MarketDailyStat } from '@/api/types'
+import { getHttpErrorMessage } from '@/utils/httpError'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 
 const stats = ref<MarketDailyStat[]>([])
@@ -125,17 +126,7 @@ const formatNumber = (value?: number | null) => {
   return new Intl.NumberFormat('ko-KR').format(value)
 }
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('ko-KR', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
-}
+const resolveErrorMessage = (err: unknown, fallback: string) => getHttpErrorMessage(err) ?? fallback
 
 const loadStats = async () => {
   if (gateEnabled && !unlocked.value) return
@@ -149,8 +140,8 @@ const loadStats = async () => {
     totalPages.value = data.totalPages
     totalElements.value = data.totalElements
     message.value = `${data.totalElements}건 중 ${data.page + 1} / ${data.totalPages}페이지`
-  } catch (err: any) {
-    error.value = err?.response?.data?.message || '기록을 불러오지 못했습니다.'
+  } catch (err: unknown) {
+    error.value = resolveErrorMessage(err, '기록을 불러오지 못했습니다.')
   } finally {
     loading.value = false
   }
@@ -166,8 +157,8 @@ const triggerCapture = async (date?: string) => {
     const resp = await lostarkApi.triggerMarketStatsCapture(date)
     message.value = resp || '기록 요청을 전송했습니다.'
     await loadStats()
-  } catch (err: any) {
-    error.value = err?.response?.data?.message || '기록을 시작하지 못했습니다.'
+  } catch (err: unknown) {
+    error.value = resolveErrorMessage(err, '기록을 시작하지 못했습니다.')
   } finally {
     triggering.value = false
   }
@@ -189,8 +180,8 @@ const pollStatus = async () => {
   try {
     const status = await lostarkApi.getMarketStatsStatus()
     running.value = status.running
-  } catch (err) {
-    // ignore
+  } catch {
+    // ignore polling errors
   }
   if (wasRunning && !running.value) {
     loadStats()

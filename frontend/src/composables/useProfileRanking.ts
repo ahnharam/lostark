@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { lostarkApi } from '@/api/lostark'
 import type { ProfileRankingResponse } from '@/api/types'
+import { getHttpErrorMessage } from '@/utils/httpError'
 
 export const useProfileRanking = () => {
   const data = ref<ProfileRankingResponse | null>(null)
@@ -35,9 +36,9 @@ export const useProfileRanking = () => {
       cache.set(characterName.value, response.data)
       data.value = response.data
       error.value = null
-    } catch (err: any) {
+    } catch (err: unknown) {
       error.value =
-        err?.response?.data?.message || '내부 데이터베이스를 기반으로 한 랭킹 정보를 불러오지 못했습니다.'
+        getHttpErrorMessage(err) || '내부 데이터베이스를 기반으로 한 랭킹 정보를 불러오지 못했습니다.'
     } finally {
       loading.value = false
     }

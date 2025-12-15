@@ -16,7 +16,7 @@ interface CacheStats {
 }
 
 class CacheManager {
-  private memoryCache: Map<string, CacheEntry<any>> = new Map()
+  private memoryCache: Map<string, CacheEntry<unknown>> = new Map()
   private stats: CacheStats = { hits: 0, misses: 0, size: 0 }
   private readonly DEFAULT_TTL = 5 * 60 * 1000 // 5분
   private readonly MAX_MEMORY_SIZE = 100 // 최대 메모리 캐시 항목 수
@@ -24,10 +24,10 @@ class CacheManager {
   /**
    * 캐시 키 생성
    */
-  private generateKey(prefix: string, params: Record<string, any>): string {
+  private generateKey(prefix: string, params: Record<string, unknown>): string {
     const sortedParams = Object.keys(params)
       .sort()
-      .map(key => `${key}=${params[key]}`)
+      .map(key => `${key}=${String(params[key])}`)
       .join('&')
     return `${prefix}:${sortedParams}`
   }
@@ -197,7 +197,7 @@ class CacheManager {
               keysToRemove.push(key)
             }
           }
-        } catch (error) {
+        } catch {
           keysToRemove.push(key)
         }
       }
@@ -244,13 +244,13 @@ export async function cachedApiCall<T>(
 /**
  * 캐시 키 생성 헬퍼
  */
-export function createCacheKey(resource: string, params?: Record<string, any>): string {
+export function createCacheKey(resource: string, params?: Record<string, unknown>): string {
   const prefix = `lostark:${resource}`
   if (!params) return prefix
 
   const sortedParams = Object.keys(params)
     .sort()
-    .map(key => `${key}=${params[key]}`)
+    .map(key => `${key}=${String(params[key])}`)
     .join('&')
 
   return `${prefix}:${sortedParams}`

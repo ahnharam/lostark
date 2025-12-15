@@ -2,6 +2,8 @@ import { computed, ref } from 'vue'
 import { lostarkApi } from '@/api/lostark'
 import type {
   ArkGridResponse,
+  ArmoryAvatar,
+  ArmoryGem,
   CardResponse,
   CharacterProfile,
   Collectible,
@@ -11,6 +13,7 @@ import type {
   SiblingCharacter,
   SkillMenuResponse
 } from '@/api/types'
+import { getHttpErrorMessage, getHttpStatus } from '@/utils/httpError'
 
 interface ErrorState {
   message: string
@@ -64,7 +67,7 @@ export const useCharacterSearchData = () => {
   const characterAvailability = ref<Record<string, CharacterAvailability>>({})
   const selectedCharacterProfile = ref<CharacterProfile | null>(null)
   const detailEquipment = ref<Equipment[]>([])
-  const detailAvatars = ref<any[]>([])
+  const detailAvatars = ref<ArmoryAvatar[]>([])
   const detailEngravings = ref<Engraving[]>([])
   const detailLoading = ref(false)
   const detailError = ref<string | null>(null)
@@ -80,7 +83,7 @@ export const useCharacterSearchData = () => {
   const skillLoading = ref(false)
   const skillError = ref<string | null>(null)
   const skillLoadedFor = ref<string | null>(null)
-  const armoryGemsResponse = ref<any | null>(null)
+  const armoryGemsResponse = ref<ArmoryGem | null>(null)
   const collectibles = ref<Collectible[]>([])
   const collectiblesLoading = ref(false)
   const collectiblesError = ref<string | null>(null)
@@ -234,7 +237,7 @@ export const useCharacterSearchData = () => {
         profilePromise,
         lostarkApi.getEquipment(name, { force: options.forceRefresh }),
         lostarkApi.getEngravings(name, { force: options.forceRefresh }),
-        lostarkApi.getAvatars(name, { force: options.forceRefresh }).catch(() => ({ data: [] as any[] }))
+        lostarkApi.getAvatars(name, { force: options.forceRefresh }).catch(() => ({ data: [] as ArmoryAvatar[] }))
       ])
 
       selectedCharacterProfile.value = profile
@@ -243,16 +246,16 @@ export const useCharacterSearchData = () => {
       detailEngravings.value = engravingsResponse.data
       characterAvailability.value[name] = 'available'
       lastRefreshedAt.value = new Date()
-    } catch (err: any) {
+    } catch (err: unknown) {
       characterAvailability.value[name] = 'unavailable'
       selectedCharacterProfile.value = options.profile || null
       detailEquipment.value = []
       detailAvatars.value = []
       detailEngravings.value = []
-      if (err.response?.status === 404) {
+      if (getHttpStatus(err) === 404) {
         detailError.value = `'${name}' 캐릭터 정보를 불러올 수 없어요. 오랜 기간 미접속 캐릭터일 수 있습니다.`
       } else {
-        detailError.value = err.response?.data?.message || '상세 정보를 불러오지 못했어요.'
+        detailError.value = getHttpErrorMessage(err) || '상세 정보를 불러오지 못했어요.'
       }
       console.error('Failed to load character details', err)
     } finally {
@@ -279,13 +282,13 @@ export const useCharacterSearchData = () => {
       skillResponse.value = skillRes.data
       skillLoadedFor.value = name
       armoryGemsResponse.value = armoryGemRes?.data ?? null
-    } catch (err: any) {
+    } catch (err: unknown) {
       skillResponse.value = null
       skillLoadedFor.value = null
       const message =
-        err.response?.status === 404
+        getHttpStatus(err) === 404
           ? `'${name}' 캐릭터의 스킬 정보를 찾을 수 없어요.`
-          : err.response?.data?.message || '스킬 정보를 불러오지 못했어요.'
+          : getHttpErrorMessage(err) || '스킬 정보를 불러오지 못했어요.'
       skillError.value = message
     } finally {
       skillLoading.value = false
@@ -315,13 +318,13 @@ export const useCharacterSearchData = () => {
       const response = await lostarkApi.getCollectibles(name, { force: options.forceRefresh })
       collectibles.value = response.data
       collectiblesLoadedFor.value = name
-    } catch (err: any) {
+    } catch (err: unknown) {
       collectibles.value = []
       collectiblesLoadedFor.value = null
       const message =
-        err.response?.status === 404
+        getHttpStatus(err) === 404
           ? `'${name}' 캐릭터의 수집 정보를 찾을 수 없어요.`
-          : err.response?.data?.message || '수집 정보를 불러오지 못했어요.'
+          : getHttpErrorMessage(err) || '수집 정보를 불러오지 못했어요.'
       collectiblesError.value = message
     } finally {
       collectiblesLoading.value = false
@@ -335,13 +338,13 @@ export const useCharacterSearchData = () => {
       const response = await lostarkApi.getCards(name, { force: options.forceRefresh })
       cardResponse.value = response.data
       cardLoadedFor.value = name
-    } catch (err: any) {
+    } catch (err: unknown) {
       cardResponse.value = null
       cardLoadedFor.value = null
       const message =
-        err.response?.status === 404
+        getHttpStatus(err) === 404
           ? `'${name}' 캐릭터의 카드 정보를 확인할 수 없어요.`
-          : err.response?.data?.message || '카드 정보를 불러오지 못했어요.'
+          : getHttpErrorMessage(err) || '카드 정보를 불러오지 못했어요.'
       cardError.value = message
     } finally {
       cardLoading.value = false
@@ -363,12 +366,12 @@ export const useCharacterSearchData = () => {
       const response = await lostarkApi.getArkGrid(name, { force: options.forceRefresh })
       arkGridResponse.value = response.data
       arkGridLoadedFor.value = name
-    } catch (err: any) {
+    } catch (err: unknown) {
       arkGridResponse.value = null
       const message =
-        err.response?.status === 404
+        getHttpStatus(err) === 404
           ? `'${name}' 캐릭터의 아크 그리드 정보를 확인할 수 없어요.`
-          : err.response?.data?.message || '아크 그리드 정보를 불러오지 못했어요.'
+          : getHttpErrorMessage(err) || '아크 그리드 정보를 불러오지 못했어요.'
       arkGridError.value = message
     } finally {
       arkGridLoading.value = false
@@ -421,18 +424,18 @@ export const useCharacterSearchData = () => {
         ensureCardData({ forceRefresh: options.forceRefresh })
       ])
       return true
-    } catch (err: any) {
-      const errorData = err.response?.data
-      if (err.response?.status === 404) {
+    } catch (err: unknown) {
+      const apiMessage = getHttpErrorMessage(err)
+      if (getHttpStatus(err) === 404) {
         error.value = {
           title: '캐릭터를 찾을 수 없습니다',
-          message: errorData?.message || `'${name}' 캐릭터가 존재하지 않아요.`,
+          message: apiMessage || `'${name}' 캐릭터가 존재하지 않아요.`,
           type: 'error'
         }
       } else {
         error.value = {
           title: '검색 실패',
-          message: errorData?.message || '예상치 못한 오류가 발생했어요.',
+          message: apiMessage || '예상치 못한 오류가 발생했어요.',
           type: 'error'
         }
       }

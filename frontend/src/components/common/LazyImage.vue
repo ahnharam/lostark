@@ -159,7 +159,7 @@ const loadImage = () => {
     return
   }
 
-  let processedSrc = props.src.trim()
+  const processedSrc = props.src.trim()
 
   if (!processedSrc) {
     console.warn('[loadImage] Empty processed src, setting error')

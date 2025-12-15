@@ -259,9 +259,9 @@ import {
   getQualityColor,
   getGradeColor
 } from '@/utils/tooltipParser'
-import { parseEngravingDescription, calculateEngravingGrade, type ParsedEngraving } from '@/utils/engravingParser'
 import type { Equipment, Engraving } from '@/api/types'
 import { COMBAT_STATS } from '@/data/combatStats'
+import { isRecord } from '@/utils/typeGuards'
 
 interface Character {
   characterName: string
@@ -434,40 +434,6 @@ const engravingCards = computed<EngravingWithId[]>(() =>
   }))
 )
 
-const parsedEngravingDetails = computed<ParsedEngraving[]>(() =>
-  props.engravings.map(engraving => {
-    const parsed = parseEngravingDescription(engraving.description ?? '')
-    return {
-      ...parsed,
-      name: parsed.name || engraving.name,
-      level:
-        typeof engraving.level === 'number' && engraving.level > 0 ? engraving.level : parsed.level,
-      rawDescription: engraving.description ?? parsed.rawDescription
-    }
-  })
-)
-
-const engravingSummary = computed(() => {
-  const parsed = parsedEngravingDetails.value
-  if (!parsed.length) {
-    return {
-      grade: '미설정',
-      activeCount: 0,
-      debuffCount: 0,
-      totalLevel: 0
-    }
-  }
-  const active = parsed.filter(entry => entry.level > 0 && !entry.isDebuff)
-  const debuffCount = parsed.filter(entry => entry.isDebuff && entry.level > 0).length
-  const totalLevel = active.reduce((sum, entry) => sum + entry.level, 0)
-  return {
-    grade: calculateEngravingGrade(parsed),
-    activeCount: active.length,
-    debuffCount,
-    totalLevel
-  }
-})
-
 const hasEngravings = computed(() => engravingCards.value.length > 0)
 
 const selectedEquipmentKey = ref<string | null>(null)
@@ -569,13 +535,11 @@ const extractItemPartLines = (
   labelPattern: RegExp = /.*/,
   options: { groupByImage?: boolean } = {}
 ): ExtractedLine[] => {
-  if (!rawElement || typeof rawElement !== 'object') return []
-  const elementValue =
-    (rawElement as any).value && typeof (rawElement as any).value === 'object'
-      ? (rawElement as any).value
-      : rawElement
-  const label = elementValue?.Element_000
-  const content = elementValue?.Element_001
+  if (!isRecord(rawElement)) return []
+  const rawValue = rawElement['value'] ?? rawElement['Value']
+  const elementValue = isRecord(rawValue) ? rawValue : rawElement
+  const label = elementValue['Element_000']
+  const content = elementValue['Element_001']
   if (typeof label !== 'string' || !labelPattern.test(stripSummaryHtml(label))) return []
   if (!content) return []
   const raw =
@@ -869,7 +833,6 @@ const sangjaeStat = computed(() =>
   selectedParsed.value?.sangjaeStat ??
   findStatByKeywords(['상재 효과', '상재', '상급 재련', '상급재련', '상제'])
 )
-const transcendenceLastStage = computed(() => selectedParsed.value?.transcendenceMaxStage ?? '')
 const additionalEffectStat = computed(() =>
   selectedParsed.value?.additionalEffectStat ??
   findStatByKeywords(['추가 피해', '추가피해', '추가 효과'])
@@ -935,7 +898,12 @@ interface SlotEffectInfo {
   value?: number
 }
 
-const slotEffectInfo = ref<SlotEffectInfo | null>(null)
+const slotEffectInfo = computed<SlotEffectInfo | null>(() => {
+  if (!selectedEquipment.value) return null
+  const parsed = getParsedEquipment(selectedEquipment.value)
+  const bucket = tooltipValueMap.value[selectedEquipment.value.__uid]
+  return computeSlotEffectInfoFromParsed(parsed, bucket)
+})
 
 const NUMBER_PATTERN = /([+-]?\d[\d,]*(?:\.\d+)?)/g
 
@@ -974,46 +942,6 @@ const formatStatValue = (value?: string) => {
   const withSign = trimmed.startsWith('+') || trimmed.startsWith('-') ? trimmed : `+${trimmed}`
   return formatNumbersInText(withSign)
 }
-
-const additionalEffectLines = computed(() => {
-  slotEffectInfo.value = null
-  if (!selectedEquipment.value) return []
-  const parsed = getParsedEquipment(selectedEquipment.value)
-  const lines: string[] = []
-  if (parsed?.additionalEffectStat) {
-    lines.push(`${parsed.additionalEffectStat.type} +${parsed.additionalEffectStat.value}`)
-  }
-  parsed?.additionalStats?.forEach(stat => {
-    lines.push(`${stat.type} +${stat.value}`)
-  })
-  parsed?.elixirEffects?.forEach(effect => lines.push(effect))
-  parsed?.engravingEffects?.forEach(effect => lines.push(effect))
-  const buckets = tooltipValueMap.value[selectedEquipment.value.__uid]
-  if (buckets) {
-    lines.push(...buckets.enhancements)
-  }
-  const condensed = condenseBasicEffectStages(lines)
-  const filtered: string[] = []
-
-  condensed.forEach(line => {
-    const trimmed = line.trim()
-    if (/^추가\s*효과\s+추가\s*효과$/i.test(trimmed)) {
-      return
-    }
-    const slotMatch = trimmed.match(/슬롯\s*효과\s*\[초월\]\s*(\d+)\s*단계\s*(\d+)/i)
-    if (slotMatch) {
-      slotEffectInfo.value = {
-        stage: Number(slotMatch[1]),
-        value: Number(slotMatch[2])
-      }
-      return
-    }
-    filtered.push(line)
-  })
-
-  const cleaned = filterNoise(filtered)
-  return cleaned.map(line => formatNumbersInText(line))
-})
 
 const refinementLines = computed<ExtractedLine[]>(() => {
   const parsed = selectedParsed.value
@@ -1176,7 +1104,6 @@ const createTextCell = (label: string, text?: string | null, color?: string): Co
 })
 
 const coreRows = computed<CoreRow[]>(() => {
-  additionalEffectLines.value
   const rows: CoreRow[] = []
   let category = equipmentCategory.value
   const selectedType = selectedEquipment.value?.type?.toLowerCase() ?? ''
@@ -1473,16 +1400,17 @@ const computeSlotEffectInfoFromParsed = (
   return null
 }
 
-const parseTradeStatus = (rawElements?: Record<string, any>) => {
+const parseTradeStatus = (rawElements?: Record<string, unknown>) => {
   if (!rawElements) return ''
-  const candidates = [rawElements.Element_003, rawElements.Element_004]
+  const candidates = [rawElements['Element_003'], rawElements['Element_004']]
 
-  const extractText = (element: any): string => {
+  const extractText = (element: unknown): string => {
     if (!element) return ''
     if (typeof element === 'string') return element
-    if (typeof element === 'object') {
-      if (typeof element.value === 'string') return element.value
-      return JSON.stringify(element.value ?? element)
+    if (isRecord(element)) {
+      const value = element['value'] ?? element['Value']
+      if (typeof value === 'string') return value
+      return JSON.stringify(value ?? element)
     }
     return ''
   }
@@ -1576,33 +1504,6 @@ const globalSummaryItems = computed(() => {
   return items
 })
 
-const statToLine = (stat?: StatItem | null) => {
-  if (!stat || isJsonLike(stat.type)) return null
-  return `${stat.type} ${formatStatValue(stat.value)}`
-}
-
-const getSummaryLines = (item: EquipmentWithId) => {
-  const parsed = getParsedEquipment(item)
-  if (!parsed) return []
-  const lines: string[] = []
-  parsed.basicStats?.slice(0, 2).forEach(stat => {
-    const line = statToLine(stat)
-    if (line) lines.push(line)
-  })
-  if (parsed.additionalStats?.length) {
-    const extra = statToLine(parsed.additionalStats[0])
-    if (extra) lines.push(extra)
-  }
-  if (!lines.length && parsed.engravingEffects?.length) {
-    const firstEngraving = parsed.engravingEffects[0]
-    if (firstEngraving) {
-      lines.push(firstEngraving)
-    }
-  }
-  const sanitized = lines.filter(line => !/상재/.test(line))
-  return sanitized.slice(0, 2)
-}
-
 const getQualityBadgeColor = (item: EquipmentWithId) => getQualityColor(getParsedEquipment(item)?.quality)
 
 interface TooltipValueBuckets {
@@ -1623,17 +1524,17 @@ const extractTooltipValues = (item: Equipment): string[] => {
   if (!item.tooltip) return []
   try {
     const raw = JSON.parse(item.tooltip)
-    const normalize = (value: any): string[] => {
+    const normalize = (value: unknown): string[] => {
       if (!value) return []
       if (typeof value === 'string') return [cleanText(value)]
       if (Array.isArray(value)) return value.flatMap(normalize)
-      if (typeof value === 'object') {
+      if (isRecord(value)) {
         if ('value' in value) return normalize(value.value)
         return Object.values(value).flatMap(normalize)
       }
       return []
     }
-    return Object.values(raw).flatMap(normalize).filter(Boolean)
+    return (isRecord(raw) ? Object.values(raw) : []).flatMap(normalize).filter(Boolean)
   } catch {
     return [cleanText(item.tooltip)]
   }

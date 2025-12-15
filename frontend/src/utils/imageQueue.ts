@@ -1,7 +1,7 @@
 type QueueTask = {
   url: string
   resolve: (value: string) => void
-  reject: (reason?: any) => void
+  reject: (reason?: unknown) => void
 }
 
 const MAX_CONCURRENT = 4

@@ -36,7 +36,8 @@ const getCookie = (name: string) => {
   if (typeof document === 'undefined') return null
   const escaped = name.replace(/[$()*+./?[\\\]^{|}-]/g, '\\$&')
   const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`))
-  return match ? decodeURIComponent(match[1]) : null
+  const value = match?.[1]
+  return value ? decodeURIComponent(value) : null
 }
 
 const shouldAttachCsrf = (method?: string) => {
