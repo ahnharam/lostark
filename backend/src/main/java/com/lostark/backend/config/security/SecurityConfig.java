@@ -36,13 +36,24 @@ public class SecurityConfig {
     @Value("${app.frontend.success-redirect-path:/raid-schedule}")
     private String successRedirectPath;
 
+    @Value("${app.security.csrf.cookie.same-site:Lax}")
+    private String csrfCookieSameSite;
+
+    @Value("${app.security.csrf.cookie.secure:false}")
+    private boolean csrfCookieSecure;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, DiscordOAuth2UserService discordOAuth2UserService)
             throws Exception {
 
+        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfTokenRepository.setCookiePath("/");
+        csrfTokenRepository.setSecure(csrfCookieSecure);
+        csrfTokenRepository.setCookieCustomizer(cookie -> cookie.sameSite(csrfCookieSameSite));
+
         http
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRepository(csrfTokenRepository)
                         // SPA에서 cookie 값을 그대로 헤더로 올리는 방식(Angular 등)과 호환되도록 raw 토큰 처리
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                 )

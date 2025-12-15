@@ -941,9 +941,9 @@ const loadCategories = async () => {
         selectedCategory.value = firstLeaf.code ?? null
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(error)
-    errorMessage.value = '카테고리를 불러오지 못했습니다. 백엔드 동기화 상태를 확인해 주세요.'
+    errorMessage.value = getHttpErrorMessage(error) || '카테고리를 불러오지 못했습니다. 백엔드 동기화 상태를 확인해 주세요.'
   } finally {
     loadingCategories.value = false
   }
@@ -982,9 +982,9 @@ const loadItems = async () => {
     page.value = data.page ?? page.value
     lastFetchedAt.value = data.fetchedAt ?? Date.now()
     lastCenterPage.value = data.page ?? page.value
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(error)
-    errorMessage.value = '아이템을 불러오지 못했습니다.'
+    errorMessage.value = getHttpErrorMessage(error) || '아이템을 불러오지 못했습니다.'
   } finally {
     loadingItems.value = false
   }

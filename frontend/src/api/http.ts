@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosRequestConfig } from 'axios'
+import { isRecord, isString } from '@/utils/typeGuards'
 
 const MAX_RETRIES = 1
 const BASE_RETRY_DELAY_MS = 350
@@ -32,6 +33,8 @@ export const apiClient = axios.create({
   xsrfHeaderName: 'X-XSRF-TOKEN'
 })
 
+let csrfTokenFromApi: string | null = null
+
 const getCookie = (name: string) => {
   if (typeof document === 'undefined') return null
   const escaped = name.replace(/[$()*+./?[\\\]^{|}-]/g, '\\$&')
@@ -47,7 +50,7 @@ const shouldAttachCsrf = (method?: string) => {
 
 apiClient.interceptors.request.use(config => {
   if (shouldAttachCsrf(config.method)) {
-    const token = getCookie('XSRF-TOKEN')
+    const token = getCookie('XSRF-TOKEN') || csrfTokenFromApi
     if (token) {
       config.headers = config.headers ?? {}
       config.headers['X-XSRF-TOKEN'] = token
@@ -57,7 +60,16 @@ apiClient.interceptors.request.use(config => {
 })
 
 apiClient.interceptors.response.use(
-  response => response,
+  response => {
+    const url = response.config?.url
+    if (typeof url === 'string' && url.includes('/auth/csrf')) {
+      const data: unknown = response.data
+      if (isRecord(data) && isString(data.token)) {
+        csrfTokenFromApi = data.token
+      }
+    }
+    return response
+  },
   async (error: AxiosError) => {
     if (!isRetryableError(error)) {
       return Promise.reject(error)

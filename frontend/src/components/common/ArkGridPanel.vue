@@ -276,6 +276,14 @@ interface ParsedTooltip {
   lines: string[]
 }
 
+const stripTrailingBars = (value: string) => value.replace(/\s*\|{2,}\s*$/g, '').trim()
+
+const normalizeTooltipLines = (lines: string[]) => {
+  return lines
+    .map(line => stripTrailingBars(line))
+    .filter(line => line.length > 0 && line !== '||')
+}
+
 const stripStageKeywords = (value?: string | null) => {
   if (!value) return ''
   return value
@@ -290,8 +298,14 @@ const stripStageKeywords = (value?: string | null) => {
     .trim()
 }
 
+const stripTierPrefix = (value: string) =>
+  value
+    .replace(/^\s*\d+\s*티어\s*/i, '')
+    .replace(/^\s*티어\s*\d+\s*/i, '')
+    .trim()
+
 const parseTooltip = (tooltip?: string | null): ParsedTooltip => {
-  const lines = flattenTooltipLines(tooltip)
+  const lines = normalizeTooltipLines(flattenTooltipLines(tooltip))
   const [title, ...rest] = lines
   return {
     title: title || '',
@@ -434,17 +448,46 @@ const pointSummary = computed(() => parsePointSummary(arkPassive.value?.points))
 
 const arkPassiveTitle = computed(() => sanitizeInline(arkPassive.value?.title) || '루트 정보 미상')
 
+const derivePassiveName = (
+  effect: ArkPassiveEffect,
+  tooltip: ParsedTooltip,
+  levelLine: string
+) => {
+  const sectionLabels = new Set(PASSIVE_SECTIONS.map(section => section.label))
+  const candidates = [
+    sanitizeInline(effect.name),
+    sanitizeInline(tooltip.title),
+    sanitizeInline(effect.description),
+    ...tooltip.lines
+  ]
+
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    if (candidate.includes('아크 패시브 레벨')) continue
+    if (candidate === levelLine) continue
+
+    const cleaned = stripTierPrefix(stripStageKeywords(candidate))
+    if (!cleaned) continue
+    if (sectionLabels.has(cleaned)) continue
+    return cleaned
+  }
+
+  const fallback = stripTierPrefix(stripStageKeywords(sanitizeInline(effect.name))) || sanitizeInline(effect.name)
+  return fallback
+}
+
 const buildPassiveCard = (effect: ArkPassiveEffect, index: number): PassiveCard => {
   const tooltip = parseTooltip(effect.toolTip)
   const tierLabel = sanitizeInline(effect.description)
-  const levelLine =
+  const levelLine = stripTrailingBars(
     tooltip.lines.find(line => line.includes('아크 패시브 레벨')) || tooltip.title || '아크 패시브 레벨 정보 없음'
+  )
   const lastLineCandidate = tooltip.lines.length ? tooltip.lines[tooltip.lines.length - 1] : tooltip.title
-  const summaryLine =
+  const summaryLine = stripTrailingBars(
     lastLineCandidate && lastLineCandidate !== levelLine ? lastLineCandidate : tooltip.lines.find(line => line !== levelLine) || ''
+  )
 
-  const name = sanitizeInline(effect.name)
-  const displayName = stripStageKeywords(name) || name
+  const displayName = derivePassiveName(effect, tooltip, levelLine)
   const levelValueMatch = levelLine.match(/(\d+)/)
   const levelValue = levelValueMatch ? Number(levelValueMatch[1]) : null
   const levelDisplay = levelValue ? `레벨 ${levelValue}` : ''

@@ -46,7 +46,8 @@ server:
   servlet:
     session:
       cookie:
-        same-site: Lax
+        same-site: ${SESSION_COOKIE_SAME_SITE:Lax}
+        secure: ${SESSION_COOKIE_SECURE:false}
 
 # Discord Bot
 discord:
@@ -65,3 +66,8 @@ app:
     success-redirect-path: ${FRONTEND_LOGIN_REDIRECT_PATH:/raid-schedule}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:8081}
+  security:
+    csrf:
+      cookie:
+        same-site: ${CSRF_COOKIE_SAME_SITE:Lax}
+        secure: ${CSRF_COOKIE_SECURE:false}
