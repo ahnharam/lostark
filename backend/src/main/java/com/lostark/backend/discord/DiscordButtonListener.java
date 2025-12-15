@@ -2,6 +2,7 @@ package com.lostark.backend.discord;
 
 import com.lostark.backend.raid.entity.ParticipantStatus;
 import com.lostark.backend.raid.service.RaidParticipantService;
+import com.lostark.backend.friend.service.FriendshipService;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -18,9 +19,14 @@ import org.springframework.stereotype.Component;
 public class DiscordButtonListener extends ListenerAdapter {
 
     private final RaidParticipantService raidParticipantService;
+    private final FriendshipService friendshipService;
 
-    public DiscordButtonListener(@Lazy RaidParticipantService raidParticipantService) {
+    public DiscordButtonListener(
+            @Lazy RaidParticipantService raidParticipantService,
+            @Lazy FriendshipService friendshipService
+    ) {
         this.raidParticipantService = raidParticipantService;
+        this.friendshipService = friendshipService;
     }
 
     @Override
@@ -40,6 +46,16 @@ public class DiscordButtonListener extends ListenerAdapter {
             } else if (componentId.startsWith("raid_change_")) {
                 Long raidId = extractRaidId(componentId, "raid_change_");
                 showChangeReasonModal(event, raidId);
+            } else if (componentId.startsWith("friend_accept_")) {
+                Long requestId = extractRaidId(componentId, "friend_accept_");
+                friendshipService.respondToRequestFromDiscord(requestId, discordUserId, true);
+                event.reply("✅ 친구 요청을 수락했어요.").setEphemeral(true).queue();
+                disableButtons(event);
+            } else if (componentId.startsWith("friend_decline_")) {
+                Long requestId = extractRaidId(componentId, "friend_decline_");
+                friendshipService.respondToRequestFromDiscord(requestId, discordUserId, false);
+                event.reply("❌ 친구 요청을 거절했어요.").setEphemeral(true).queue();
+                disableButtons(event);
             }
         } catch (Exception e) {
             log.error("버튼 처리 실패", e);

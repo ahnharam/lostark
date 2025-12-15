@@ -216,4 +216,85 @@ public class DiscordBotClient {
             }
         });
     }
+
+    /**
+     * 친구 요청 DM 발송
+     */
+    public CompletableFuture<String> sendFriendRequestDm(
+            String addresseeDiscordUserId,
+            Long requestId,
+            String requesterName
+    ) {
+        if (!isAvailable()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Discord 봇이 연결되지 않았습니다."));
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                User user = jda.retrieveUserById(addresseeDiscordUserId).complete();
+                PrivateChannel channel = user.openPrivateChannel().complete();
+
+                EmbedBuilder embed = new EmbedBuilder()
+                        .setTitle("👥 친구 요청")
+                        .setColor(Color.CYAN)
+                        .setDescription("**" + requesterName + "** 님이 친구 요청을 보냈습니다.")
+                        .setFooter("아래 버튼으로 수락/거절을 선택해 주세요.");
+
+                MessageCreateData message = new MessageCreateBuilder()
+                        .addEmbeds(embed.build())
+                        .addActionRow(
+                                Button.success("friend_accept_" + requestId, "✅ 수락"),
+                                Button.danger("friend_decline_" + requestId, "❌ 거절")
+                        )
+                        .build();
+
+                return channel.sendMessage(message).complete().getId();
+            } catch (Exception e) {
+                log.error("친구 요청 DM 발송 실패: userId={}", addresseeDiscordUserId, e);
+                throw new RuntimeException("친구 요청 DM 발송 실패", e);
+            }
+        });
+    }
+
+    /**
+     * 친구 요청 응답 알림 (요청자에게 DM)
+     */
+    public CompletableFuture<Void> sendFriendResponseNotification(
+            String requesterDiscordId,
+            String addresseeName,
+            String status
+    ) {
+        if (!isAvailable()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Discord 봇이 연결되지 않았습니다."));
+        }
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                User user = jda.retrieveUserById(requesterDiscordId).complete();
+                PrivateChannel channel = user.openPrivateChannel().complete();
+
+                String emoji = switch (status) {
+                    case "ACCEPTED", "ACCEPTED_AUTO" -> "✅";
+                    case "DECLINED" -> "❌";
+                    default -> "📋";
+                };
+
+                String statusText = switch (status) {
+                    case "ACCEPTED" -> "수락";
+                    case "ACCEPTED_AUTO" -> "자동 수락";
+                    case "DECLINED" -> "거절";
+                    default -> status;
+                };
+
+                EmbedBuilder embed = new EmbedBuilder()
+                        .setTitle(emoji + " 친구 요청 " + statusText)
+                        .setColor(status.startsWith("ACCEPTED") ? Color.GREEN : Color.RED)
+                        .setDescription("상대: **" + addresseeName + "**");
+
+                channel.sendMessageEmbeds(embed.build()).queue();
+            } catch (Exception e) {
+                log.error("친구 응답 알림 DM 실패: requesterId={}", requesterDiscordId, e);
+            }
+        });
+    }
 }

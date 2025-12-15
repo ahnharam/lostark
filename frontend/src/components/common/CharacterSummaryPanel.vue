@@ -1108,6 +1108,25 @@ const avatarSlotBuckets = computed(() => {
   return { entries, extras }
 })
 
+const avatarVisibleSlotEntries = computed(() => {
+  const entries = avatarSlotBuckets.value.entries
+
+  const fullSlot = entries.find(entry => entry.key === 'full')
+  const topSlot = entries.find(entry => entry.key === 'top')
+  const bottomSlot = entries.find(entry => entry.key === 'bottom')
+
+  const hasFull = (fullSlot?.inner || fullSlot?.outer) != null
+  const hasTopBottom = (topSlot?.inner || topSlot?.outer || bottomSlot?.inner || bottomSlot?.outer) != null
+
+  if (hasFull) {
+    return entries.filter(entry => entry.key !== 'top' && entry.key !== 'bottom')
+  }
+  if (hasTopBottom) {
+    return entries.filter(entry => entry.key !== 'full')
+  }
+  return entries
+})
+
 const splitAvatarSlots = (slots: typeof avatarSlotBuckets.value.entries, layout: 'left' | 'right') =>
   slots.map(slot => {
     const single = AVATAR_SINGLE_SLOT_KEYS.includes(slot.key)
@@ -1127,12 +1146,12 @@ const splitAvatarSlots = (slots: typeof avatarSlotBuckets.value.entries, layout:
   })
 
 const avatarLeftSlots = computed(() => {
-  const slots = avatarSlotBuckets.value.entries.filter(slot => AVATAR_LEFT_KEYS.includes(slot.key))
+  const slots = avatarVisibleSlotEntries.value.filter(slot => AVATAR_LEFT_KEYS.includes(slot.key))
   return splitAvatarSlots(slots, 'left')
 })
 
 const avatarRightSlots = computed(() => {
-  const slots = avatarSlotBuckets.value.entries.filter(slot => AVATAR_RIGHT_KEYS.includes(slot.key))
+  const slots = avatarVisibleSlotEntries.value.filter(slot => AVATAR_RIGHT_KEYS.includes(slot.key))
   return splitAvatarSlots(slots, 'right')
 })
 const avatarExtraSlots = computed(() => avatarSlotBuckets.value.extras)

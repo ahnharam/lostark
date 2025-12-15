@@ -74,14 +74,26 @@ import { useRoute, useRouter } from 'vue-router'
 import CharacterSearch from './CharacterSearch.vue'
 import ReforgeMenu from './ReforgeMenu.vue'
 import AuctionMenu from './AuctionMenu.vue'
+import FriendManager from './FriendManager.vue'
 import LifeMenu from './LifeMenu.vue'
 import AdminStats from './AdminStats.vue'
 import RaidSchedule from './RaidSchedule.vue'
+import CharacterManager from './CharacterManager.vue'
+import RaidPartyManager from './RaidPartyManager.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
 import { useTheme } from '@/composables/useTheme'
 import { lostarkApi } from '@/api/lostark'
 
-type MainMenuKey = 'character-search' | 'reforge' | 'auction' | 'raid-schedule' | 'life' | 'admin'
+type MainMenuKey =
+  | 'character-search'
+  | 'reforge'
+  | 'auction'
+  | 'raid-schedule'
+  | 'raid-party'
+  | 'friends'
+  | 'characters'
+  | 'life'
+  | 'admin'
 
 interface MainMenuItem {
   key: MainMenuKey
@@ -96,6 +108,9 @@ const menuItems: MainMenuItem[] = [
   { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: 'NEW' },
   { key: 'auction', label: '경매', icon: '💰', available: true, badge: 'DB' },
   { key: 'raid-schedule', label: '레이드 일정', icon: '🗓️', available: true, badge: 'T4' },
+  { key: 'raid-party', label: '레이드 모집', icon: '🧩', available: true, badge: 'DM' },
+  { key: 'friends', label: '친구', icon: '👥', available: true, badge: 'DM' },
+  { key: 'characters', label: '내 캐릭터', icon: '🪪', available: true },
   { key: 'life', label: '생활', icon: '🌿', available: false, badge: '준비 중' },
   { key: 'admin', label: '관리 (내부)', icon: '🛠️', available: true }
 ]
@@ -108,6 +123,9 @@ const normalizeMenu = (value: unknown): MainMenuKey => {
     value === 'reforge' ||
     value === 'auction' ||
     value === 'raid-schedule' ||
+    value === 'raid-party' ||
+    value === 'friends' ||
+    value === 'characters' ||
     value === 'life' ||
     value === 'admin'
   )
@@ -157,6 +175,9 @@ const componentMap: Record<MainMenuKey, unknown> = {
   reforge: ReforgeMenu,
   auction: AuctionMenu,
   'raid-schedule': RaidSchedule,
+  'raid-party': RaidPartyManager,
+  friends: FriendManager,
+  characters: CharacterManager,
   life: LifeMenu,
   admin: AdminStats
 }
