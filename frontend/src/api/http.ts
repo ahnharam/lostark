@@ -26,7 +26,33 @@ const isRetryableError = (error: AxiosError): error is AxiosError & { config: Re
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
-  timeout: 10000
+  timeout: 10000,
+  withCredentials: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN'
+})
+
+const getCookie = (name: string) => {
+  if (typeof document === 'undefined') return null
+  const escaped = name.replace(/[$()*+./?[\\\]^{|}-]/g, '\\$&')
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+const shouldAttachCsrf = (method?: string) => {
+  const normalized = (method || 'get').toUpperCase()
+  return normalized !== 'GET' && normalized !== 'HEAD' && normalized !== 'OPTIONS'
+}
+
+apiClient.interceptors.request.use(config => {
+  if (shouldAttachCsrf(config.method)) {
+    const token = getCookie('XSRF-TOKEN')
+    if (token) {
+      config.headers = config.headers ?? {}
+      config.headers['X-XSRF-TOKEN'] = token
+    }
+  }
+  return config
 })
 
 apiClient.interceptors.response.use(

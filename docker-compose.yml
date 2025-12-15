@@ -36,6 +36,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     container_name: lostark-backend-dev
+    env_file:
+      - .env
     working_dir: /workspace
     command: ["./gradlew", "bootRun", "--no-daemon"]
     ports:

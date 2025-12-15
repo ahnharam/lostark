@@ -76,11 +76,12 @@ import ReforgeMenu from './ReforgeMenu.vue'
 import AuctionMenu from './AuctionMenu.vue'
 import LifeMenu from './LifeMenu.vue'
 import AdminStats from './AdminStats.vue'
+import RaidSchedule from './RaidSchedule.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
 import { useTheme } from '@/composables/useTheme'
 import { lostarkApi } from '@/api/lostark'
 
-type MainMenuKey = 'character-search' | 'reforge' | 'auction' | 'life' | 'admin'
+type MainMenuKey = 'character-search' | 'reforge' | 'auction' | 'raid-schedule' | 'life' | 'admin'
 
 interface MainMenuItem {
   key: MainMenuKey
@@ -94,6 +95,7 @@ const menuItems: MainMenuItem[] = [
   { key: 'character-search', label: '캐릭터 검색', icon: '🧭', available: true, badge: '기본' },
   { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: 'NEW' },
   { key: 'auction', label: '경매', icon: '💰', available: true, badge: 'DB' },
+  { key: 'raid-schedule', label: '레이드 일정', icon: '🗓️', available: true, badge: 'T4' },
   { key: 'life', label: '생활', icon: '🌿', available: false, badge: '준비 중' },
   { key: 'admin', label: '관리 (내부)', icon: '🛠️', available: true }
 ]
@@ -102,7 +104,14 @@ const router = useRouter()
 const route = useRoute()
 
 const normalizeMenu = (value: unknown): MainMenuKey => {
-  if (value === 'reforge' || value === 'auction' || value === 'life' || value === 'admin') return value
+  if (
+    value === 'reforge' ||
+    value === 'auction' ||
+    value === 'raid-schedule' ||
+    value === 'life' ||
+    value === 'admin'
+  )
+    return value
   return 'character-search'
 }
 
@@ -147,6 +156,7 @@ const componentMap: Record<MainMenuKey, unknown> = {
   'character-search': CharacterSearch,
   reforge: ReforgeMenu,
   auction: AuctionMenu,
+  'raid-schedule': RaidSchedule,
   life: LifeMenu,
   admin: AdminStats
 }

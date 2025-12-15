@@ -13,6 +13,7 @@ frontend/.env.local
 
 # Backend
 backend/build/
+backend/build_root_*/
 backend/target/
 backend/.gradle/
 backend/out/
