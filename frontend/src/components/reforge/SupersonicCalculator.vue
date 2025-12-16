@@ -1,149 +1,161 @@
 <template>
-  <div class="supersonic-page">
-    <div class="supersonic-grid">
-      <section class="panel-card input-panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">음속 돌파 계산기</p>
-            <h3>신속 기반 공이속 계산</h3>
-            <p class="muted">신속 스탯, 버프, 혼돈 코어를 합산해 목표 공이속을 맞춰 보세요.</p>
+  <div class="supersonic-calculator">
+    <div class="calc-grid">
+      <section class="panel-card input-card">
+        <div class="card-head">
+          <div class="card-head-title">
+            <p class="eyebrow">자버프</p>
+            <div class="pill-note">신속 1 당 {{ swiftPerStat }}%</div>
           </div>
-          <div class="pill-note">신속 1 당 {{ swiftPerStat }}%</div>
+
+            <div class="level-toggle">
+              <button
+                v-for="level in supersonicLevels"
+                :key="level.key"
+                type="button"
+                class="level-btn"
+                :class="{ active: selectedSupersonicLevel === level.key && selectedSupersonicTarget === 'max' }"
+                @click="selectSupersonicLevel(level.key)"
+              >
+                {{ level.label }} ({{ level.maxBonus }}%)
+              </button>
+              <button
+                type="button"
+                class="level-btn"
+                :class="{ active: selectedSupersonicTarget === 'iptar21' }"
+                @click="selectSupersonicIptar21"
+              >
+                입타 (21%)
+              </button>
+            </div>
         </div>
 
-        <div class="field-grid">
-          <div class="field-block">
-            <p class="group-title">직업 각인</p>
-            <div class="dual-grid">
-              <label class="input-field">
-                <span>공격속도 버프 (%)</span>
-                <input v-model.number="engravingAtk" type="number" min="0" step="0.1" />
-              </label>
-              <label class="input-field">
-                <span>이동속도 버프 (%)</span>
-                <input v-model.number="engravingMove" type="number" min="0" step="0.1" />
-              </label>
-            </div>
-          </div>
 
-          <div class="field-block">
-            <p class="group-title">스킬 트라이포드</p>
-            <div class="dual-grid">
-              <label class="input-field">
-                <span>공격속도 버프 (%)</span>
-                <input v-model.number="tripodAtk" type="number" min="0" step="0.1" />
-              </label>
-              <label class="input-field">
-                <span>이동속도 버프 (%)</span>
-                <input v-model.number="tripodMove" type="number" min="0" step="0.1" />
-              </label>
-            </div>
-          </div>
+        <p class="group-title">직업 각인</p>
+        <div class="form-grid">
+          <label class="input-field">
+            <span>공격속도 버프 (%)</span>
+            <input v-model.number="engravingAtk" type="number" min="0" step="0.1" />
+          </label>
+          <label class="input-field">
+            <span>이동속도 버프 (%)</span>
+            <input v-model.number="engravingMove" type="number" min="0" step="0.1" />
+          </label>
+        </div>
 
-          <div class="field-block">
+        <p class="group-title">스킬 트라이포드</p>
+        <div class="form-grid">
+          <label class="input-field">
+            <span>공격속도 버프 (%)</span>
+            <input v-model.number="tripodAtk" type="number" min="0" step="0.1" />
+          </label>
+          <label class="input-field">
+            <span>이동속도 버프 (%)</span>
+            <input v-model.number="tripodMove" type="number" min="0" step="0.1" />
+          </label>
+        </div>
+
+        <div class="inline-row">
+          <div>
             <p class="group-title">팔찌</p>
             <label class="input-field">
               <span>공이속 버프 (%)</span>
               <input v-model.number="braceletAtk" type="number" min="0" step="0.1" />
             </label>
           </div>
-
-          <div class="field-block">
-            <p class="group-title">버프 효과</p>
-            <div class="checkbox-grid">
-              <label class="checkbox">
-                <input v-model="buffSupport" type="checkbox" />
-                서포터 버프 (갈망 +9%)
-              </label>
-              <label class="checkbox">
-                <input v-model="buffMeal" type="checkbox" />
-                공속 음식 (+3%)
-              </label>
-              <label class="checkbox">
-                <input v-model="buffFeast" type="checkbox" />
-                공이속 만찬 (+5%)
-              </label>
-              <label class="checkbox warning">
-                <input v-model="buffMassIncrease" type="checkbox" />
-                질량 증가 (-10%)
-              </label>
-            </div>
+          <div>
           </div>
+        </div>
 
-          <div class="field-block">
-            <p class="group-title">아크 그리드 (혼돈 코어)</p>
-            <div class="inline-grid">
-              <label class="input-field">
-                <span>혼돈의 해: 재빠른 공격</span>
-                <select v-model.number="seaFastAttack">
-                  <option v-for="option in seaOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <label class="input-field">
-                <span>혼돈의 별: 속도</span>
-                <select v-model="starSpeedKey">
-                  <option v-for="option in starOptions" :key="option.key" :value="option.key">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-            </div>
+        <div class="subsection-head">
+          <p class="group-title">아크 그리드 (혼돈 코어)</p>
+          <div class="pill-note">신속 기여 {{ formatPercent(swiftContribution) }}%</div>
+        </div>
+        <div class="form-grid form-grid-compact">
+          <label class="input-field">
+            <span>혼돈의 해: 재빠른 공격</span>
+            <select v-model.number="seaFastAttack">
+              <option v-for="option in seaOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="input-field">
+            <span>혼돈의 별: 속도</span>
+            <select v-model="starSpeedKey">
+              <option v-for="option in starOptions" :key="option.key" :value="option.key">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+        </div>
+      </section>
+      <section></section>
+      <section class="panel-card buff-card">
+        <div class="card-head">
+          <div class="card-head-title">
+            <p class="eyebrow">버프 효과</p>
+            <div class="pill-note">공속 {{ formatSigned(buffAttack) }}% / 이속 {{ formatSigned(buffMove) }}%</div>
           </div>
+        </div>
 
-          <div class="field-block">
-            <p class="group-title">목표 / 신속</p>
-            <div class="dual-grid">
-              <label class="input-field">
-                <span>목표 공격속도 (%)</span>
-                <input v-model.number="targetAttack" type="number" min="0" step="0.1" />
-              </label>
-              <label class="input-field">
-                <span>목표 이동속도 (%)</span>
-                <input v-model.number="targetMove" type="number" min="0" step="0.1" />
-              </label>
-            </div>
-            <label class="input-field">
-              <span>현재 신속 스탯</span>
-              <input v-model.number="swiftStat" type="number" min="0" step="1" />
-            </label>
-          </div>
+        <div class="buff-grid">
+          <button
+            v-for="buff in buffOptions"
+            :key="buff.key"
+            type="button"
+            class="buff-chip"
+            :class="{
+              active: isBuffActive(buff.key),
+              warning: buff.variant === 'warning'
+            }"
+            @click="toggleBuff(buff.key)"
+          >
+            <span>{{ buff.label }}</span>
+            <span class="chip-value">{{ formatSigned(buff.value) }}%</span>
+          </button>
         </div>
       </section>
 
-      <section class="panel-card result-panel">
+      <section class="panel-card result-card">
         <div class="result-grid">
+          <div class="result-box primary">
+            <p class="eyebrow">현재 음돌 피해증가</p>
+            <p class="result-value">{{ formatPercent(currentSupersonicBonus) }}%</p>
+            <p class="muted">최대 {{ selectedSupersonicConfig.maxBonus }}% 중</p>
+          </div>
+          <div class="result-box">
+            <p class="eyebrow">필요 신속 스탯</p>
+            <p class="result-value">{{ requiredSwiftForTarget === null ? '-' : formatNumber(requiredSwiftForTarget) }}</p>
+            <p class="muted">
+              추가 필요 {{ remainingSwiftForTarget === null ? '-' : formatNumber(remainingSwiftForTarget) }}
+            </p>
+          </div>
           <div class="result-box">
             <p class="eyebrow">현재 공격속도</p>
-            <p class="result-value">{{ formatPercent(currentAttack) }}%</p>
-            <p class="muted">신속 포함</p>
+            <p class="result-value">{{ formatPercent(currentAttackTotalCapped) }}%</p>
+            <p class="muted">상한 적용 <br/> (초과 {{ formatPercent(attackOverCap) }}%)</p>
           </div>
           <div class="result-box">
             <p class="eyebrow">현재 이동속도</p>
-            <p class="result-value">{{ formatPercent(currentMove) }}%</p>
-            <p class="muted">신속 포함</p>
-          </div>
-          <div class="result-box highlight">
-            <p class="eyebrow">필요 신속 스탯</p>
-            <p class="result-value large">{{ formatNumber(requiredSwift) }}</p>
-            <p class="muted">목표 공/이속 기준 최대 필요값</p>
+            <p class="result-value">{{ formatPercent(currentMoveTotalCapped) }}%</p>
+            <p class="muted">상한 적용 <br/> (초과 {{ formatPercent(moveOverCap) }}%)</p>
           </div>
         </div>
 
-        <div class="breakdown-card">
+        <div class="breakdown">
           <div class="breakdown-head">
             <p class="eyebrow">합산 버프 상세</p>
-            <span class="pill-note">신속 기여 {{ formatPercent(swiftContribution) }}%</span>
+            <span class="pill-note">총 {{ formatSigned(totalSpeedIncrease) }}%</span>
           </div>
-          <div class="breakdown-list">
-            <div v-for="row in breakdownRows" :key="row.label" class="breakdown-row">
-              <span>{{ row.label }}</span>
-              <span class="value">+{{ formatPercent(row.value) }}%</span>
-            </div>
+        <div class="breakdown-body">
+          <div v-for="row in breakdownRows" :key="row.label" class="breakdown-row">
+            <span>{{ row.label }}</span>
+            <span class="value" :class="{ negative: row.value < 0 }">{{ formatSigned(row.value) }}%</span>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
     </div>
   </div>
 </template>
@@ -152,6 +164,23 @@
 import { computed, ref } from 'vue'
 
 const swiftPerStat = 0.0172
+
+type SupersonicLevelKey = 'level1' | 'level2'
+type SupersonicTargetKey = 'max' | 'iptar21'
+
+type SupersonicLevelConfig = {
+  key: SupersonicLevelKey
+  label: string
+  baseRatio: number
+  overCapRatio: number
+  bothOverCapBonus: number
+  maxBonus: number
+}
+
+const supersonicLevels: SupersonicLevelConfig[] = [
+  { key: 'level1', label: '1레벨', baseRatio: 0.05, overCapRatio: 0.15, bothOverCapBonus: 4, maxBonus: 12 },
+  { key: 'level2', label: '2레벨', baseRatio: 0.1, overCapRatio: 0.3, bothOverCapBonus: 8, maxBonus: 24 }
+]
 
 type StarSpeedKey =
   | 'none'
@@ -200,17 +229,73 @@ const buffMeal = ref(false)
 const buffFeast = ref(false)
 const buffMassIncrease = ref(false)
 
+type BuffKey = 'support' | 'meal' | 'feast' | 'massIncrease'
+type BuffVariant = 'default' | 'warning'
+
+const buffOptions: Array<{ key: BuffKey; label: string; value: number; variant?: BuffVariant }> = [
+  { key: 'support', label: '서포터 버프 (갈망)', value: 9 },
+  { key: 'meal', label: '공속 음식', value: 3 },
+  { key: 'feast', label: '공이속 만찬', value: 5 },
+  { key: 'massIncrease', label: '질량 증가', value: -10, variant: 'warning' }
+]
+
 const seaFastAttack = ref(0)
 const starSpeedKey = ref<StarSpeedKey>('none')
 
-const targetAttack = ref(140)
-const targetMove = ref(140)
 const swiftStat = ref(0)
+
+const selectedSupersonicLevel = ref<SupersonicLevelKey>('level2')
+const selectedSupersonicTarget = ref<SupersonicTargetKey>('max')
+
+const selectSupersonicLevel = (level: SupersonicLevelKey) => {
+  selectedSupersonicLevel.value = level
+  selectedSupersonicTarget.value = 'max'
+}
+
+const selectSupersonicIptar21 = () => {
+  selectedSupersonicLevel.value = 'level2'
+  selectedSupersonicTarget.value = 'iptar21'
+}
+
+const isBuffActive = (key: BuffKey) => {
+  if (key === 'support') return buffSupport.value
+  if (key === 'meal') return buffMeal.value
+  if (key === 'feast') return buffFeast.value
+  return buffMassIncrease.value
+}
+
+const toggleBuff = (key: BuffKey) => {
+  if (key === 'support') {
+    buffSupport.value = !buffSupport.value
+    return
+  }
+  if (key === 'meal') {
+    buffMeal.value = !buffMeal.value
+    return
+  }
+  if (key === 'feast') {
+    buffFeast.value = !buffFeast.value
+    return
+  }
+  buffMassIncrease.value = !buffMassIncrease.value
+}
 
 const defaultStar = starOptions[0] ?? { key: 'none', label: '없음', attack: 0, move: 0 }
 const selectedStar = computed(
   () => starOptions.find(option => option.key === starSpeedKey.value) ?? defaultStar
 )
+
+const selectedSupersonicConfig = computed(() => {
+  const fallback = supersonicLevels[0] ?? {
+    key: 'level1',
+    label: '1레벨',
+    baseRatio: 0.05,
+    overCapRatio: 0.15,
+    bothOverCapBonus: 4,
+    maxBonus: 12
+  }
+  return supersonicLevels.find(level => level.key === selectedSupersonicLevel.value) ?? fallback
+})
 
 const buffAttack = computed(() => {
   let value = 0
@@ -224,10 +309,11 @@ const buffAttack = computed(() => {
 const buffMove = computed(() => {
   let value = 0
   if (buffSupport.value) value += 9
-  if (buffMeal.value) value += 3
   if (buffFeast.value) value += 5
   return value
 })
+
+const truncateToTenth = (value: number) => Math.floor(value * 10) / 10
 
 const swiftContribution = computed(() => Number((swiftStat.value * swiftPerStat).toFixed(3)))
 
@@ -242,18 +328,92 @@ const baseAttack = computed(
 )
 
 const baseMove = computed(
-  () => engravingMove.value + tripodMove.value + buffMove.value + selectedStar.value.move
+  () =>
+    engravingMove.value +
+    tripodMove.value +
+    braceletAtk.value +
+    buffMove.value +
+    selectedStar.value.move
 )
 
-const currentAttack = computed(() => Number((baseAttack.value + swiftContribution.value).toFixed(2)))
-const currentMove = computed(() => Number((baseMove.value + swiftContribution.value).toFixed(2)))
+const currentAttackIncrease = computed(() =>
+  Number((truncateToTenth(baseAttack.value + swiftContribution.value)).toFixed(1))
+)
+const currentMoveIncrease = computed(() => Number((truncateToTenth(baseMove.value + swiftContribution.value)).toFixed(1)))
 
-const requiredSwift = computed(() => {
-  const needAttack = Math.max(0, targetAttack.value - baseAttack.value)
-  const needMove = Math.max(0, targetMove.value - baseMove.value)
-  const worstNeed = Math.max(needAttack, needMove)
-  return Math.ceil(worstNeed / swiftPerStat)
+const currentAttackTotal = computed(() => 100 + currentAttackIncrease.value)
+const currentMoveTotal = computed(() => 100 + currentMoveIncrease.value)
+
+const currentAttackTotalCapped = computed(() => Math.min(140, currentAttackTotal.value))
+const currentMoveTotalCapped = computed(() => Math.min(140, currentMoveTotal.value))
+
+const attackOverCap = computed(() => Math.max(0, currentAttackTotal.value - 140))
+const moveOverCap = computed(() => Math.max(0, currentMoveTotal.value - 140))
+
+const computeSupersonicBonus = (swift: number, config: SupersonicLevelConfig) => {
+  const swiftSpeed = swift * swiftPerStat
+  const attackTotal = truncateToTenth(100 + baseAttack.value + swiftSpeed)
+  const moveTotal = truncateToTenth(100 + baseMove.value + swiftSpeed)
+
+  const cappedAttackIncrease = Math.max(0, Math.min(140, attackTotal) - 100)
+  const cappedMoveIncrease = Math.max(0, Math.min(140, moveTotal) - 100)
+
+  const attackOver = Math.max(0, attackTotal - 140)
+  const moveOver = Math.max(0, moveTotal - 140)
+  const hasBothOver = attackOver > 0 && moveOver > 0
+
+  const baseBonus = (cappedAttackIncrease + cappedMoveIncrease) * config.baseRatio
+  const overCapBonus = hasBothOver
+    ? config.bothOverCapBonus + (attackOver + moveOver) * config.overCapRatio
+    : 0
+
+  return Math.min(config.maxBonus, baseBonus + overCapBonus)
+}
+
+const currentSupersonicBonus = computed(() =>
+  Number(computeSupersonicBonus(swiftStat.value, selectedSupersonicConfig.value).toFixed(3))
+)
+
+const targetSupersonicBonus = computed(() => {
+  if (selectedSupersonicTarget.value === 'iptar21') return 21
+  return selectedSupersonicConfig.value.maxBonus
 })
+
+const requiredSwiftForTarget = computed<number | null>(() => {
+  const config = selectedSupersonicConfig.value
+  const target = targetSupersonicBonus.value
+  const eps = 1e-8
+
+  if (target > config.maxBonus + eps) return null
+  if (computeSupersonicBonus(0, config) >= target - eps) return 0
+
+  let low = 0
+  let high = 1
+  while (high < 50000 && computeSupersonicBonus(high, config) < target - eps) {
+    high *= 2
+  }
+  if (high >= 50000) return 50000
+
+  while (low + 1 < high) {
+    const mid = Math.floor((low + high) / 2)
+    if (computeSupersonicBonus(mid, config) >= target - eps) {
+      high = mid
+    } else {
+      low = mid
+    }
+  }
+  return high
+})
+
+const remainingSwiftForTarget = computed<number | null>(() => {
+  const required = requiredSwiftForTarget.value
+  if (required === null) return null
+  return Math.max(0, required - swiftStat.value)
+})
+
+const totalSpeedIncrease = computed(() =>
+  Number((currentAttackIncrease.value + currentMoveIncrease.value).toFixed(3))
+)
 
 const breakdownRows = computed(() =>
   [
@@ -271,13 +431,37 @@ const breakdownRows = computed(() =>
 )
 
 const formatPercent = (value: number) => Number(value.toFixed(2))
+const formatSigned = (value: number) => (value < 0 ? `${formatPercent(value)}` : `+${formatPercent(value)}`)
 const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 </script>
 
 <style scoped>
-.supersonic-page {
+.supersonic-calculator {
   width: 100%;
-  display: flex;
+}
+
+.level-toggle {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.level-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.level-btn.active {
+  background: var(--primary-soft-bg);
+  color: var(--primary-color);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.12);
 }
 
 .eyebrow {
@@ -292,10 +476,10 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   font-size: 13px;
 }
 
-.supersonic-grid {
+.calc-grid {
   display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 16px;
+  grid-template-columns: 3fr 1fr 1fr 1fr;
+  gap: 14px;
   width: 100%;
 }
 
@@ -304,20 +488,21 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 16px;
-  box-shadow: var(--shadow-sm);
 }
 
-.input-panel {
+.card-head {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.panel-head {
-  display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+}
+
+.card-head-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom:10px;
 }
 
 .pill-note {
@@ -329,36 +514,33 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-secondary);
+  font-size: var(--font-sm);
   font-weight: 700;
 }
 
-.field-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.field-block {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .group-title {
+  margin: 14px 0 6px;
   font-weight: 800;
   color: var(--text-primary);
 }
 
-.dual-grid {
+.form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
 }
 
-.inline-grid {
+.form-grid-compact {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.inline-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  margin-top: 10px;
 }
 
 .input-field {
@@ -386,25 +568,64 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
-.checkbox-grid {
+.buff-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
+  margin-top: 14px;
 }
 
-.checkbox {
-  display: inline-flex;
+.buff-chip {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-.checkbox.warning {
+.buff-chip .chip-value {
+  color: var(--primary-color);
+}
+
+.buff-chip.warning {
   color: var(--danger-color, #dc2626);
 }
 
-.result-panel {
+.buff-chip.warning .chip-value {
+  color: var(--danger-color, #dc2626);
+}
+
+.buff-chip.active {
+  background: var(--primary-soft-bg);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.12);
+}
+
+.buff-chip.warning.active {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.35);
+  box-shadow: 0 8px 16px rgba(220, 38, 38, 0.12);
+}
+
+.subsection-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.subsection-head .group-title {
+  margin: 0;
+}
+
+.result-card {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -412,7 +633,7 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 
 .result-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
 
@@ -423,22 +644,18 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   background: var(--bg-secondary);
 }
 
-.result-box.highlight {
-  border-color: var(--primary-color);
-  background: var(--primary-soft-bg);
-}
-
 .result-value {
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: 800;
   margin: 4px 0;
 }
 
-.result-value.large {
-  font-size: 1.6rem;
+.result-box.primary {
+  border-color: var(--primary-color);
+  background: var(--primary-soft-bg);
 }
 
-.breakdown-card {
+.breakdown {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 12px;
@@ -452,7 +669,7 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   margin-bottom: 8px;
 }
 
-.breakdown-list {
+.breakdown-body {
   display: grid;
   gap: 6px;
 }
@@ -472,9 +689,18 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   color: var(--primary-color);
 }
 
+.breakdown-row .value.negative {
+  color: var(--danger-color, #dc2626);
+}
+
 @media (max-width: 1100px) {
-  .supersonic-grid {
+  .calc-grid {
     grid-template-columns: 1fr;
+  }
+
+  .buff-card,
+  .result-card {
+    grid-column: auto;
   }
 }
 </style>

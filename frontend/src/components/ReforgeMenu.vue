@@ -10,51 +10,30 @@
       </div>
       <div class="reforge-menu-bar__tabs">
         <button
+          v-for="tab in subMenuTabs"
+          :key="tab.key"
           type="button"
           class="reforge-menu-btn"
-          :class="{ active: activeSection === 'reforge' }"
-          @click="activeSection = 'reforge'"
+          :class="{ active: activeSubMenuTab === tab.key }"
+          @click="activeSubMenuTab = tab.key"
         >
-          제련
-        </button>
-        <button
-          type="button"
-          class="reforge-menu-btn"
-          :class="{ active: activeSection === 'optimization' }"
-          @click="activeSection = 'optimization'"
-        >
-          세팅 최적화
+          {{ tab.label }}
         </button>
       </div>
     </div>
 
-    <template v-if="activeSection === 'reforge'">
-      <header class="reforge-header">
-        <div>
-          <p class="eyebrow">제련 메뉴</p>
-          <h2>{{ activeReforgeLabel }} 최적화</h2>
-          <p class="lead">
-            이미지에 맞춰 제련/상급 제련 흐름을 3단 구성으로 배치했어요. 재료, 장비 정보, 결과를 한눈에
-            확인해 주세요.
-          </p>
-        </div>
-        <div class="header-actions">
-          <button class="pill pill-warning" type="button">주의사항</button>
-          <div class="tab-switch">
-            <button
-              v-for="tab in reforgeTabs"
-              :key="tab.key"
-              type="button"
-              class="tab-switch__btn"
-              :class="{ active: activeReforgeTab === tab.key }"
-              @click="activeReforgeTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-        </div>
-      </header>
+    <header class="reforge-header" :class="{ 'optimization-header': isCalculatorTab }">
+      <div>
+        <p class="eyebrow">{{ headerEyebrow }}</p>
+        <h2>{{ headerTitle }}</h2>
+        <p class="lead">{{ headerLead }}</p>
+      </div>
+      <div v-if="isReforgeTab" class="header-actions">
+        <button class="pill pill-warning" type="button">주의사항</button>
+      </div>
+    </header>
 
+    <template v-if="isReforgeTab">
       <div class="reforge-layout">
         <section class="panel material-panel">
           <div class="panel-header">
@@ -208,30 +187,9 @@
     </template>
 
     <template v-else>
-      <header class="reforge-header optimization-header">
-        <div>
-          <p class="eyebrow">세팅 최적화</p>
-          <h2>{{ activeOptimizationLabel }}</h2>
-          <p class="lead">
-            아크패시브 계산기를 통해 치명/신속 세팅을 빠르게 확인하세요.
-          </p>
-        </div>
-        <div class="tab-switch">
-          <button
-            v-for="tab in optimizationTabs"
-            :key="tab.key"
-            type="button"
-            class="tab-switch__btn"
-            :class="{ active: activeOptimizationTab === tab.key }"
-            @click="activeOptimizationTab = tab.key"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
-      </header>
       <div class="optimization-layout">
-        <BluntThornCalculator v-if="activeOptimizationTab === 'blunt-thorn'" />
-        <SupersonicCalculator v-else-if="activeOptimizationTab === 'supersonic'" />
+        <BluntThornCalculator v-if="activeSubMenuTab === 'blunt-thorn'" />
+        <SupersonicCalculator v-else-if="activeSubMenuTab === 'supersonic'" />
       </div>
     </template>
   </div>
@@ -242,9 +200,9 @@ import { computed, ref, watch } from 'vue'
 import BluntThornCalculator from './reforge/BluntThornCalculator.vue'
 import SupersonicCalculator from './reforge/SupersonicCalculator.vue'
 
-type ReforgeSection = 'reforge' | 'optimization'
-type OptimizationTab = 'blunt-thorn' | 'supersonic'
 type ReforgeTab = 'normal' | 'advanced'
+type OptimizationTab = 'blunt-thorn' | 'supersonic'
+type SubMenuTab = ReforgeTab | OptimizationTab
 type MaterialTab = 'price' | 'bound'
 type ScenarioTab = 'optimal' | 'partial' | 'full'
 type Rarity = 'rare' | 'epic' | 'legendary' | 'relic'
@@ -285,14 +243,11 @@ interface ScenarioInfo {
   rows: ScenarioRow[]
 }
 
-const reforgeTabs: Array<{ key: ReforgeTab; label: string }> = [
-  { key: 'normal', label: '제련' },
-  { key: 'advanced', label: '상급 제련' }
-]
-
-const optimizationTabs: Array<{ key: OptimizationTab; label: string }> = [
-  { key: 'blunt-thorn', label: '뭉가 계산기' },
-  { key: 'supersonic', label: '음돌 계산기' }
+const subMenuTabs: Array<{ key: SubMenuTab; label: string; kind: 'reforge' | 'optimization' }> = [
+  { key: 'normal', label: '제련', kind: 'reforge' },
+  { key: 'advanced', label: '상급 제련', kind: 'reforge' },
+  { key: 'blunt-thorn', label: '뭉가 계산기', kind: 'optimization' },
+  { key: 'supersonic', label: '음돌 계산기', kind: 'optimization' }
 ]
 
 const materialTabs: Array<{ key: MaterialTab; label: string }> = [
@@ -348,9 +303,8 @@ const scenarioPresets: Record<ReforgeTab, Record<ScenarioTab, ScenarioInfo>> = {
   }
 }
 
-const activeSection = ref<ReforgeSection>('reforge')
-const activeOptimizationTab = ref<OptimizationTab>('blunt-thorn')
 const activeReforgeTab = ref<ReforgeTab>('normal')
+const activeSubMenuTab = ref<SubMenuTab>('normal')
 const activeMaterialTab = ref<MaterialTab>('price')
 const activeScenarioTab = ref<ScenarioTab>('optimal')
 const applyResearch = ref(equipmentPresets[activeReforgeTab.value].applyResearch)
@@ -371,12 +325,28 @@ const totalChance = computed(() => {
   return Number(Math.min(100, chance).toFixed(2))
 })
 
-const activeReforgeLabel = computed(() => {
-  return reforgeTabs.find(tab => tab.key === activeReforgeTab.value)?.label ?? '제련'
+const isReforgeTab = computed(() => activeSubMenuTab.value === 'normal' || activeSubMenuTab.value === 'advanced')
+const isCalculatorTab = computed(
+  () => activeSubMenuTab.value === 'blunt-thorn' || activeSubMenuTab.value === 'supersonic'
+)
+
+const activeSubMenuLabel = computed(() => {
+  return subMenuTabs.find(tab => tab.key === activeSubMenuTab.value)?.label ?? '제련'
 })
 
-const activeOptimizationLabel = computed(() => {
-  return optimizationTabs.find(tab => tab.key === activeOptimizationTab.value)?.label ?? '세팅 최적화'
+const headerEyebrow = computed(() => (isReforgeTab.value ? '제련 메뉴' : '세팅 최적화'))
+const headerTitle = computed(() => (isReforgeTab.value ? `${activeSubMenuLabel.value} 최적화` : activeSubMenuLabel.value))
+const headerLead = computed(() => {
+  if (isReforgeTab.value) {
+    return '이미지에 맞춰 제련/상급 제련 흐름을 3단 구성으로 배치했어요. 재료, 장비 정보, 결과를 한눈에 확인해 주세요.'
+  }
+  return '아크패시브 계산기를 통해 치명/신속 세팅을 빠르게 확인하세요.'
+})
+
+watch(activeSubMenuTab, nextTab => {
+  if (nextTab === 'normal' || nextTab === 'advanced') {
+    activeReforgeTab.value = nextTab
+  }
 })
 
 watch(activeReforgeTab, () => {

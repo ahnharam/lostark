@@ -3,10 +3,9 @@
     <div class="calc-grid">
       <section class="panel-card input-card">
         <div class="card-head">
-          <p class="eyebrow">뭉툭한 가시 {{ bluntLevelLabel }}</p>
           <!-- <p class="muted">필요한 치명 스탯과 실시간 효율을 바로 확인해 보세요.</p> -->
           <div  class="card-head-title">
-            <h3>최대 {{ maxBluntValue }}%</h3>
+            <p class="eyebrow">뭉툭한 가시 {{ bluntLevelLabel }}</p>
             <div class="pill-note">치명 스탯 1 당 {{ critPerStat }}%</div>
           </div>
         </div>
@@ -27,24 +26,20 @@
         <p class="group-title">직접 입력</p>
         <div class="form-grid">
           <label class="input-field">
-            <span>치명 스탯</span>
+            <span>스탯</span>
             <input v-model.number="critStat" type="number" min="0" step="1" />
           </label>
           <label class="input-field">
-            <span>직업 각인 치명타 (%)</span>
+            <span>직업 각인 (%)</span>
             <input v-model.number="classEngravingCrit" type="number" min="0" step="0.1" />
           </label>
           <label class="input-field">
-            <span>치명타 트라이포드 (%)</span>
+            <span>트라이포드 (%)</span>
             <input v-model.number="tripodCrit" type="number" min="0" step="0.1" />
           </label>
           <label class="input-field">
-            <span>팔찌 치명타 (%)</span>
+            <span>팔찌 (%)</span>
             <input v-model.number="braceletCrit" type="number" min="0" step="0.1" />
-          </label>
-          <label class="input-field">
-            <span>서포터 약점 노출 (%)</span>
-            <input v-model.number="supportCrit" type="number" min="0" step="0.1" />
           </label>
         </div>
 
@@ -66,22 +61,8 @@
               </option>
             </select>
           </label>
-          <label class="input-field">
-            <span>구슬 동자</span>
-            <select v-model.number="beadBoyCrit">
-              <option v-for="option in beadBoyOptions" :key="option.value" :value="option.value">
-                {{ option.label }} ({{ option.value }}%)
-              </option>
-            </select>
-          </label>
-          <label class="input-field">
-            <span>구슬동자 돌</span>
-            <select v-model.number="beadSupportCrit">
-              <option v-for="option in beadSupportOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-          </label>
+          <div></div>
+          <div></div>
         </div>
 
         <p class="group-title">아크패시브</p>
@@ -111,7 +92,7 @@
             </select>
           </label>
           <label class="input-field">
-            <span>달인 엘릭서</span>
+            <span>달인</span>
             <select v-model.number="artisanElixirCrit">
               <option v-for="option in artisanElixirOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
@@ -128,10 +109,11 @@
                 <span>부수는 일격</span>
                 <select v-model.number="destructStrikeCrit">
                   <option v-for="option in arcGridOptions" :key="option.value" :value="option.value">
-                    {{ option.label }} ({{ option.value }}%)
+                    {{ option.label }}
                   </option>
                 </select>
               </label>
+              <div></div>
             </div>
           </div>
 
@@ -159,12 +141,46 @@
         </div>
       </section>
 
+      <section class="panel-card support-synergy-card">
+        <div class="card-head">
+          <div class="card-head-title">
+            <p class="eyebrow">서포터</p>
+            <div class="pill-note">총 +{{ (supportCrit + beadBoyCrit + beadSupportCrit).toFixed(2) }}%</div>
+          </div>
+        </div>
+
+        <div class="form-grid form-grid-compact">
+          <label class="input-field">
+            <span>서포터 팔찌 (%)</span>
+            <select v-model.number="supportCrit">
+              <option v-for="option in supportWeaknessOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="input-field">
+            <span>구슬 동자</span>
+            <select v-model.number="beadBoyCrit">
+              <option v-for="option in beadBoyOptions" :key="option.value" :value="option.value">
+                {{ option.label }} ({{ option.value }}%)
+              </option>
+            </select>
+          </label>
+          <label class="input-field">
+            <span>구슬동자 돌</span>
+            <select v-model.number="beadSupportCrit">
+              <option v-for="option in beadSupportOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+        </div>
+      </section>
+
       <section class="panel-card synergy-card">
         <div class="card-head">
-          <p class="eyebrow">치명타 시너지</p>
-            <!-- <p class="muted">한 번 클릭해서 팀 시너지나 포지션 보너스를 더해 주세요.</p> -->
-          <div>
-            <h3>클래스/포지션 시너지 토글</h3>
+          <div class="card-head-title">
+            <p class="eyebrow">시너지</p>
             <div class="pill-note">총 +{{ synergyCrit.toFixed(2) }}%</div>
           </div>
         </div>
@@ -202,7 +218,7 @@
             <p class="eyebrow">필요 치명 스탯</p>
             <p class="result-value">{{ formatNumber(requiredCritStat) }}</p>
             <p class="muted">
-              남은 필요 스탯 {{ formatNumber(remainingCritStat) }}
+              남은 필요 스탯 {{ formatNumber(remainingCritStat) }} <br/>
               (부족 {{ formatPercent(remainingCritPercent) }}%)
             </p>
           </div>
@@ -256,7 +272,7 @@ const synergyOptions: Array<{ key: SynergyKey; label: string; value: number }> =
   { key: 'backAttack', label: '백어택', value: 10 }
 ]
 
-const selectedBluntLevel = ref<BluntLevelKey>('level1')
+const selectedBluntLevel = ref<BluntLevelKey>('level2')
 const critStat = ref<number>(0)
 const classEngravingCrit = ref<number>(0)
 const tripodCrit = ref<number>(0)
@@ -297,7 +313,7 @@ const bluntLevelLabel = computed(() => {
 
 const adrenalineOptions = [
   { label: '없음', value: 0 },
-  { label: '전설 (4레벨)', value: 14.5 },
+  { label: '전설 4레벨', value: 14.5 },
   { label: '유물 1레벨', value: 15.5 },
   { label: '유물 2레벨', value: 17 },
   { label: '유물 3레벨', value: 18.5 },
@@ -306,7 +322,7 @@ const adrenalineOptions = [
 
 const preciseDaggerOptions = [
   { label: '없음', value: 0 },
-  { label: '전설 (4레벨)', value: 18.75 },
+  { label: '전설 4레벨', value: 18.75 },
   { label: '유물 1레벨', value: 18 },
   { label: '유물 2레벨', value: 19.5 },
   { label: '유물 3레벨', value: 21 },
@@ -315,7 +331,7 @@ const preciseDaggerOptions = [
 
 const beadBoyOptions = [
   { label: '없음', value: 0 },
-  { label: '전설 (4레벨)', value: 15 },
+  { label: '전설 4레벨', value: 15 },
   { label: '유물 1레벨', value: 15.6 },
   { label: '유물 2레벨', value: 16.2 },
   { label: '유물 3레벨', value: 16.8 },
@@ -354,12 +370,19 @@ const artisanElixirOptions = [
 ]
 
 const arcGridOptions = [
-  { label: '부수는 일격 없음', value: 0 },
+  { label: '없음', value: 0 },
   { label: '전설 14P (+0.65%)', value: 0.65 },
   { label: '유물 14P (+0.65%)', value: 0.65 },
   { label: '유물 17P (+1.30%)', value: 1.3 },
   { label: '고대 14P (+0.65%)', value: 0.65 },
   { label: '고대 17P (+2.60%)', value: 2.6 }
+]
+
+const supportWeaknessOptions = [
+  { label: '없음 (0%)', value: 0 },
+  { label: '1.5%', value: 1.5 },
+  { label: '1.8%', value: 1.8 },
+  { label: '2.1%', value: 2.1 }
 ]
 
 const ringOptions = [
@@ -465,7 +488,7 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 
 .calc-grid {
   display: grid;
-  grid-template-columns: 3fr 1fr 1fr;
+  grid-template-columns: 3fr 1fr 1fr 1fr;
   gap: 14px;
   width: 100%;
 }
@@ -473,7 +496,6 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 .level-toggle {
   display: inline-flex;
   gap: 8px;
-  margin: 10px 0 4px;
   flex-wrap: wrap;
 }
 
@@ -524,7 +546,9 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 .card-head-title{
   display: flex;
   justify-content: space-between;
+  align-items: center;
   width:100%;
+  margin-bottom: 10px;
 }
 
 .pill-note {
@@ -547,7 +571,7 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 }
 
 .form-grid-compact {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .inline-row {
@@ -586,8 +610,14 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
-.synergy-card {
+.support-synergy-card {
   grid-column: 2 / 3;
+  display: flex;
+  flex-direction: column;
+}
+
+.synergy-card {
+  grid-column: 3 / 4;
 }
 
 .synergy-grid {
@@ -622,7 +652,7 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 }
 
 .result-card {
-  grid-column: 3 / 4;
+  grid-column: 4 / 5;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -710,6 +740,7 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
     grid-template-columns: 1fr;
   }
 
+  .support-synergy-card,
   .synergy-card,
   .result-card {
     grid-column: auto;
