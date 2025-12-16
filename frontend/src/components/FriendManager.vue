@@ -1,20 +1,25 @@
 <template>
   <div class="friends-page">
-    <header class="page-header panel-card">
-      <div>
-        <p class="eyebrow">친구 관리</p>
-        <h2>디스코드 ID로 친구 추가</h2>
-        <p class="subtitle">친구 요청은 상대가 DM에서 수락해야 완료됩니다.</p>
-        <p v-if="me" class="user-pill">
-          <span class="user-pill__label">로그인</span>
-          <span class="user-pill__value">{{ me.discordUsername || me.kakaoNickname || `User#${me.id}` }}</span>
-        </p>
+    <TopPageHeader>
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">친구 관리</p>
+          <div class="layout-title-row">
+            <MenuAnchor />
+            <h2>디스코드 ID로 친구 추가</h2>
+          </div>
+          <p class="subtitle">친구 요청은 상대가 DM에서 수락해야 완료됩니다.</p>
+          <p v-if="me" class="user-pill">
+            <span class="user-pill__label">로그인</span>
+            <span class="user-pill__value">{{ me.discordUsername || me.kakaoNickname || `User#${me.id}` }}</span>
+          </p>
+        </div>
+        <div class="header-actions">
+          <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
+          <button v-else type="button" class="btn" @click="refreshAll" :disabled="loading">새로고침</button>
+        </div>
       </div>
-      <div class="header-actions">
-        <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
-        <button v-else type="button" class="btn" @click="refreshAll" :disabled="loading">새로고침</button>
-      </div>
-    </header>
+    </TopPageHeader>
 
     <section class="panel-card">
       <div class="section-heading">
@@ -123,6 +128,8 @@
 import { onMounted, ref } from 'vue'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage, getHttpStatus } from '@/utils/httpError'
+import TopPageHeader from './common/TopPageHeader.vue'
+import MenuAnchor from './common/MenuAnchor.vue'
 
 type MeResponse = {
   id: number
@@ -329,7 +336,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .eyebrow {
@@ -538,4 +545,3 @@ h2 {
   }
 }
 </style>
-

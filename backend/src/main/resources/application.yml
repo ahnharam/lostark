@@ -63,10 +63,12 @@ kakao:
 app:
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
-    success-redirect-path: ${FRONTEND_LOGIN_REDIRECT_PATH:/raid-schedule}
+    success-redirect-path: ${FRONTEND_LOGIN_REDIRECT_PATH:/raid}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:8081}
   security:
+    dev-login:
+      enabled: ${APP_SECURITY_DEV_LOGIN_ENABLED:false}
     csrf:
       cookie:
         same-site: ${CSRF_COOKIE_SAME_SITE:Lax}

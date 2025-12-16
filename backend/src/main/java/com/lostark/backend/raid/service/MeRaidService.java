@@ -130,7 +130,23 @@ public class MeRaidService {
         }
 
         raidParticipantRepository.delete(participant);
+        raidParticipantRepository.flush();
+        if (schedule.getParticipants() != null) {
+            schedule.getParticipants().removeIf(p -> Objects.equals(p.getId(), participantId));
+        }
         return raidScheduleService.getRaidSchedule(raidId);
+    }
+
+    @Transactional
+    public void deleteRaid(Long requesterId, Long raidId) {
+        RaidSchedule schedule = raidScheduleRepository.findById(raidId)
+                .orElseThrow(() -> new IllegalArgumentException("레이드 일정을 찾을 수 없습니다."));
+
+        if (schedule.getCreator() == null || !Objects.equals(schedule.getCreator().getId(), requesterId)) {
+            throw new IllegalArgumentException("본인이 생성한 레이드만 삭제할 수 있습니다.");
+        }
+
+        raidScheduleRepository.delete(schedule);
     }
 
     private void validateFriendAccess(Long creatorId, List<Long> userIds) {
@@ -144,4 +160,3 @@ public class MeRaidService {
         }
     }
 }
-

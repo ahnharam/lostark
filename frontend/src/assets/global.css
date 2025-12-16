@@ -18,6 +18,35 @@
   --skeleton-highlight: var(--bg-hover);
 }
 
+/* 상단 레이아웃 유틸리티 */
+.layout-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.layout-menu-anchor {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.top-page-header {
+  width: 100%;
+  padding: 10px 20px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 /* 섹션 헤더 공통 스타일 */
 .section-heading,
 .section-header-bar {

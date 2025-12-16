@@ -33,7 +33,7 @@ public class SecurityConfig {
     @Value("${app.frontend.base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
-    @Value("${app.frontend.success-redirect-path:/raid-schedule}")
+    @Value("${app.frontend.success-redirect-path:/raid}")
     private String successRedirectPath;
 
     @Value("${app.security.csrf.cookie.same-site:Lax}")

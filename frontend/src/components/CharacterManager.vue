@@ -1,16 +1,19 @@
 <template>
-  <div class="character-page panel-card">
-    <header class="header">
-      <div>
-        <p class="eyebrow">캐릭터 관리</p>
-        <h2>내 캐릭터 등록</h2>
-        <p class="subtitle">캐릭터명을 입력하고 등록하면 내 계정에 대표 캐릭터로 저장됩니다.</p>
+  <div class="character-page">
+    <TopPageHeader>
+      <div class="header">
+        <div>
+          <div class="layout-title-row">
+            <MenuAnchor />
+            <h2>내 캐릭터 등록</h2>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
+          <button v-else type="button" class="btn" :disabled="loading" @click="refresh">새로고침</button>
+        </div>
       </div>
-      <div class="header-actions">
-        <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
-        <button v-else type="button" class="btn" :disabled="loading" @click="refresh">새로고침</button>
-      </div>
-    </header>
+    </TopPageHeader>
 
     <section class="panel">
       <form class="form-row" @submit.prevent="registerCharacter">
@@ -58,6 +61,8 @@
 import { onMounted, ref } from 'vue'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage } from '@/utils/httpError'
+import TopPageHeader from './common/TopPageHeader.vue'
+import MenuAnchor from './common/MenuAnchor.vue'
 
 type MeResponse = {
   id: number
@@ -188,7 +193,7 @@ h2 {
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }

@@ -1,26 +1,30 @@
 <template>
   <div class="reforge-page">
-    <div class="reforge-menu-bar">
-      <div class="reforge-menu-bar__title">
-        <span class="topbar-icon">⚒️</span>
-        <div>
-          <p class="eyebrow">제련 메뉴</p>
-          <h2>강화 & 세팅 최적화</h2>
+    <TopPageHeader>
+      <div class="reforge-top">
+        <div class="reforge-menu-bar">
+          <div class="reforge-menu-bar__title">
+            <MenuAnchor />
+            <!-- <span class="topbar-icon">⚒️</span> -->
+            <div>
+              <h2>강화 & 세팅 최적화</h2>
+            </div>
+          </div>
+          <div class="reforge-menu-bar__tabs">
+            <button
+              v-for="tab in subMenuTabs"
+              :key="tab.key"
+              type="button"
+              class="reforge-menu-btn"
+              :class="{ active: activeSubMenuTab === tab.key }"
+              @click="activeSubMenuTab = tab.key"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
         </div>
       </div>
-      <div class="reforge-menu-bar__tabs">
-        <button
-          v-for="tab in subMenuTabs"
-          :key="tab.key"
-          type="button"
-          class="reforge-menu-btn"
-          :class="{ active: activeSubMenuTab === tab.key }"
-          @click="activeSubMenuTab = tab.key"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-    </div>
+    </TopPageHeader>
 
     <header class="reforge-header" :class="{ 'optimization-header': isCalculatorTab }">
       <div>
@@ -199,6 +203,8 @@
 import { computed, ref, watch } from 'vue'
 import BluntThornCalculator from './reforge/BluntThornCalculator.vue'
 import SupersonicCalculator from './reforge/SupersonicCalculator.vue'
+import TopPageHeader from './common/TopPageHeader.vue'
+import MenuAnchor from './common/MenuAnchor.vue'
 
 type ReforgeTab = 'normal' | 'advanced'
 type OptimizationTab = 'blunt-thorn' | 'supersonic'
@@ -369,16 +375,17 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
   color: var(--text-primary);
 }
 
+.reforge-top {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .reforge-menu-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid var(--border-color);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.02));
-  box-shadow: var(--shadow-sm);
 }
 
 .reforge-menu-bar__title {
@@ -511,7 +518,6 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 14px;
-  box-shadow: var(--shadow-sm);
   padding: 16px;
   display: flex;
   flex-direction: column;

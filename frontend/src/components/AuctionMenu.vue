@@ -1,28 +1,33 @@
 <template>
   <div class="auction-page">
-    <header class="auction-hero">
-      <div>
-        <p class="eyebrow">경매 데이터 뷰어</p>
-        <h2>DB에 저장된 거래소 아이템을 한눈에</h2>
-        <p class="hero-desc">
-          백엔드에서 동기화한 거래소 스냅샷을 필터링하고, 빠르게 찾아보세요. 카테고리를 바꾸거나 페이지를 넘기면 즉시 새로 불러옵니다.
-        </p>
+    <TopPageHeader>
+      <div class="auction-hero">
+        <div>
+          <!-- <p class="eyebrow">경매 데이터 뷰어</p> -->
+          <div class="layout-title-row">
+            <MenuAnchor />
+            <h2>거래소 검색</h2>
+          </div>
+          <!-- <p class="hero-desc">
+            백엔드에서 동기화한 거래소 스냅샷을 필터링하고, 빠르게 찾아보세요. 카테고리를 바꾸거나 페이지를 넘기면 즉시 새로 불러옵니다.
+          </p> -->
+        </div>
+        <div class="hero-meta">
+          <div class="meta-chip">
+            <span class="meta-label">총 카테고리</span>
+            <strong>{{ categoryCount }}</strong>
+          </div>
+          <div class="meta-chip">
+            <span class="meta-label">수집된 아이템</span>
+            <strong>{{ formatNumber(totalItems) }}</strong>
+          </div>
+          <div class="meta-chip accent" :class="{ muted: !lastFetchedLabel }">
+            <span class="meta-label">최근 수집</span>
+            <strong>{{ lastFetchedLabel || '정보 없음' }}</strong>
+          </div>
+        </div>
       </div>
-      <div class="hero-meta">
-        <div class="meta-chip">
-          <span class="meta-label">총 카테고리</span>
-          <strong>{{ categoryCount }}</strong>
-        </div>
-        <div class="meta-chip">
-          <span class="meta-label">수집된 아이템</span>
-          <strong>{{ formatNumber(totalItems) }}</strong>
-        </div>
-        <div class="meta-chip accent" :class="{ muted: !lastFetchedLabel }">
-          <span class="meta-label">최근 수집</span>
-          <strong>{{ lastFetchedLabel || '정보 없음' }}</strong>
-        </div>
-      </div>
-    </header>
+    </TopPageHeader>
 
     <section class="control-panel panel-card">
       <div class="control-row">
@@ -440,8 +445,11 @@ import type {
   MarketCategory
 } from '@/api/types'
 import { getHttpErrorMessage } from '@/utils/httpError'
+import { expandEngravingAbbreviation } from '@/data/engravingNames'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import LazyImage from './common/LazyImage.vue'
+import TopPageHeader from './common/TopPageHeader.vue'
+import MenuAnchor from './common/MenuAnchor.vue'
 
 type TooltipState = {
   visible: boolean
@@ -686,6 +694,11 @@ const selectedYDayAvgPrice = computed(() => {
 
 const leafCategories = computed(() => categories.value.filter(cat => !cat.hasSubs))
 const categoryCount = computed(() => categories.value.length)
+const selectedCategoryName = computed(() => {
+  const code = selectedCategory.value
+  if (code === null) return ''
+  return categories.value.find(cat => cat.code === code)?.codeName?.trim() || ''
+})
 
 const currentItems = computed(() => pageCache.value[String(page.value)] ?? [])
 
@@ -957,12 +970,38 @@ const loadItems = async () => {
   try {
     loadingItems.value = true
     errorMessage.value = ''
+    const normalizedSearchText = (() => {
+      const raw = searchText.value.trim()
+      if (!raw) return ''
+      const isEngravingBook = selectedCategoryName.value.includes('각인서')
+      let query = raw
+
+      if (isEngravingBook) {
+        const expanded = expandEngravingAbbreviation(query)
+        if (expanded) query = expanded
+      }
+
+      const hasComma = query.includes(',')
+      const hasWhitespace = /\s/.test(query)
+
+      if (!hasComma && hasWhitespace) {
+        query = query.split(/\s+/).filter(Boolean).join(', ')
+      } else if (hasComma) {
+        query = query
+          .split(',')
+          .map(part => part.trim())
+          .filter(Boolean)
+          .join(', ')
+      }
+
+      return query
+    })()
     const data = await lostarkApi.searchMarketItems({
       categoryCode: selectedCategory.value,
       characterClass: characterClass.value || undefined,
       itemTier: itemTier.value || undefined,
       itemGrade: itemGrade.value || undefined,
-      itemName: searchText.value || undefined,
+      itemName: normalizedSearchText || undefined,
       sort: sort.value,
       sortCondition: sortCondition.value,
       page: page.value,
@@ -1049,26 +1088,22 @@ onMounted(async () => {
 }
 
 .auction-hero {
-  padding: 22px;
-  border-radius: 18px;
-  background: linear-gradient(120deg, #0f172a, #111827 55%, #0b2b4d);
-  color: #f8fafc;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: center;
   gap: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
 }
 
 .auction-hero h2 {
-  margin: 2px 0 6px;
-  font-size: 1.6rem;
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--text-primary);
 }
 
 .hero-desc {
   margin: 0;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-secondary);
   max-width: 720px;
 }
 
@@ -1080,22 +1115,23 @@ onMounted(async () => {
 }
 
 .meta-chip {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 10px 12px;
-  display: grid;
+  padding: 8px 10px;
   gap: 4px;
   min-width: 120px;
+  align-items: center;
 }
 
 .meta-chip strong {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .meta-chip.accent {
-  background: linear-gradient(120deg, rgba(125, 211, 252, 0.15), rgba(255, 255, 255, 0.08));
-  border-color: rgba(125, 211, 252, 0.4);
+  background: var(--primary-soft-bg);
+  border-color: rgba(99, 102, 241, 0.35);
 }
 
 .meta-chip.muted {
@@ -1104,7 +1140,7 @@ onMounted(async () => {
 
 .meta-label {
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-muted);
 }
 
 .control-panel {

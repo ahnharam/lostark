@@ -1,20 +1,23 @@
 <template>
   <div class="main-layout">
-    <button
-      type="button"
-      class="menu-trigger"
-      :aria-expanded="menuOpen"
-      aria-label="메인 메뉴 열기"
-      @click="toggleMenu"
-    >
-      <span class="menu-trigger__icon">☰</span>
-    </button>
+    <Teleport :to="menuTeleportTarget">
+      <button
+        type="button"
+        class="menu-trigger"
+        :aria-expanded="menuOpen"
+        aria-label="메인 메뉴 열기"
+        @click="toggleMenu"
+      >
+        <span class="menu-trigger__icon">☰</span>
+      </button>
+    </Teleport>
 
     <transition name="menu-slide">
       <nav
-        v-if="menuOpen"
+        v-show="menuOpen"
         class="menu-drawer"
         aria-label="주 메뉴"
+        :aria-hidden="!menuOpen"
       >
         <div class="menu-drawer__inner">
           <div class="menu-inline">
@@ -40,6 +43,7 @@
                 <span class="status-label">{{ statusLabel }}</span>
               </div>
               <ThemeToggle class="menu-theme-toggle" />
+              <button type="button" class="menu-myinfo" @click="handleMyInfoClick">내정보</button>
             </div>
           </div>
           <button class="menu-close" type="button" @click="closeMenu" aria-label="메뉴 닫기"></button>
@@ -65,11 +69,13 @@
         <span class="footer-copy">© Ferny</span>
       </div>
     </footer>
+
+    <MyInfoModal :show="myInfoOpen" @close="closeMyInfo" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CharacterSearch from './CharacterSearch.vue'
 import ReforgeMenu from './ReforgeMenu.vue'
@@ -77,10 +83,10 @@ import AuctionMenu from './AuctionMenu.vue'
 import FriendManager from './FriendManager.vue'
 import LifeMenu from './LifeMenu.vue'
 import AdminStats from './AdminStats.vue'
-import RaidSchedule from './RaidSchedule.vue'
 import CharacterManager from './CharacterManager.vue'
-import RaidPartyManager from './RaidPartyManager.vue'
+import RaidMenu from './RaidMenu.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
+import MyInfoModal from './common/MyInfoModal.vue'
 import { useTheme } from '@/composables/useTheme'
 import { lostarkApi } from '@/api/lostark'
 
@@ -88,8 +94,7 @@ type MainMenuKey =
   | 'character-search'
   | 'reforge'
   | 'auction'
-  | 'raid-schedule'
-  | 'raid-party'
+  | 'raid'
   | 'friends'
   | 'characters'
   | 'life'
@@ -107,8 +112,7 @@ const menuItems: MainMenuItem[] = [
   { key: 'character-search', label: '캐릭터 검색', icon: '🧭', available: true, badge: '기본' },
   { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: 'NEW' },
   { key: 'auction', label: '경매', icon: '💰', available: true, badge: 'DB' },
-  { key: 'raid-schedule', label: '레이드 일정', icon: '🗓️', available: true, badge: 'T4' },
-  { key: 'raid-party', label: '레이드 모집', icon: '🧩', available: true, badge: 'DM' },
+  { key: 'raid', label: '레이드', icon: '⚔️', available: true, badge: 'T4' },
   { key: 'friends', label: '친구', icon: '👥', available: true, badge: 'DM' },
   { key: 'characters', label: '내 캐릭터', icon: '🪪', available: true },
   { key: 'life', label: '생활', icon: '🌿', available: false, badge: '준비 중' },
@@ -122,14 +126,14 @@ const normalizeMenu = (value: unknown): MainMenuKey => {
   if (
     value === 'reforge' ||
     value === 'auction' ||
-    value === 'raid-schedule' ||
-    value === 'raid-party' ||
+    value === 'raid' ||
     value === 'friends' ||
     value === 'characters' ||
     value === 'life' ||
     value === 'admin'
   )
     return value
+  if (value === 'raid-schedule' || value === 'raid-party') return 'raid'
   return 'character-search'
 }
 
@@ -140,13 +144,41 @@ const activeMenu = ref<MainMenuKey>(normalizeMenu(route.params.menu))
 const menuOpen = ref(false)
 const serverStatus = ref<'unknown' | 'ok' | 'down'>('unknown')
 let statusTimer: number | undefined
+const menuTeleportTarget = ref('#layout-top-start')
 
 watch(
   () => route.params.menu,
   value => {
+    if (value === 'raid-schedule' || value === 'raid-party') {
+      activeMenu.value = 'raid'
+      void router
+        .replace({
+          name: 'main',
+          params: { menu: 'raid' },
+          query: { ...route.query },
+        })
+        .catch(() => undefined)
+      return
+    }
     activeMenu.value = normalizeMenu(value)
   }
 )
+
+const updateMenuTeleportTarget = async () => {
+  menuTeleportTarget.value = '#layout-top-start'
+  await nextTick()
+  if (typeof document === 'undefined') return
+  const anchor = document.getElementById('layout-menu-anchor')
+  if (anchor) menuTeleportTarget.value = '#layout-menu-anchor'
+}
+
+watch(activeMenu, () => {
+  void updateMenuTeleportTarget()
+}, { immediate: true })
+
+onMounted(() => {
+  void updateMenuTeleportTarget()
+})
 
 const toggleMenu = () => {
   menuOpen.value = !menuOpen.value
@@ -156,26 +188,38 @@ const closeMenu = () => {
   menuOpen.value = false
 }
 
+const myInfoOpen = ref(false)
+
+const closeMyInfo = () => {
+  myInfoOpen.value = false
+}
+
+const handleMyInfoClick = async () => {
+  closeMenu()
+  await nextTick()
+  myInfoOpen.value = true
+}
+
 const selectMenu = (menu: MainMenuKey) => {
   if (activeMenu.value === menu) return
   activeMenu.value = menu
-  router.push({
+  void router.push({
     name: 'main',
-    params: menu === 'character-search' ? {} : { menu }
-  })
+    params: menu === 'character-search' ? {} : { menu },
+  }).catch(() => undefined)
 }
 
-const handleMenuSelect = (menu: MainMenuKey) => {
-  selectMenu(menu)
+const handleMenuSelect = async (menu: MainMenuKey) => {
   closeMenu()
+  await nextTick()
+  selectMenu(menu)
 }
 
 const componentMap: Record<MainMenuKey, unknown> = {
   'character-search': CharacterSearch,
   reforge: ReforgeMenu,
   auction: AuctionMenu,
-  'raid-schedule': RaidSchedule,
-  'raid-party': RaidPartyManager,
+  raid: RaidMenu,
   friends: FriendManager,
   characters: CharacterManager,
   life: LifeMenu,
@@ -226,9 +270,6 @@ onBeforeUnmount(() => {
 }
 
 .menu-trigger {
-  position: fixed;
-  top: 12px;
-  left: 12px;
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -240,7 +281,6 @@ onBeforeUnmount(() => {
   font-weight: 800;
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease;
-  z-index: 10;
 }
 
 .menu-trigger:hover,
@@ -317,6 +357,23 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.menu-myinfo {
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary, #111827);
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.menu-myinfo:hover,
+.menu-myinfo:focus-visible {
+  border-color: var(--primary-color, #6366f1);
+  transform: translateY(-1px);
 }
 
 .server-status {
@@ -457,7 +514,6 @@ onBeforeUnmount(() => {
   background: var(--card-bg, #ffffff);
   color: var(--text-muted, #9ca3af);
   font-weight: 600;
-  margin-top:20px;
 }
 
 .page-footer {

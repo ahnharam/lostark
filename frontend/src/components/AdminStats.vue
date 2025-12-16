@@ -1,26 +1,31 @@
 <template>
   <div class="admin-page">
-    <header class="admin-head">
-      <div>
-        <p class="eyebrow">관리자 · 테스트</p>
-        <h3>거래소 일별 기록 모니터</h3>
-        <p class="muted">DB에 저장된 일별 스냅샷을 빠르게 확인하고, 수동 캡처를 실행해 보세요.</p>
-      </div>
-      <div class="actions">
-        <button class="btn" type="button" :disabled="triggering" @click="triggerCapture()">
-          {{ triggering ? '기록 중...' : '기록 시작하기 (전일)' }}
-        </button>
-        <div class="date-run">
-          <input v-model="targetDate" type="date" class="input" />
-          <button class="btn ghost" type="button" :disabled="triggering || !targetDate" @click="triggerCapture(targetDate)">
-            지정일 캡처
+    <TopPageHeader>
+      <div class="admin-head">
+        <div>
+          <p class="eyebrow">관리자 · 테스트</p>
+          <div class="layout-title-row">
+            <MenuAnchor />
+            <h3>거래소 일별 기록 모니터</h3>
+          </div>
+          <p class="muted">DB에 저장된 일별 스냅샷을 빠르게 확인하고, 수동 캡처를 실행해 보세요.</p>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" :disabled="triggering" @click="triggerCapture()">
+            {{ triggering ? '기록 중...' : '기록 시작하기 (전일)' }}
+          </button>
+          <div class="date-run">
+            <input v-model="targetDate" type="date" class="input" />
+            <button class="btn ghost" type="button" :disabled="triggering || !targetDate" @click="triggerCapture(targetDate)">
+              지정일 캡처
+            </button>
+          </div>
+          <button class="btn ghost" type="button" :disabled="loading" @click="loadStats">
+            새로고침
           </button>
         </div>
-        <button class="btn ghost" type="button" :disabled="loading" @click="loadStats">
-          새로고침
-        </button>
       </div>
-    </header>
+    </TopPageHeader>
 
     <section class="panel">
       <div v-if="gateEnabled && !unlocked" class="gate">
@@ -102,6 +107,8 @@ import { lostarkApi } from '@/api/lostark'
 import type { MarketDailyStat } from '@/api/types'
 import { getHttpErrorMessage } from '@/utils/httpError'
 import LoadingSpinner from './common/LoadingSpinner.vue'
+import TopPageHeader from './common/TopPageHeader.vue'
+import MenuAnchor from './common/MenuAnchor.vue'
 
 const stats = ref<MarketDailyStat[]>([])
 const page = ref(0)
@@ -238,10 +245,6 @@ onBeforeUnmount(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
-  background: var(--card-bg, #ffffff);
 }
 
 .actions {

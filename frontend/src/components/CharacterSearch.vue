@@ -1,129 +1,132 @@
 ﻿<template>
   <div class="character-search">
-    <header class="page-header">
-      <div class="header-left">
-        <h1>LOA Character Search</h1>
-      </div>
-      <div class="header-search">
-        <div class="header-search__row">
-          <div class="search-panel-wrapper" ref="searchPanelWrapperRef">
-            <AutocompleteInput
-              v-model="characterName"
-              :suggestions="[]"
-              placeholder="캐릭터명을 입력하세요"
-              inputClass="search-input"
-              :min-chars="1"
-              :max-suggestions="8"
-              @select="handleSuggestionSelect"
-              @keyup.enter="searchCharacterByInput"
-              @focus="handleSearchFocus"
-            />
+    <TopPageHeader>
+      <div class="page-header">
+        <div class="header-left">
+          <MenuAnchor />
+          <h1>LOA Character Search</h1>
+        </div>
+        <div class="header-search">
+          <div class="header-search__row">
+            <div class="search-panel-wrapper" ref="searchPanelWrapperRef">
+              <AutocompleteInput
+                v-model="characterName"
+                :suggestions="[]"
+                placeholder="캐릭터명을 입력하세요"
+                inputClass="search-input"
+                :min-chars="1"
+                :max-suggestions="8"
+                @select="handleSuggestionSelect"
+                @keyup.enter="searchCharacterByInput"
+                @focus="handleSearchFocus"
+              />
 
-            <div v-if="shouldShowSearchPanel" class="search-panel-dropdown">
-              <div class="search-panel-tabs">
-                <button
-                  type="button"
-                  class="search-panel-tab"
-                  :class="{ active: activeSearchPanelTab === 'recent' }"
-                  @click="activeSearchPanelTab = 'recent'"
-                >
-                  최근 검색
-                </button>
-                <button
-                  type="button"
-                  class="search-panel-tab"
-                  :class="{ active: activeSearchPanelTab === 'favorites' }"
-                  @click="activeSearchPanelTab = 'favorites'"
-                >
-                  내 즐겨찾기
-                </button>
-              </div>
+              <div v-if="shouldShowSearchPanel" class="search-panel-dropdown">
+                <div class="search-panel-tabs">
+                  <button
+                    type="button"
+                    class="search-panel-tab"
+                    :class="{ active: activeSearchPanelTab === 'recent' }"
+                    @click="activeSearchPanelTab = 'recent'"
+                  >
+                    최근 검색
+                  </button>
+                  <button
+                    type="button"
+                    class="search-panel-tab"
+                    :class="{ active: activeSearchPanelTab === 'favorites' }"
+                    @click="activeSearchPanelTab = 'favorites'"
+                  >
+                    내 즐겨찾기
+                  </button>
+                </div>
 
-              <div class="search-panel-content">
-                <template v-if="activeSearchPanelTab === 'recent'">
-                  <div class="panel-section-header">
-                    <span>최근 검색</span>
-                    <button
-                      v-if="history.length > 0"
-                      type="button"
-                      class="panel-clear-btn"
-                      @click="clearHistory"
-                    >
-                      전체 삭제
-                    </button>
-                  </div>
-                  <div v-if="panelHistoryItems.length === 0" class="panel-empty">
-                    {{ history.length === 0 ? '검색 기록이 없습니다' : '일치하는 검색 기록이 없습니다' }}
-                  </div>
-                  <ul v-else class="panel-list">
-                    <li
-                      v-for="item in panelHistoryItems"
-                      :key="item.id"
-                    >
+                <div class="search-panel-content">
+                  <template v-if="activeSearchPanelTab === 'recent'">
+                    <div class="panel-section-header">
+                      <span>최근 검색</span>
                       <button
+                        v-if="history.length > 0"
                         type="button"
-                        class="panel-list-item"
-                        @click="handleSearchPanelSelect(item.characterName)"
+                        class="panel-clear-btn"
+                        @click="clearHistory"
                       >
-                        <span class="panel-list-name">{{ item.characterName }}</span>
-                        <span class="panel-list-meta">🕒</span>
+                        전체 삭제
                       </button>
-                    </li>
-                  </ul>
-                </template>
+                    </div>
+                    <div v-if="panelHistoryItems.length === 0" class="panel-empty">
+                      {{ history.length === 0 ? '검색 기록이 없습니다' : '일치하는 검색 기록이 없습니다' }}
+                    </div>
+                    <ul v-else class="panel-list">
+                      <li
+                        v-for="item in panelHistoryItems"
+                        :key="item.id"
+                      >
+                        <button
+                          type="button"
+                          class="panel-list-item"
+                          @click="handleSearchPanelSelect(item.characterName)"
+                        >
+                          <span class="panel-list-name">{{ item.characterName }}</span>
+                          <span class="panel-list-meta">🕒</span>
+                        </button>
+                      </li>
+                    </ul>
+                  </template>
 
-                <template v-else>
-                  <div class="panel-section-header">
-                    <span>내 즐겨찾기</span>
-                  </div>
-                  <div v-if="panelFavoriteItems.length === 0" class="panel-empty">
-                    {{ favorites.length === 0 ? '즐겨찾기가 비어있어요' : '일치하는 즐겨찾기가 없습니다' }}
-                  </div>
-                  <div v-else class="panel-favorite-list">
-                    <button
-                      v-for="fav in panelFavoriteItems"
-                      :key="fav.characterName"
-                      type="button"
-                      class="panel-favorite-item"
-                      @click="handleSearchPanelSelect(fav.characterName)"
-                    >
-                      <LazyImage
-                        :src="fav.characterImage || ''"
-                        :alt="fav.characterName"
-                        width="38"
-                        height="38"
-                        imageClass="panel-favorite-image"
-                        errorIcon="❔"
-                      />
-                      <div class="panel-favorite-details">
-                        <span class="panel-favorite-name">{{ fav.characterName }}</span>
-                        <span class="panel-favorite-meta">
-                          {{ fav.serverName }} · {{ formatItemLevel(fav.itemMaxLevel || fav.itemAvgLevel) }}
-                        </span>
-                      </div>
-                    </button>
-                  </div>
-                </template>
+                  <template v-else>
+                    <div class="panel-section-header">
+                      <span>내 즐겨찾기</span>
+                    </div>
+                    <div v-if="panelFavoriteItems.length === 0" class="panel-empty">
+                      {{ favorites.length === 0 ? '즐겨찾기가 비어있어요' : '일치하는 즐겨찾기가 없습니다' }}
+                    </div>
+                    <div v-else class="panel-favorite-list">
+                      <button
+                        v-for="fav in panelFavoriteItems"
+                        :key="fav.characterName"
+                        type="button"
+                        class="panel-favorite-item"
+                        @click="handleSearchPanelSelect(fav.characterName)"
+                      >
+                        <LazyImage
+                          :src="fav.characterImage || ''"
+                          :alt="fav.characterName"
+                          width="38"
+                          height="38"
+                          imageClass="panel-favorite-image"
+                          errorIcon="❔"
+                        />
+                        <div class="panel-favorite-details">
+                          <span class="panel-favorite-name">{{ fav.characterName }}</span>
+                          <span class="panel-favorite-meta">
+                            {{ fav.serverName }} · {{ formatItemLevel(fav.itemMaxLevel || fav.itemAvgLevel) }}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
         </div>
+        <div class="header-right" aria-hidden="true">
+          <div v-if="character && !loading" class="view-tabs view-tabs--header">
+              <button
+                v-for="tab in resultTabs"
+                :key="tab.key"
+                class="view-tab-button"
+                type="button"
+                :class="{ active: activeResultTab === tab.key }"
+                @click="activeResultTab = tab.key"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
+        </div>
       </div>
-      <div class="header-right" aria-hidden="true">
-        <div v-if="character && !loading" class="view-tabs view-tabs--header">
-            <button
-              v-for="tab in resultTabs"
-              :key="tab.key"
-              class="view-tab-button"
-              type="button"
-              :class="{ active: activeResultTab === tab.key }"
-              @click="activeResultTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-      </div>
-    </header>
+    </TopPageHeader>
 
     <div class="search-container">
           <div v-if="loading" class="loading-display">
@@ -383,6 +386,8 @@ import RankingTab from './ranking/RankingTab.vue'
 import CharacterOverviewCard from './common/CharacterOverviewCard.vue'
 import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
+import TopPageHeader from './common/TopPageHeader.vue'
+import MenuAnchor from './common/MenuAnchor.vue'
 import { cleanTooltipLine, flattenTooltipLines, extractTooltipColor } from '@/utils/tooltipText'
 import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbbreviations'
 import { getEngravingDisplayName } from '@/data/engravingNames'
@@ -2953,10 +2958,6 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   align-items: center;
   gap: 20px;
-  padding: 10px 20px;
-  background: var(--card-bg);
-  box-shadow: var(--shadow-sm);
-  border-bottom: 1px solid var(--border-color);
   justify-items: center;
 }
 

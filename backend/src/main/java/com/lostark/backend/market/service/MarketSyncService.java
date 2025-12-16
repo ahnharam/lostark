@@ -137,7 +137,8 @@ public class MarketSyncService {
                 .itemName(itemName)
                 .build();
 
-        PageBundle firstBundle = fetchPageBundle(baseRequest, categoryCode, pageNo, pageSize);
+        MarketItemsRequest effectiveRequest = baseRequest;
+        PageBundle firstBundle = fetchPageBundle(effectiveRequest, categoryCode, pageNo, pageSize);
         if (firstBundle.items().isEmpty()) {
             return MarketSearchResponse.builder()
                     .categoryCode(categoryCode)
@@ -167,7 +168,7 @@ public class MarketSyncService {
 
         for (int p = start; p <= end; p++) {
             if (p == pageNo) continue;
-            PageBundle bundle = fetchPageBundle(baseRequest, categoryCode, p, pageSize);
+            PageBundle bundle = fetchPageBundle(effectiveRequest, categoryCode, p, pageSize);
             if (!CollectionUtils.isEmpty(bundle.items())) {
                 pages.put(p, bundle.items());
             }

@@ -61,4 +61,13 @@ public class MeRaidController {
     ) {
         return ResponseEntity.ok(meRaidService.removeMember(principal.getAppUserId(), raidId, participantId));
     }
+
+    @DeleteMapping("/{raidId}")
+    public ResponseEntity<Void> delete(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable Long raidId
+    ) {
+        meRaidService.deleteRaid(principal.getAppUserId(), raidId);
+        return ResponseEntity.noContent().build();
+    }
 }

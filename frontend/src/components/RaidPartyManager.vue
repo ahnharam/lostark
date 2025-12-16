@@ -1,20 +1,11 @@
 <template>
   <div class="raid-party-page">
-    <header class="page-header panel-card">
-      <div>
-        <p class="eyebrow">레이드 모집</p>
-        <h2>멤버 구성 · DM 초대 · 상태 확인</h2>
-        <p class="subtitle">친구 목록에서 멤버를 추가하면 Discord DM 초대가 전송됩니다.</p>
-        <p v-if="me" class="user-pill">
-          <span class="user-pill__label">로그인</span>
-          <span class="user-pill__value">{{ me.discordUsername || me.kakaoNickname || `User#${me.id}` }}</span>
-        </p>
-      </div>
-      <div class="header-actions">
+    <Teleport to="#raid-submenu-actions" v-if="isActive">
+      <div class="subheader-actions">
         <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
         <button v-else type="button" class="btn" @click="refreshAll" :disabled="loading">새로고침</button>
       </div>
-    </header>
+    </Teleport>
 
     <section class="panel-card">
       <div class="section-heading">
@@ -27,7 +18,18 @@
       <form class="form-grid" @submit.prevent="createRaid">
         <label class="field">
           <span class="field-label">레이드명</span>
-          <input v-model.trim="draft.raidName" class="input" type="text" placeholder="예: 베히모스, 카제로스 3막" required />
+          <select v-model="draft.raidId" class="input" required>
+            <optgroup label="에픽 레이드">
+              <option v-for="raid in epicRaids" :key="raid.id" :value="raid.id">
+                {{ raid.name }}
+              </option>
+            </optgroup>
+            <optgroup label="카제로스 레이드">
+              <option v-for="raid in kazerosRaids" :key="raid.id" :value="raid.id">
+                {{ raid.name }}
+              </option>
+            </optgroup>
+          </select>
         </label>
 
         <label class="field">
@@ -82,20 +84,33 @@
       <div v-if="!raids.length" class="empty-state">아직 생성된 레이드가 없습니다.</div>
 
       <div v-else class="raid-grid">
-        <button
+        <div
           v-for="raid in raids"
           :key="raid.id"
-          type="button"
           class="raid-card"
           :class="{ active: selectedRaid?.id === raid.id }"
+          role="button"
+          tabindex="0"
           @click="selectRaid(raid.id)"
+          @keydown.enter.prevent="selectRaid(raid.id)"
+          @keydown.space.prevent="selectRaid(raid.id)"
         >
           <div class="raid-card__top">
             <p class="raid-title">{{ raid.raidName }} <span class="muted">({{ raid.difficulty || '-' }})</span></p>
-            <span class="pill">{{ raid.confirmedCount ?? 0 }}/{{ raid.maxParticipants ?? '-' }}</span>
           </div>
           <p class="muted">{{ formatDateTime(raid.scheduledAt) }}</p>
-        </button>
+          <div class="raid-card__bottom">
+            <span class="pill">{{ raid.confirmedCount ?? 0 }}/{{ raid.maxParticipants ?? '-' }}</span>
+            <button
+              type="button"
+              class="btn btn-danger btn-sm"
+              :disabled="loading"
+              @click.stop="deleteRaid(raid.id)"
+            >
+              삭제
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -139,22 +154,18 @@
 
       <div v-if="!selectedRaid.participants?.length" class="empty-state">아직 멤버가 없습니다.</div>
 
-      <div v-else class="member-list">
-        <div class="member-row member-row--head">
-          <span>멤버</span>
-          <span>상태</span>
-          <span>응답</span>
-          <span></span>
-        </div>
-
-        <div v-for="p in selectedRaid.participants" :key="p.id" class="member-row">
-          <div class="member-main">
-            <p class="member-name">{{ p.discordUsername || `User#${p.userId}` }}</p>
-            <p v-if="p.changeRequestReason" class="member-reason">{{ p.changeRequestReason }}</p>
-          </div>
-          <span class="pill" :data-status="p.status">{{ statusLabel(p.status) }}</span>
-          <span class="muted">{{ formatDateTime(p.respondedAt) }}</span>
-          <button type="button" class="btn btn-danger btn-sm" :disabled="loading" @click="removeMember(p.id)">삭제</button>
+      <div v-else class="member-grid">
+        <div v-for="p in selectedRaid.participants" :key="p.id" class="member-card">
+          <span class="member-cell member-cell--name">{{ p.discordUsername || `User#${p.userId}` }}</span>
+          <span class="member-cell member-cell--character">{{ p.characterName || '-' }}</span>
+          <span class="member-cell member-cell--status">
+            <span class="member-status" :data-status="p.status" :title="p.changeRequestReason || undefined">
+              {{ statusLabel(p.status) }}
+            </span>
+          </span>
+          <button type="button" class="btn btn-danger btn-sm member-cell--delete" :disabled="loading" @click="removeMember(p.id)">
+            삭제
+          </button>
         </div>
       </div>
     </section>
@@ -162,9 +173,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onDeactivated, onMounted, ref } from 'vue'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage } from '@/utils/httpError'
+import { T4_RAIDS } from '@/data/t4Raids'
 
 // TODO(2차): 추천 조합/추천 멤버 기능
 // - 직업별 포지션(서폿/딜/기타) 분류 + 시너지(버프/디버프/중복 제한) 규칙 반영
@@ -182,6 +194,7 @@ type ParticipantResponse = {
   id: number
   userId: number
   discordUsername?: string | null
+  characterName?: string | null
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CHANGE_REQUESTED'
   changeRequestReason?: string | null
   respondedAt?: string | null
@@ -220,6 +233,7 @@ const loading = ref(false)
 const message = ref('')
 const errorMessage = ref('')
 let messageTimer: number | undefined
+const isActive = ref(false)
 
 const setMessage = (value: string) => {
   message.value = value
@@ -230,12 +244,20 @@ const setMessage = (value: string) => {
 }
 
 const draft = ref({
-  raidName: '',
+  raidId: T4_RAIDS[0]?.id ?? '',
   difficulty: '노말',
   dateTimeLocal: '',
   maxParticipants: 8,
   description: '',
   includeMe: true
+})
+
+const epicRaids = computed(() => T4_RAIDS.filter(raid => raid.category === 'epic'))
+const kazerosRaids = computed(() => T4_RAIDS.filter(raid => raid.category === 'kazeros'))
+
+const selectedRaidName = computed(() => {
+  const selected = T4_RAIDS.find(raid => raid.id === draft.value.raidId)
+  return selected?.name ?? ''
 })
 
 const apiBaseUrl = () => (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/+$/, '')
@@ -259,7 +281,6 @@ const formatDateTime = (value?: string | null) => {
 const statusLabel = (status: ParticipantResponse['status']) => {
   if (status === 'ACCEPTED') return '수락'
   if (status === 'DECLINED') return '거절'
-  if (status === 'CHANGE_REQUESTED') return '시간 변경 요청'
   return '대기'
 }
 
@@ -328,11 +349,15 @@ const setDefaultDateTime = () => {
 
 const createRaid = async () => {
   if (!me.value) return
+  if (!selectedRaidName.value) {
+    errorMessage.value = '레이드명을 선택해 주세요.'
+    return
+  }
   try {
     loading.value = true
     errorMessage.value = ''
     const response = await apiClient.post<RaidScheduleResponse>('/me/raids', {
-      raidName: draft.value.raidName,
+      raidName: selectedRaidName.value,
       difficulty: draft.value.difficulty,
       scheduledAt: draft.value.dateTimeLocal,
       description: draft.value.description || null,
@@ -345,7 +370,6 @@ const createRaid = async () => {
     if (draft.value.includeMe) {
       await addMembers([me.value.id])
     }
-    draft.value.raidName = ''
     draft.value.description = ''
   } catch (err: unknown) {
     errorMessage.value = getHttpErrorMessage(err) || '레이드 생성에 실패했습니다.'
@@ -363,6 +387,28 @@ const selectRaid = async (raidId: number) => {
     await loadRaid(raidId)
   } catch (err: unknown) {
     errorMessage.value = getHttpErrorMessage(err) || '레이드를 불러오지 못했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+const deleteRaid = async (raidId: number) => {
+  if (!me.value) return
+  if (loading.value) return
+  const ok = window.confirm('이 레이드를 삭제할까요?')
+  if (!ok) return
+
+  try {
+    loading.value = true
+    errorMessage.value = ''
+    await apiClient.delete(`/me/raids/${raidId}`)
+    if (selectedRaid.value?.id === raidId) {
+      selectedRaid.value = null
+    }
+    await loadMyRaids()
+    setMessage('레이드를 삭제했어요.')
+  } catch (err: unknown) {
+    errorMessage.value = getHttpErrorMessage(err) || '레이드 삭제에 실패했습니다.'
   } finally {
     loading.value = false
   }
@@ -428,50 +474,35 @@ onMounted(async () => {
     await refreshAll()
   }
 })
+
+onActivated(() => {
+  isActive.value = true
+})
+
+onDeactivated(() => {
+  isActive.value = false
+})
 </script>
 
 <style scoped>
 .raid-party-page {
   display: grid;
   gap: 16px;
-  padding: 24px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.eyebrow {
-  margin: 0 0 6px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-h2 {
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.subtitle {
-  margin: 8px 0 0;
-  color: var(--text-muted);
-  font-size: 0.95rem;
-}
-
-.header-actions {
+.subheader-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .user-pill {
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  margin: 10px 0 0;
+  margin: 0;
   padding: 6px 10px;
   border: 1px solid var(--border-color);
   border-radius: 999px;
@@ -549,7 +580,7 @@ h2 {
 }
 
 .field--wide {
-  grid-column: span 3;
+  grid-column: span 2;
 }
 
 .field-label {
@@ -601,7 +632,7 @@ h2 {
 .raid-grid {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 0.25fr));
 }
 
 .raid-card {
@@ -623,6 +654,14 @@ h2 {
   justify-content: space-between;
   gap: 10px;
   align-items: center;
+}
+
+.raid-card__bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .raid-title {
@@ -648,67 +687,127 @@ h2 {
   flex-wrap: wrap;
 }
 
-.member-list {
+.member-grid {
   display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.member-row {
-  display: grid;
-  grid-template-columns: 1.8fr 120px 170px 72px;
   gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
+  margin-top: 12px;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+}
+
+.member-card {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 14px;
+  padding: 12px;
   background: var(--card-bg);
-}
-
-.member-row--head {
-  background: var(--bg-secondary);
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-.member-main {
   display: grid;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
 }
 
-.member-name {
-  margin: 0;
-  font-weight: 700;
+.member-cell {
   color: var(--text-primary);
-}
-
-.member-reason {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.85rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.member-cell--name {
+  font-weight: 800;
+}
+
+.member-cell--character {
+  color: var(--text-secondary);
+  font-weight: 750;
+}
+
+.member-cell--status {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.member-cell--delete {
+  justify-self: end;
+}
+
+.member-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.member-status[data-status='PENDING'],
+.member-status[data-status='CHANGE_REQUESTED'] {
+  border-color: color-mix(in srgb, #9ca3af 45%, var(--border-color));
+  background: color-mix(in srgb, #9ca3af 12%, var(--bg-secondary));
+  color: color-mix(in srgb, #6b7280 80%, var(--text-primary));
+}
+
+.member-status[data-status='ACCEPTED'] {
+  border-color: color-mix(in srgb, #16a34a 45%, var(--border-color));
+  background: color-mix(in srgb, #16a34a 12%, var(--bg-secondary));
+  color: color-mix(in srgb, #16a34a 78%, var(--text-primary));
+}
+
+.member-status[data-status='DECLINED'] {
+  border-color: color-mix(in srgb, #dc2626 45%, var(--border-color));
+  background: color-mix(in srgb, #dc2626 12%, var(--bg-secondary));
+  color: color-mix(in srgb, #dc2626 78%, var(--text-primary));
+}
+
+@media (max-width: 720px) {
+  .member-card {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'name status'
+      'character delete';
+    row-gap: 8px;
+  }
+
+  .member-cell--name {
+    grid-area: name;
+  }
+
+  .member-cell--character {
+    grid-area: character;
+  }
+
+  .member-cell--status {
+    grid-area: status;
+  }
+
+  .member-cell--delete {
+    grid-area: delete;
+  }
+}
+
+@media (max-width: 1100px) {
+  .member-grid {
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .member-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .member-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .muted {
   margin: 0;
   color: var(--text-muted);
-}
-
-.pill[data-status='ACCEPTED'] {
-  background: color-mix(in srgb, #22c55e 14%, var(--bg-secondary));
-  color: color-mix(in srgb, #22c55e 70%, var(--text-primary));
-}
-
-.pill[data-status='DECLINED'] {
-  background: color-mix(in srgb, #ef4444 14%, var(--bg-secondary));
-  color: color-mix(in srgb, #ef4444 70%, var(--text-primary));
-}
-
-.pill[data-status='CHANGE_REQUESTED'] {
-  background: color-mix(in srgb, #f59e0b 16%, var(--bg-secondary));
-  color: color-mix(in srgb, #f59e0b 70%, var(--text-primary));
 }
 
 @media (max-width: 1024px) {
@@ -718,25 +817,6 @@ h2 {
 
   .field--wide {
     grid-column: span 2;
-  }
-
-  .member-row {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .member-row--head {
-    display: none;
-  }
-}
-
-@media (max-width: 640px) {
-  .raid-party-page {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
   }
 }
 </style>

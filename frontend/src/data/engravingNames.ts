@@ -78,6 +78,14 @@ ENGRAVING_NAME_ENTRIES.forEach(entry => {
   engravingMap.set(entry.full.trim(), entry)
 })
 
+const engravingShortToFullMap = new Map<string, string>()
+ENGRAVING_NAME_ENTRIES.forEach(entry => {
+  const short = entry.short.trim()
+  if (!engravingShortToFullMap.has(short)) {
+    engravingShortToFullMap.set(short, entry.full.trim())
+  }
+})
+
 const DEFAULT_USE_FULL_NAME =
   typeof import.meta !== 'undefined' &&
   typeof import.meta.env !== 'undefined' &&
@@ -101,4 +109,10 @@ export const getEngravingDisplayName = (
   const useFullName = options?.useFullName ?? DEFAULT_USE_FULL_NAME
   if (useFullName) return clean
   return getEngravingAbbreviation(clean) || clean
+}
+
+export const expandEngravingAbbreviation = (abbreviation?: string | null): string | null => {
+  const clean = cleanName(abbreviation)
+  if (!clean) return null
+  return engravingShortToFullMap.get(clean) || null
 }

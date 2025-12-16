@@ -567,7 +567,7 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 .form-grid {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .form-grid-compact {
