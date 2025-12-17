@@ -5,6 +5,7 @@ import com.lostark.backend.raid.dto.*;
 import com.lostark.backend.raid.entity.*;
 import com.lostark.backend.raid.repository.RaidParticipantRepository;
 import com.lostark.backend.raid.repository.RaidScheduleRepository;
+import com.lostark.backend.raid.util.RaidScheduleKeyUtils;
 import com.lostark.backend.user.entity.AppUser;
 import com.lostark.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,16 +26,23 @@ public class RaidScheduleService {
     private final RaidParticipantRepository raidParticipantRepository;
     private final AppUserRepository appUserRepository;
     private final DiscordBotClient discordBotClient;
+    private final RaidCatalogService raidCatalogService;
 
     @Transactional
     public RaidScheduleResponse createRaidSchedule(Long creatorId, RaidScheduleCreateRequest request) {
         AppUser creator = appUserRepository.findById(creatorId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
+        if (request.getScheduledAt() == null) {
+            throw new IllegalArgumentException("레이드 일시가 필요합니다.");
+        }
+
         RaidSchedule schedule = new RaidSchedule();
+        schedule.setRaidKey(raidCatalogService.resolveRaidKey(request.getRaidKey(), request.getRaidName()));
         schedule.setRaidName(request.getRaidName());
         schedule.setDifficulty(request.getDifficulty());
         schedule.setScheduledAt(request.getScheduledAt());
+        schedule.setWeekKey(RaidScheduleKeyUtils.calculateWeekKey(request.getScheduledAt()));
         schedule.setDescription(request.getDescription());
         schedule.setMaxParticipants(request.getMaxParticipants() != null ? request.getMaxParticipants() : 8);
         schedule.setCreator(creator);

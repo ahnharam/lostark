@@ -17,6 +17,14 @@
           <p v-if="notice" class="myinfo-notice" role="status">{{ notice }}</p>
           <p v-if="errorMessage" class="myinfo-error" role="alert">{{ errorMessage }}</p>
 
+          <div class="myinfo-shortcuts" aria-label="내정보 바로가기">
+            <p class="myinfo-shortcuts__title">바로가기</p>
+            <div class="myinfo-shortcuts__grid">
+              <button type="button" class="myinfo-shortcut" :disabled="loading" @click="navigateTo('friends')">친구</button>
+              <button type="button" class="myinfo-shortcut" :disabled="loading" @click="navigateTo('characters')">내 캐릭터</button>
+            </div>
+          </div>
+
           <div v-if="me" class="myinfo-card">
             <div class="myinfo-row">
               <span class="myinfo-label">계정</span>
@@ -66,6 +74,7 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage, getHttpStatus } from '@/utils/httpError'
 
@@ -84,6 +93,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
+
+type ShortcutMenuKey = 'friends' | 'characters'
+
+const router = useRouter()
 
 const me = ref<MeResponse | null>(null)
 const discordUserId = ref('')
@@ -108,6 +121,16 @@ const clearMessages = () => {
 
 const requestClose = () => {
   emit('close')
+}
+
+const navigateTo = (menu: ShortcutMenuKey) => {
+  requestClose()
+  void router
+    .push({
+      name: 'main',
+      params: { menu },
+    })
+    .catch(() => undefined)
 }
 
 const fetchMe = async () => {
@@ -306,10 +329,64 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.myinfo-shortcuts {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-primary, #ffffff);
+}
+
+.myinfo-shortcuts__title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-primary, #111827);
+}
+
+.myinfo-shortcuts__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.myinfo-shortcut {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary, #111827);
+  font-weight: 750;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.myinfo-shortcut:hover:not(:disabled),
+.myinfo-shortcut:focus-visible:not(:disabled) {
+  border-color: var(--primary-color, #6366f1);
+  transform: translateY(-1px);
+}
+
+.myinfo-shortcut:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .myinfo-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.input {
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-left:10px;
 }
 </style>

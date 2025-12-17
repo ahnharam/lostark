@@ -2,7 +2,6 @@
   <div class="life-page">
     <TopPageHeader>
       <div class="layout-title-row">
-        <MenuAnchor />
         <h2>생활</h2>
       </div>
     </TopPageHeader>
@@ -17,7 +16,6 @@
 
 <script setup lang="ts">
 import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
 </script>
 
 <style scoped>

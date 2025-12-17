@@ -1,21 +1,91 @@
 <template>
   <div class="auction-page">
     <TopPageHeader>
-      <div class="auction-hero">
-        <div>
-          <!-- <p class="eyebrow">경매 데이터 뷰어</p> -->
-          <div class="layout-title-row">
-            <MenuAnchor />
-            <h2>거래소 검색</h2>
+      <div class="raid-menu-bar">
+        <div class="raid-menu-bar__title">
+          <div>
+            <h3>아이템 검색</h3>
           </div>
-          <!-- <p class="hero-desc">
-            백엔드에서 동기화한 거래소 스냅샷을 필터링하고, 빠르게 찾아보세요. 카테고리를 바꾸거나 페이지를 넘기면 즉시 새로 불러옵니다.
-          </p> -->
         </div>
-        <div class="hero-meta">
-          <div class="meta-chip">
-            <span class="meta-label">총 카테고리</span>
-            <strong>{{ categoryCount }}</strong>
+        <div class="raid-menu-bar__center">
+          <div class="raid-menu-bar__tabs" aria-label="아이템 검색 서브 메뉴">
+            <button
+              type="button"
+              class="raid-menu-btn"
+              :class="{ active: activeSubMenu === 'market' }"
+              @click="activeSubMenu = 'market'"
+            >
+              거래소
+            </button>
+            <button
+              type="button"
+              class="raid-menu-btn"
+              :class="{ active: activeSubMenu === 'auction-house' }"
+              @click="activeSubMenu = 'auction-house'"
+            >
+              경매장
+            </button>
+          </div>
+        </div>
+        <div class="raid-menu-bar__right"></div>
+      </div>
+    </TopPageHeader>
+
+	    <template v-if="activeSubMenu === 'market'">
+	      <section class="auction-hero panel-card">
+	        <div>
+	          <div class="layout-title-row">
+	            <h3>거래소 검색</h3>
+	          </div>
+	        </div>
+	        <div class="auction-hero__center">
+	          <div class="market-submenu-tabs" aria-label="거래소 검색 하위 메뉴">
+	            <button
+	              type="button"
+	              class="raid-menu-btn"
+	              :class="{ active: marketSubMenu === 'reforge-materials' }"
+	              @click="marketSubMenu = 'reforge-materials'"
+	            >
+	              재련재료
+	            </button>
+	            <button
+	              type="button"
+	              class="raid-menu-btn"
+	              :class="{ active: marketSubMenu === 'life-materials' }"
+	              @click="marketSubMenu = 'life-materials'"
+	            >
+	              생활재료
+	            </button>
+	            <button
+	              type="button"
+	              class="raid-menu-btn"
+	              :class="{ active: marketSubMenu === 'engravings' }"
+	              @click="marketSubMenu = 'engravings'"
+	            >
+	              각인서
+	            </button>
+	            <button
+	              type="button"
+	              class="raid-menu-btn"
+	              :class="{ active: marketSubMenu === 'battle-items' }"
+	              @click="marketSubMenu = 'battle-items'"
+	            >
+	              배틀아이템
+	            </button>
+	            <button
+	              type="button"
+	              class="raid-menu-btn"
+	              :class="{ active: marketSubMenu === 'all' }"
+	              @click="marketSubMenu = 'all'"
+	            >
+	              전체검색
+	            </button>
+	          </div>
+	        </div>
+	        <div class="hero-meta">
+	          <div class="meta-chip">
+	            <span class="meta-label">총 카테고리</span>
+	            <strong>{{ categoryCount }}</strong>
           </div>
           <div class="meta-chip">
             <span class="meta-label">수집된 아이템</span>
@@ -26,13 +96,13 @@
             <strong>{{ lastFetchedLabel || '정보 없음' }}</strong>
           </div>
         </div>
-      </div>
-    </TopPageHeader>
+	      </section>
 
-    <section class="control-panel panel-card">
-      <div class="control-row">
-        <label class="field">
-          <span class="field-label">카테고리</span>
+	    <template v-if="marketSubMenu === 'all'">
+	    <section class="control-panel panel-card">
+	      <div class="control-row">
+	        <label class="field">
+	          <span class="field-label">카테고리</span>
           <select v-model="selectedCategory" class="input" :disabled="loadingCategories">
             <option :value="null">전체 보기</option>
             <option v-for="cat in leafCategories" :key="cat.code" :value="cat.code">
@@ -102,25 +172,13 @@
         </label>
 
         <div class="actions">
-          <button
-            type="button"
-            class="btn ghost"
-            :disabled="loadingCategories || syncingSnapshot"
-            @click="syncSnapshot"
-          >
-            {{ syncingSnapshot ? '동기화 중...' : '스냅샷 동기화' }}
-          </button>
           <button type="button" class="btn" @click="handleSearch">검색</button>
           <button type="button" class="btn ghost" @click="clearSearch">검색 초기화</button>
-          <button type="button" class="btn ghost refresh-btn" @click="resetAndLoad">
-            <span class="btn-icon" aria-hidden="true"></span>
-            <span class="btn-label">새로고침</span>
-          </button>
         </div>
       </div>
 
       <p v-if="!leafCategories.length" class="inline-hint">
-        거래소 스냅샷이 없습니다. 위에서 "스냅샷 동기화"를 눌러주세요.
+        등록된 거래소 기록이 없습니다.
       </p>
       <p v-if="snapshotNotice" class="inline-hint">{{ snapshotNotice }}</p>
     </section>
@@ -427,9 +485,25 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </transition>
+	        </div>
+	      </div>
+	    </transition>
+	    </template>
+
+	    <template v-else>
+	      <section class="panel-card market-submenu-placeholder">
+	        <h3>{{ marketSubMenuLabel }}</h3>
+	        <p class="muted">준비 중입니다.</p>
+	      </section>
+	    </template>
+	    </template>
+
+    <template v-else>
+      <section class="panel-card auction-house-placeholder">
+        <h3>경매장</h3>
+        <p class="muted">준비 중입니다.</p>
+      </section>
+    </template>
   </div>
 </template>
 
@@ -449,7 +523,10 @@ import { expandEngravingAbbreviation } from '@/data/engravingNames'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import LazyImage from './common/LazyImage.vue'
 import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
+
+type ItemSearchSubMenu = 'market' | 'auction-house'
+
+type MarketSubMenu = 'reforge-materials' | 'life-materials' | 'engravings' | 'battle-items' | 'all'
 
 type TooltipState = {
   visible: boolean
@@ -460,6 +537,26 @@ type TooltipState = {
   avgPrice?: number | null
   tradeVolume?: number | null
 }
+
+const activeSubMenu = ref<ItemSearchSubMenu>('market')
+const marketSubMenu = ref<MarketSubMenu>('all')
+
+const marketSubMenuLabel = computed(() => {
+  switch (marketSubMenu.value) {
+    case 'reforge-materials':
+      return '재련재료'
+    case 'life-materials':
+      return '생활재료'
+    case 'engravings':
+      return '각인서'
+    case 'battle-items':
+      return '배틀아이템'
+    case 'all':
+      return '전체검색'
+    default:
+      return '전체검색'
+  }
+})
 
 const toNumberOrUndefined = (value: unknown) => {
   if (value === null || value === undefined) return undefined
@@ -1072,6 +1169,10 @@ const closeDetail = () => {
   clearTooltip()
 }
 
+watch(marketSubMenu, value => {
+  if (value !== 'all') closeDetail()
+})
+
 watch([selectedCategory, sort, sortCondition, characterClass, itemTier, itemGrade, pageSize], () => resetAndLoad())
 
 onMounted(async () => {
@@ -1088,17 +1189,42 @@ onMounted(async () => {
 }
 
 .auction-hero {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  height: 100%;
   justify-content: space-between;
   align-items: center;
   gap: 14px;
+  overflow-y:visible;
 }
 
-.auction-hero h2 {
+.auction-hero h2,
+.auction-hero h3 {
   margin: 0;
   font-size: 1.35rem;
   color: var(--text-primary);
+}
+
+.auction-hero__center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.market-submenu-tabs {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.market-submenu-placeholder {
+  display: grid;
+  gap: 8px;
 }
 
 .hero-desc {
@@ -1112,6 +1238,7 @@ onMounted(async () => {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .meta-chip {

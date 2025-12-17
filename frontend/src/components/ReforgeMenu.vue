@@ -1,27 +1,23 @@
 <template>
   <div class="reforge-page">
     <TopPageHeader>
-      <div class="reforge-top">
-        <div class="reforge-menu-bar">
-          <div class="reforge-menu-bar__title">
-            <MenuAnchor />
-            <!-- <span class="topbar-icon">⚒️</span> -->
-            <div>
-              <h2>강화 & 세팅 최적화</h2>
-            </div>
+      <div class="reforge-menu-bar">
+        <div class="reforge-menu-bar__title">
+          <div>
+            <h3>강화 & 세팅 최적화</h3>
           </div>
-          <div class="reforge-menu-bar__tabs">
-            <button
-              v-for="tab in subMenuTabs"
-              :key="tab.key"
-              type="button"
-              class="reforge-menu-btn"
-              :class="{ active: activeSubMenuTab === tab.key }"
-              @click="activeSubMenuTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
+        </div>
+        <div class="reforge-menu-bar__tabs">
+          <button
+            v-for="tab in subMenuTabs"
+            :key="tab.key"
+            type="button"
+            class="reforge-menu-btn"
+            :class="{ active: activeSubMenuTab === tab.key }"
+            @click="activeSubMenuTab = tab.key"
+          >
+            {{ tab.label }}
+          </button>
         </div>
       </div>
     </TopPageHeader>
@@ -204,7 +200,6 @@ import { computed, ref, watch } from 'vue'
 import BluntThornCalculator from './reforge/BluntThornCalculator.vue'
 import SupersonicCalculator from './reforge/SupersonicCalculator.vue'
 import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
 
 type ReforgeTab = 'normal' | 'advanced'
 type OptimizationTab = 'blunt-thorn' | 'supersonic'
@@ -382,7 +377,10 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
 }
 
 .reforge-menu-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  height: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
@@ -409,6 +407,7 @@ const formatGold = (value: number) => `${formatNumber(value)} 골드`
 .reforge-menu-bar__tabs {
   display: inline-flex;
   gap: 8px;
+  justify-content: center;
 }
 
 .reforge-menu-btn {

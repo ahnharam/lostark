@@ -296,13 +296,13 @@ defineExpose({
   align-items: center;
   gap: var(--space-md);
   height: 52px;
-  width: 350px;
+  width: 450px;
   padding: 0 var(--space-xl);
   background: var(--card-bg);
-  border: 2px solid var(--border-color);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
   transition: all var(--transition-slow);
-  box-shadow: var(--shadow-sm);
+  /* box-shadow: var(--shadow-sm); */
   justify-content: space-between;
 }
 

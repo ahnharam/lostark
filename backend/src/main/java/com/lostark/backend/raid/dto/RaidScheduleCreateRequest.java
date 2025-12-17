@@ -8,6 +8,8 @@ import java.util.List;
 @Data
 public class RaidScheduleCreateRequest {
 
+    private String raidKey;
+
     private String raidName;
 
     private String difficulty;

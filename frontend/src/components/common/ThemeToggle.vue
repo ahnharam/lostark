@@ -1,12 +1,13 @@
 <template>
   <div class="theme-toggle">
     <button
+      type="button"
       @click="toggleTheme"
-      class="theme-toggle-btn"
+      class="top-menu-action-btn"
       :title="getThemeLabel()"
+      :aria-label="getThemeLabel()"
     >
-      <span class="theme-icon">{{ getThemeIcon() }}</span>
-      <span class="theme-label">{{ getThemeLabel() }}</span>
+      <span class="theme-icon" aria-hidden="true">{{ getThemeIcon() }}</span>
     </button>
   </div>
 </template>
@@ -49,48 +50,9 @@ const getThemeLabel = () => {
   align-items: center;
 }
 
-.theme-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--bg-secondary);
-  border: 2px solid var(--border-color);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-}
-
-.theme-toggle-btn:hover {
-  background: var(--bg-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--shadow-color);
-}
-
 .theme-icon {
   font-size: 1.2rem;
   display: flex;
   align-items: center;
-}
-
-.theme-label {
-  font-weight: 600;
-}
-
-@media (max-width: 640px) {
-  .theme-toggle-btn {
-    padding: 6px 12px;
-    font-size: 0.85rem;
-  }
-
-  .theme-label {
-    display: none;
-  }
-
-  .theme-icon {
-    font-size: 1.5rem;
-  }
 }
 </style>

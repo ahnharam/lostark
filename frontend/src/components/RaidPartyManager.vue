@@ -21,12 +21,12 @@
           <select v-model="draft.raidId" class="input" required>
             <optgroup label="에픽 레이드">
               <option v-for="raid in epicRaids" :key="raid.id" :value="raid.id">
-                {{ raid.name }}
+                {{ formatRaidOptionLabel(raid) }}
               </option>
             </optgroup>
             <optgroup label="카제로스 레이드">
               <option v-for="raid in kazerosRaids" :key="raid.id" :value="raid.id">
-                {{ raid.name }}
+                {{ formatRaidOptionLabel(raid) }}
               </option>
             </optgroup>
           </select>
@@ -157,7 +157,27 @@
       <div v-else class="member-grid">
         <div v-for="p in selectedRaid.participants" :key="p.id" class="member-card">
           <span class="member-cell member-cell--name">{{ p.discordUsername || `User#${p.userId}` }}</span>
-          <span class="member-cell member-cell--character">{{ p.characterName || '-' }}</span>
+          <select
+            class="input member-select member-cell--character"
+            :value="p.characterName || ''"
+            :disabled="loading || rosterLoadingByUserId[p.userId] || !me"
+            @focus="ensureRosterLoaded(p.userId)"
+            @change="event => handleCharacterChange(p.id, p.userId, event)"
+          >
+            <option v-if="rosterLoadingByUserId[p.userId]" value="" disabled>불러오는 중...</option>
+            <option v-else value="" disabled>캐릭터 선택</option>
+            <option
+              v-for="opt in characterOptionsForParticipant(p)"
+              :key="`${p.id}:${opt.characterName}`"
+              :value="opt.characterName"
+              :disabled="opt.disabled"
+            >
+              {{ opt.label }}
+            </option>
+            <option v-if="!rosterLoadingByUserId[p.userId] && !characterOptionsForParticipant(p).length" value="" disabled>
+              조건을 만족하는 캐릭터가 없어요
+            </option>
+          </select>
           <span class="member-cell member-cell--status">
             <span class="member-status" :data-status="p.status" :title="p.changeRequestReason || undefined">
               {{ statusLabel(p.status) }}
@@ -176,7 +196,7 @@
 import { computed, onActivated, onDeactivated, onMounted, ref } from 'vue'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage } from '@/utils/httpError'
-import { T4_RAIDS } from '@/data/t4Raids'
+import { T4_RAIDS, type RaidDefinition } from '@/data/t4Raids'
 
 // TODO(2차): 추천 조합/추천 멤버 기능
 // - 직업별 포지션(서폿/딜/기타) 분류 + 시너지(버프/디버프/중복 제한) 규칙 반영
@@ -198,6 +218,14 @@ type ParticipantResponse = {
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CHANGE_REQUESTED'
   changeRequestReason?: string | null
   respondedAt?: string | null
+}
+
+type ExpeditionCharacterResponse = {
+  characterName: string
+  serverName?: string | null
+  characterClassName?: string | null
+  itemAvgLevel?: string | null
+  itemMaxLevel?: string | null
 }
 
 type RaidScheduleResponse = {
@@ -234,6 +262,8 @@ const message = ref('')
 const errorMessage = ref('')
 let messageTimer: number | undefined
 const isActive = ref(false)
+const rosterByUserId = ref<Record<number, ExpeditionCharacterResponse[]>>({})
+const rosterLoadingByUserId = ref<Record<number, boolean>>({})
 
 const setMessage = (value: string) => {
   message.value = value
@@ -255,10 +285,121 @@ const draft = ref({
 const epicRaids = computed(() => T4_RAIDS.filter(raid => raid.category === 'epic'))
 const kazerosRaids = computed(() => T4_RAIDS.filter(raid => raid.category === 'kazeros'))
 
+const getRaidMinItemLevel = (raid: RaidDefinition) => {
+  const levels = raid.difficulties.map(difficulty => difficulty.minItemLevel)
+  return levels.length ? Math.min(...levels) : null
+}
+
+const formatRaidOptionLabel = (raid: RaidDefinition) => {
+  const min = getRaidMinItemLevel(raid)
+  if (!min) return raid.name
+  return `${raid.name} (${min}+)`
+}
+
 const selectedRaidName = computed(() => {
   const selected = T4_RAIDS.find(raid => raid.id === draft.value.raidId)
   return selected?.name ?? ''
 })
+
+const parseItemLevel = (value?: string | null) => {
+  if (!value) return -Infinity
+  const numeric = Number(String(value).replace(/[^\d.]/g, ''))
+  return Number.isFinite(numeric) ? numeric : -Infinity
+}
+
+const getRequiredMinItemLevel = (schedule: RaidScheduleResponse | null) => {
+  if (!schedule) return null
+  const raid = T4_RAIDS.find(item => item.name === schedule.raidName)
+  if (!raid) return null
+  const difficultyLabel = (schedule.difficulty || '').trim()
+  const difficulty = raid.difficulties.find(d => d.label === difficultyLabel)
+  if (difficulty) return difficulty.minItemLevel
+  const levels = raid.difficulties.map(d => d.minItemLevel)
+  return levels.length ? Math.min(...levels) : null
+}
+
+const requiredMinItemLevel = computed(() => getRequiredMinItemLevel(selectedRaid.value))
+
+type CharacterOption = {
+  characterName: string
+  label: string
+  disabled: boolean
+}
+
+const characterOptionsForParticipant = (participant: ParticipantResponse): CharacterOption[] => {
+  const roster = rosterByUserId.value[participant.userId] ?? []
+  const min = requiredMinItemLevel.value
+  const current = participant.characterName ?? ''
+
+  const eligible = roster
+    .filter(item => {
+      if (!item.characterName) return false
+      if (current && item.characterName === current) return true
+      if (min == null) return true
+      const level = parseItemLevel(item.itemMaxLevel ?? item.itemAvgLevel)
+      return level >= min
+    })
+    .map(item => {
+      const level = parseItemLevel(item.itemMaxLevel ?? item.itemAvgLevel)
+      const hasMin = min != null && Number.isFinite(level) && level >= 0
+      const suffix = hasMin ? ` (iLv ${Math.floor(level)})` : ''
+      return {
+        characterName: item.characterName,
+        label: `${item.characterName}${suffix}`,
+        disabled: min != null && current !== item.characterName && hasMin ? level < min : false
+      }
+    })
+
+  const seen = new Set<string>()
+  return eligible.filter(option => {
+    if (seen.has(option.characterName)) return false
+    seen.add(option.characterName)
+    return true
+  })
+}
+
+const ensureRosterLoaded = async (userId: number) => {
+  if (!selectedRaid.value) return
+  if (rosterByUserId.value[userId]) return
+  if (rosterLoadingByUserId.value[userId]) return
+
+  rosterLoadingByUserId.value = { ...rosterLoadingByUserId.value, [userId]: true }
+  try {
+    const response = await apiClient.get<ExpeditionCharacterResponse[]>(
+      `/me/raids/${selectedRaid.value.id}/members/${userId}/expedition-characters`
+    )
+    rosterByUserId.value = { ...rosterByUserId.value, [userId]: response.data ?? [] }
+  } catch (err: unknown) {
+    errorMessage.value = getHttpErrorMessage(err) || '원정대 캐릭터 목록을 불러오지 못했습니다.'
+    rosterByUserId.value = { ...rosterByUserId.value, [userId]: [] }
+  } finally {
+    rosterLoadingByUserId.value = { ...rosterLoadingByUserId.value, [userId]: false }
+  }
+}
+
+const handleCharacterChange = async (participantId: number, userId: number, event: Event) => {
+  if (!selectedRaid.value) return
+  const target = event.target
+  if (!(target instanceof HTMLSelectElement)) return
+  const next = target.value
+  if (!next) return
+
+  try {
+    loading.value = true
+    errorMessage.value = ''
+    const response = await apiClient.patch<RaidScheduleResponse>(`/me/raids/${selectedRaid.value.id}/members/${participantId}`, {
+      characterName: next
+    })
+    selectedRaid.value = response.data
+    await loadMyRaids()
+    setMessage('캐릭터를 변경했어요.')
+  } catch (err: unknown) {
+    errorMessage.value = getHttpErrorMessage(err) || '캐릭터 변경에 실패했습니다.'
+    await loadRaid(selectedRaid.value.id).catch(() => undefined)
+  } finally {
+    loading.value = false
+  }
+}
 
 const apiBaseUrl = () => (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/+$/, '')
 
@@ -357,6 +498,7 @@ const createRaid = async () => {
     loading.value = true
     errorMessage.value = ''
     const response = await apiClient.post<RaidScheduleResponse>('/me/raids', {
+      raidKey: draft.value.raidId,
       raidName: selectedRaidName.value,
       difficulty: draft.value.difficulty,
       scheduledAt: draft.value.dateTimeLocal,
@@ -691,7 +833,7 @@ onDeactivated(() => {
   display: grid;
   gap: 10px;
   margin-top: 12px;
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
 }
 
 .member-card {
@@ -700,7 +842,7 @@ onDeactivated(() => {
   padding: 12px;
   background: var(--card-bg);
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) auto auto;
   gap: 12px;
   align-items: center;
 }
@@ -719,6 +861,13 @@ onDeactivated(() => {
 .member-cell--character {
   color: var(--text-secondary);
   font-weight: 750;
+}
+
+.member-select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
 }
 
 .member-cell--status {

@@ -6,6 +6,7 @@
   --panel-padding: 16px;
   --panel-shadow: var(--shadow-md);
   --panel-border: var(--border-color);
+  --menu-header-height: 73px;
 
   /* 브레이크포인트 */
   --bp-mobile: 480px;
@@ -19,6 +20,107 @@
 }
 
 /* 상단 레이아웃 유틸리티 */
+.layout-top {
+  width: 100%;
+  background: var(--page-bg, #f7f8fa);
+}
+
+.layout-top__menu {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--card-bg, #ffffff);
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.layout-top__main {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.raid-menu-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.raid-menu-bar__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.raid-menu-bar__tabs {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.raid-menu-bar__center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.raid-menu-bar__right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.raid-menu-btn {
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-secondary, #374151);
+  transition: all 0.2s ease;
+}
+
+.raid-menu-btn.active {
+  background: var(--primary-soft-bg, rgba(99, 102, 241, 0.16));
+  color: var(--primary-color, #6366f1);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.08);
+}
+
+.raid-menu-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.user-pill {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 999px;
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary, #111827);
+  width: fit-content;
+}
+
+.user-pill__label {
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.user-pill__value {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .layout-title-row {
   display: flex;
   align-items: center;
@@ -39,12 +141,45 @@
   box-shadow: var(--shadow-sm);
   border-bottom: 1px solid var(--border-color);
   border-radius: 0;
+  min-height: var(--menu-header-height);
+}
+
+.top-menu-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary, #111827);
+  font-weight: 750;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.top-menu-action-btn:hover,
+.top-menu-action-btn:focus-visible {
+  border-color: var(--primary-color, #6366f1);
+  transform: translateY(-1px);
+}
+
+.top-menu-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .eyebrow {
   margin: 0 0 6px;
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+  .layout-top {
+    padding: 12px 0 0 0;
+  }
 }
 
 /* 섹션 헤더 공통 스타일 */

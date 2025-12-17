@@ -59,7 +59,11 @@ public class DiscordButtonListener extends ListenerAdapter {
             }
         } catch (Exception e) {
             log.error("버튼 처리 실패", e);
-            event.reply("오류가 발생했습니다. 다시 시도해주세요.").setEphemeral(true).queue();
+            String message = "오류가 발생했습니다. 다시 시도해주세요.";
+            if (e instanceof IllegalArgumentException && e.getMessage() != null && !e.getMessage().isBlank()) {
+                message = e.getMessage();
+            }
+            event.reply(message).setEphemeral(true).queue();
         }
     }
 

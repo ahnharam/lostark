@@ -4,10 +4,10 @@
       <div class="header">
         <div>
           <div class="layout-title-row">
-            <MenuAnchor />
-            <h2>내 캐릭터 등록</h2>
+            <h3>내 캐릭터 등록</h3>
           </div>
         </div>
+        <div></div>
         <div class="header-actions">
           <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
           <button v-else type="button" class="btn" :disabled="loading" @click="refresh">새로고침</button>
@@ -62,7 +62,6 @@ import { onMounted, ref } from 'vue'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage } from '@/utils/httpError'
 import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
 
 type MeResponse = {
   id: number
@@ -192,16 +191,19 @@ h2 {
 }
 
 .header {
-  display: flex;
+  display: grid;
+  width:100%;
+  height:100%;
+  grid-template-columns: 1fr 1fr 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 
 .header-actions {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .panel {

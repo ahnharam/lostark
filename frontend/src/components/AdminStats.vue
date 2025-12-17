@@ -1,31 +1,21 @@
 <template>
   <div class="admin-page">
-    <TopPageHeader>
-      <div class="admin-head">
-        <div>
-          <p class="eyebrow">관리자 · 테스트</p>
-          <div class="layout-title-row">
-            <MenuAnchor />
-            <h3>거래소 일별 기록 모니터</h3>
-          </div>
-          <p class="muted">DB에 저장된 일별 스냅샷을 빠르게 확인하고, 수동 캡처를 실행해 보세요.</p>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" :disabled="triggering" @click="triggerCapture()">
-            {{ triggering ? '기록 중...' : '기록 시작하기 (전일)' }}
-          </button>
-          <div class="date-run">
-            <input v-model="targetDate" type="date" class="input" />
-            <button class="btn ghost" type="button" :disabled="triggering || !targetDate" @click="triggerCapture(targetDate)">
-              지정일 캡처
-            </button>
-          </div>
-          <button class="btn ghost" type="button" :disabled="loading" @click="loadStats">
-            새로고침
+    <Teleport to="#admin-submenu-actions" v-if="isActive">
+      <div class="actions">
+        <button class="btn" type="button" :disabled="triggering" @click="triggerCapture()">
+          {{ triggering ? '기록 중...' : '기록 시작하기 (전일)' }}
+        </button>
+        <div class="date-run">
+          <input v-model="targetDate" type="date" class="input" />
+          <button class="btn ghost" type="button" :disabled="triggering || !targetDate" @click="triggerCapture(targetDate)">
+            지정일 캡처
           </button>
         </div>
+        <button class="btn ghost" type="button" :disabled="loading" @click="loadStats">
+          새로고침
+        </button>
       </div>
-    </TopPageHeader>
+    </Teleport>
 
     <section class="panel">
       <div v-if="gateEnabled && !unlocked" class="gate">
@@ -102,13 +92,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onBeforeUnmount } from 'vue'
+import { onActivated, onDeactivated, onMounted, ref, onBeforeUnmount } from 'vue'
 import { lostarkApi } from '@/api/lostark'
 import type { MarketDailyStat } from '@/api/types'
 import { getHttpErrorMessage } from '@/utils/httpError'
 import LoadingSpinner from './common/LoadingSpinner.vue'
-import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
 
 const stats = ref<MarketDailyStat[]>([])
 const page = ref(0)
@@ -124,9 +112,10 @@ const targetDate = ref('')
 const passwordInput = ref('')
 const unlocked = ref(false)
 const gateEnabled = Boolean(import.meta.env.VITE_ADMIN_PASSWORD)
-const ADMIN_KEY = 'admin_stats_unlocked'
+const ADMIN_KEY = 'admin_unlocked'
 const running = ref(false)
 let statusTimer: number | undefined
+const isActive = ref(false)
 
 const formatNumber = (value?: number | null) => {
   if (value === null || value === undefined) return '-'
@@ -183,6 +172,7 @@ const handleSearch = () => {
 }
 
 const pollStatus = async () => {
+  if (!isActive.value) return
   const wasRunning = running.value
   try {
     const status = await lostarkApi.getMarketStatsStatus()
@@ -193,6 +183,18 @@ const pollStatus = async () => {
   if (wasRunning && !running.value) {
     loadStats()
   }
+}
+
+const startPolling = () => {
+  if (statusTimer) return
+  void pollStatus()
+  statusTimer = window.setInterval(pollStatus, 5000)
+}
+
+const stopPolling = () => {
+  if (!statusTimer) return
+  window.clearInterval(statusTimer)
+  statusTimer = undefined
 }
 
 const unlock = () => {
@@ -222,14 +224,20 @@ onMounted(() => {
       loadStats()
     }
   }
-  pollStatus()
-  statusTimer = window.setInterval(pollStatus, 5000)
+})
+
+onActivated(() => {
+  isActive.value = true
+  startPolling()
+})
+
+onDeactivated(() => {
+  isActive.value = false
+  stopPolling()
 })
 
 onBeforeUnmount(() => {
-  if (statusTimer) {
-    window.clearInterval(statusTimer)
-  }
+  stopPolling()
 })
 </script>
 
@@ -240,18 +248,20 @@ onBeforeUnmount(() => {
 }
 
 .admin-head {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  height: 100%;
   align-items: center;
-  flex-wrap: wrap;
   gap: 12px;
 }
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .date-run {

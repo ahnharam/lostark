@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +26,13 @@ public class RaidSchedule {
 
     private String difficulty;  // 노말, 하드
 
+    @Column(name = "raid_key")
+    private String raidKey;  // 정규화된 레이드 키 (예: t4Raids.ts의 id)
+
     private LocalDateTime scheduledAt;  // 레이드 예정 시간
+
+    @Column(name = "week_key")
+    private LocalDate weekKey;  // 주간 리셋 기준 키 (수요일 06:00 KST 기준)
 
     private String description;  // 추가 설명
 

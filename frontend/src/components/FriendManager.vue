@@ -1,22 +1,24 @@
 <template>
   <div class="friends-page">
     <TopPageHeader>
-      <div class="page-header">
-        <div>
-          <p class="eyebrow">친구 관리</p>
-          <div class="layout-title-row">
-            <MenuAnchor />
-            <h2>디스코드 ID로 친구 추가</h2>
+      <div class="raid-menu-bar">
+        <div class="raid-menu-bar__title">
+          <div>
+            <h3>친구</h3>
           </div>
-          <p class="subtitle">친구 요청은 상대가 DM에서 수락해야 완료됩니다.</p>
-          <p v-if="me" class="user-pill">
-            <span class="user-pill__label">로그인</span>
-            <span class="user-pill__value">{{ me.discordUsername || me.kakaoNickname || `User#${me.id}` }}</span>
-          </p>
         </div>
-        <div class="header-actions">
-          <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
-          <button v-else type="button" class="btn" @click="refreshAll" :disabled="loading">새로고침</button>
+        <div class="raid-menu-bar__center">
+          <div class="raid-menu-bar__tabs" aria-label="친구 서브 메뉴">
+            <button type="button" class="raid-menu-btn active" disabled>친구 관리</button>
+          </div>
+        </div>
+        <div class="raid-menu-bar__right">
+          <p class="user-pill">
+            <span class="user-pill__label">로그인</span>
+            <span class="user-pill__value">{{ userLabel }}</span>
+          </p>
+          <button v-if="!me" type="button" class="raid-menu-btn" @click="startDiscordLogin">Discord로 로그인</button>
+          <button v-else type="button" class="raid-menu-btn" @click="refreshAll" :disabled="loading">새로고침</button>
         </div>
       </div>
     </TopPageHeader>
@@ -125,11 +127,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage, getHttpStatus } from '@/utils/httpError'
 import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
 
 type MeResponse = {
   id: number
@@ -170,6 +171,12 @@ const message = ref('')
 const errorMessage = ref('')
 const friends = ref<FriendResponse[]>([])
 const requests = ref<FriendRequestsResponse>({ outgoing: [], incoming: [] })
+
+const userLabel = computed(() => {
+  const user = me.value
+  if (!user) return '필요'
+  return user.discordUsername || user.kakaoNickname || `User#${user.id}`
+})
 
 let messageTimer: number | undefined
 const setMessage = (value: string) => {
@@ -333,8 +340,10 @@ onMounted(async () => {
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  height: 100%;
   gap: 16px;
   align-items: center;
 }
@@ -366,7 +375,6 @@ h2 {
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  margin: 10px 0 0;
   padding: 6px 10px;
   border: 1px solid var(--border-color);
   border-radius: 999px;

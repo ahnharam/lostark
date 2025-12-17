@@ -3,8 +3,7 @@
     <TopPageHeader>
       <div class="page-header">
         <div class="header-left">
-          <MenuAnchor />
-          <h1>LOA Character Search</h1>
+          <h3>캐릭터 검색</h3>
         </div>
         <div class="header-search">
           <div class="header-search__row">
@@ -387,7 +386,6 @@ import CharacterOverviewCard from './common/CharacterOverviewCard.vue'
 import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
 import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
 import { cleanTooltipLine, flattenTooltipLines, extractTooltipColor } from '@/utils/tooltipText'
 import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbbreviations'
 import { getEngravingDisplayName } from '@/data/engravingNames'
@@ -2558,38 +2556,83 @@ const cardSummary = computed(() => {
       }) ?? []
 
 
-  const equippedCount = cards.length
+	  const equippedCount = cards.length
+	  const totalAwakeCount = cards.reduce((sum, card) => sum + (card.awakeCount ?? 0), 0)
 
-  const effects =
-    cardData?.effects?.map((effect, index) => {
-      const slots = effect.cardSlots ?? []
-      const slotWithIndex = slots.map((slot, idx) => ({ slot, idx }))
-      const activeSlot =
-        slotWithIndex
-          .filter(entry => equippedCount >= entry.slot)
-          .reduce<{ slot: number; idx: number } | null>((best, entry) => {
-            if (!best) return entry
-            return entry.slot >= best.slot ? entry : best
-          }, null) ?? null
+	  const effects =
+	    cardData?.effects?.map((effect, index) => {
+	      const slots = (effect.cardSlots ?? []).filter(slot => Number.isFinite(slot))
+	      const items = effect.items ?? []
 
-      const activeIndex =
-        activeSlot?.idx ?? (effect.items?.length ? effect.items.length - 1 : 0)
-      const activeItem = effect.items?.[activeIndex]
+	      const maxSlot = slots.reduce((best, slot) => Math.max(best, slot), 0)
+	      const activeSlot = slots.reduce((best, slot) => {
+	        if (equippedCount < slot) return best
+	        return Math.max(best, slot)
+	      }, 0)
 
-      const label =
-        inlineText(activeItem?.name) ||
-        effect.items?.map(item => inlineText(item.name)).find(Boolean) ||
-        `세트 효과 ${effect.index ?? index + 1}`
+	      const baseIndex = (() => {
+	        if (!slots.length) return 0
+	        if (!activeSlot) return 0
+	        const idx = slots.lastIndexOf(activeSlot)
+	        return idx >= 0 ? idx : 0
+	      })()
 
-      const descriptions = [inlineText(activeItem?.description)].filter(Boolean)
+	      const parseAwakeningRequirement = (rawName?: string | null) => {
+	        const name = inlineText(rawName)
+	        if (!name) return null
+	        const match = name.match(/(\d+)\s*(?:각성|각)/)
+	        if (!match?.[1]) return null
+	        const value = Number(match[1])
+	        return Number.isFinite(value) ? value : null
+	      }
 
-      const setLabel =
-        activeSlot?.slot && activeSlot.slot > 0
-          ? `${activeSlot.slot}세트`
-          : slots.length
-            ? `${slots.join(' / ')}세트`
-            : ''
-      return {
+	      const activeIndex = (() => {
+	        if (!items.length) return 0
+	        const clampedBaseIndex = Math.min(Math.max(0, baseIndex), items.length - 1)
+
+	        if (!maxSlot || equippedCount < maxSlot || activeSlot < maxSlot) return clampedBaseIndex
+	        if (!totalAwakeCount) return clampedBaseIndex
+
+	        const awakeningCandidates = items
+	          .map((item, idx) => ({
+	            idx,
+	            requirement: parseAwakeningRequirement(item?.name)
+	          }))
+	          .filter((entry): entry is { idx: number; requirement: number } => entry.requirement !== null)
+	          .filter(entry => entry.idx >= clampedBaseIndex)
+
+	        const matchedCandidate = awakeningCandidates
+	          .filter(entry => totalAwakeCount >= entry.requirement)
+	          .reduce<{ idx: number; requirement: number } | null>((best, entry) => {
+	            if (!best) return entry
+	            return entry.requirement >= best.requirement ? entry : best
+	          }, null)
+
+	        if (matchedCandidate) return matchedCandidate.idx
+
+	        const extraCount = items.length - (clampedBaseIndex + 1)
+	        if (extraCount <= 0) return clampedBaseIndex
+	        const thresholds = Array.from({ length: extraCount }, (_, idx) => 12 + idx * 6)
+	        const metCount = thresholds.filter(threshold => totalAwakeCount >= threshold).length
+	        return Math.min(items.length - 1, clampedBaseIndex + metCount)
+	      })()
+
+	      const activeItem = items[activeIndex]
+
+	      const label =
+	        inlineText(activeItem?.name) ||
+	        items.map(item => inlineText(item.name)).find(Boolean) ||
+	        `세트 효과 ${effect.index ?? index + 1}`
+
+	      const descriptions = [inlineText(activeItem?.description)].filter(Boolean)
+
+	      const setLabel =
+	        activeSlot > 0
+	          ? `${activeSlot}세트`
+	          : slots.length
+	            ? `${slots.join(' / ')}세트`
+	            : ''
+	      return {
         key: `effect-${effect.index ?? index}`,
         label,
         descriptions,

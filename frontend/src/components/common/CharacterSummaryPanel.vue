@@ -1191,7 +1191,6 @@ const ENGRAVING_LEVEL_SPRITE =
 type EngravingBadgeSlice = 'stone' | 'default' | 'legendary' | 'heroic' | 'relic'
 
 const engravingBadgeSlice = (engrave: EngravingSummaryItem): EngravingBadgeSlice => {
-  if (engrave.craftLabel) return 'stone'
   const grade = (engrave.gradeLabel || '').toLowerCase()
   if (grade.includes('유물')) return 'relic'
   if (grade.includes('영웅')) return 'heroic'
@@ -1208,6 +1207,8 @@ const engravingLevelBadgeStyle = (engrave: EngravingSummaryItem) => {
     heroic: '75% 0%',
     relic: '100% 0%'
   }
+  console.log(engrave);
+  console.log(slice);
   return {
     backgroundImage: `url('${ENGRAVING_LEVEL_SPRITE}')`,
     backgroundRepeat: 'no-repeat',

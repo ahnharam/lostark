@@ -4,6 +4,7 @@ import com.lostark.backend.auth.AppUserPrincipal;
 import com.lostark.backend.raid.dto.RaidMemberAddRequest;
 import com.lostark.backend.raid.dto.RaidScheduleCreateRequest;
 import com.lostark.backend.raid.dto.RaidScheduleResponse;
+import com.lostark.backend.raid.dto.ExpeditionCharacterResponse;
 import com.lostark.backend.raid.service.MeRaidService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +63,27 @@ public class MeRaidController {
         return ResponseEntity.ok(meRaidService.removeMember(principal.getAppUserId(), raidId, participantId));
     }
 
+    @GetMapping("/{raidId}/members/{userId}/expedition-characters")
+    public ResponseEntity<List<ExpeditionCharacterResponse>> expeditionCharacters(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable Long raidId,
+            @PathVariable Long userId
+    ) {
+        return ResponseEntity.ok(meRaidService.getMemberExpeditionCharacters(principal.getAppUserId(), raidId, userId));
+    }
+
+    @PatchMapping("/{raidId}/members/{participantId}")
+    public ResponseEntity<RaidScheduleResponse> updateMemberCharacter(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable Long raidId,
+            @PathVariable Long participantId,
+            @RequestBody UpdateMemberCharacterRequest request
+    ) {
+        return ResponseEntity.ok(
+                meRaidService.updateMemberCharacter(principal.getAppUserId(), raidId, participantId, request.characterName())
+        );
+    }
+
     @DeleteMapping("/{raidId}")
     public ResponseEntity<Void> delete(
             @AuthenticationPrincipal AppUserPrincipal principal,
@@ -70,4 +92,6 @@ public class MeRaidController {
         meRaidService.deleteRaid(principal.getAppUserId(), raidId);
         return ResponseEntity.noContent().build();
     }
+
+    public record UpdateMemberCharacterRequest(String characterName) {}
 }

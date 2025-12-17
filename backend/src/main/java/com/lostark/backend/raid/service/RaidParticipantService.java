@@ -22,6 +22,7 @@ public class RaidParticipantService {
     private final RaidParticipantRepository raidParticipantRepository;
     private final AppUserRepository appUserRepository;
     private final DiscordBotClient discordBotClient;
+    private final RaidWeeklyLockoutService raidWeeklyLockoutService;
 
     /**
      * Discord 버튼 클릭으로 참가 상태 업데이트
@@ -35,6 +36,10 @@ public class RaidParticipantService {
         RaidParticipant participant = raidParticipantRepository
                 .findByRaidScheduleIdAndUserId(raidScheduleId, user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("참가자 정보를 찾을 수 없습니다."));
+
+        if (status == ParticipantStatus.ACCEPTED && participant.getStatus() != ParticipantStatus.ACCEPTED) {
+            raidWeeklyLockoutService.validateCanAccept(participant.getRaidSchedule(), participant.getCharacterName());
+        }
 
         participant.setStatus(status);
         participant.setRespondedAt(LocalDateTime.now());
@@ -60,6 +65,10 @@ public class RaidParticipantService {
 
         if (!participant.getUser().getId().equals(userId)) {
             throw new IllegalArgumentException("본인의 참가 상태만 변경할 수 있습니다.");
+        }
+
+        if (status == ParticipantStatus.ACCEPTED && participant.getStatus() != ParticipantStatus.ACCEPTED) {
+            raidWeeklyLockoutService.validateCanAccept(participant.getRaidSchedule(), participant.getCharacterName());
         }
 
         participant.setStatus(status);

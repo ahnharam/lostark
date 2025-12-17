@@ -1,55 +1,43 @@
 <template>
   <div class="main-layout">
-    <Teleport :to="menuTeleportTarget">
-      <button
-        type="button"
-        class="menu-trigger"
-        :aria-expanded="menuOpen"
-        aria-label="메인 메뉴 열기"
-        @click="toggleMenu"
-      >
-        <span class="menu-trigger__icon">☰</span>
-      </button>
-    </Teleport>
-
-    <transition name="menu-slide">
-      <nav
-        v-show="menuOpen"
-        class="menu-drawer"
-        aria-label="주 메뉴"
-        :aria-hidden="!menuOpen"
-      >
+    <Teleport to="#layout-top-menu">
+      <nav class="menu-drawer" aria-label="주 메뉴">
         <div class="menu-drawer__inner">
-          <div class="menu-inline">
-            <span class="menu-logo">Loap</span>
-            <div class="menu-items-row">
-              <button
-                v-for="item in menuItems"
-                :key="item.key"
-                type="button"
-                class="menu-item"
-                :class="{ active: activeMenu === item.key, disabled: !item.available }"
-                :disabled="!item.available"
-                @click="handleMenuSelect(item.key)"
-              >
-                <span class="menu-item__icon" aria-hidden="true">{{ item.icon }}</span>
-                <span class="menu-item__label">{{ item.label }}</span>
-                <span v-if="item.badge" class="menu-item__badge">{{ item.badge }}</span>
-              </button>
-            </div>
-            <div class="menu-actions">
-              <div class="server-status" :class="statusClass">
-                <span class="status-dot" aria-hidden="true"></span>
-                <span class="status-label">{{ statusLabel }}</span>
-              </div>
-              <ThemeToggle class="menu-theme-toggle" />
-              <button type="button" class="menu-myinfo" @click="handleMyInfoClick">내정보</button>
-            </div>
+          <span class="menu-logo">Loap</span>
+          <div class="menu-items-row">
+            <button
+              v-for="item in menuItems"
+              :key="item.key"
+              type="button"
+              class="menu-item"
+              :class="{ active: activeMenu === item.key, disabled: !item.available }"
+              :disabled="!item.available"
+              @click="selectMenu(item.key)"
+            >
+              <span class="menu-item__icon" aria-hidden="true">{{ item.icon }}</span>
+              <span class="menu-item__label">{{ item.label }}</span>
+              <span v-if="item.badge" class="menu-item__badge">{{ item.badge }}</span>
+            </button>
           </div>
-          <button class="menu-close" type="button" @click="closeMenu" aria-label="메뉴 닫기"></button>
+          <div class="menu-actions">
+            <button
+              type="button"
+              class="menu-myinfo top-menu-action-btn"
+              :class="{ active: activeMenu === 'friends' || activeMenu === 'characters' }"
+              @click="handleMyInfoClick"
+            >
+              <span class="menu-myinfo__icon" aria-hidden="true">👤</span>
+              내정보
+            </button>
+            <div class="server-status" :class="statusClass">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span class="status-label">{{ statusLabel }}</span>
+            </div>
+            <ThemeToggle class="menu-theme-toggle" />
+          </div>
         </div>
       </nav>
-    </transition>
+    </Teleport>
 
     <div class="layout-body">
       <aside class="ad-slot ad-slot--left" aria-label="왼쪽 광고 영역">
@@ -75,14 +63,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CharacterSearch from './CharacterSearch.vue'
 import ReforgeMenu from './ReforgeMenu.vue'
 import AuctionMenu from './AuctionMenu.vue'
 import FriendManager from './FriendManager.vue'
 import LifeMenu from './LifeMenu.vue'
-import AdminStats from './AdminStats.vue'
+import AdminMenu from './AdminMenu.vue'
 import CharacterManager from './CharacterManager.vue'
 import RaidMenu from './RaidMenu.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
@@ -110,11 +98,9 @@ interface MainMenuItem {
 
 const menuItems: MainMenuItem[] = [
   { key: 'character-search', label: '캐릭터 검색', icon: '🧭', available: true, badge: '기본' },
-  { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: 'NEW' },
-  { key: 'auction', label: '경매', icon: '💰', available: true, badge: 'DB' },
-  { key: 'raid', label: '레이드', icon: '⚔️', available: true, badge: 'T4' },
-  { key: 'friends', label: '친구', icon: '👥', available: true, badge: 'DM' },
-  { key: 'characters', label: '내 캐릭터', icon: '🪪', available: true },
+  { key: 'auction', label: '아이템 검색', icon: '💰', available: true, badge: '' },
+  { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: '' },
+  { key: 'raid', label: '레이드', icon: '⚔️', available: true, badge: '' },
   { key: 'life', label: '생활', icon: '🌿', available: false, badge: '준비 중' },
   { key: 'admin', label: '관리 (내부)', icon: '🛠️', available: true }
 ]
@@ -141,10 +127,20 @@ const { initTheme } = useTheme()
 initTheme()
 
 const activeMenu = ref<MainMenuKey>(normalizeMenu(route.params.menu))
-const menuOpen = ref(false)
 const serverStatus = ref<'unknown' | 'ok' | 'down'>('unknown')
 let statusTimer: number | undefined
-const menuTeleportTarget = ref('#layout-top-start')
+let menuHeaderResizeObserver: ResizeObserver | null = null
+let menuHeaderHeight = 0
+let hasMenuHeaderResizeListener = false
+let handleMenuHeaderResize: (() => void) | null = null
+
+const setMenuHeaderHeight = (height: number) => {
+  if (typeof document === 'undefined') return
+  const roundedHeight = Math.ceil(height)
+  if (roundedHeight <= menuHeaderHeight) return
+  menuHeaderHeight = roundedHeight
+  document.documentElement.style.setProperty('--menu-header-height', `${menuHeaderHeight}px`)
+}
 
 watch(
   () => route.params.menu,
@@ -164,39 +160,13 @@ watch(
   }
 )
 
-const updateMenuTeleportTarget = async () => {
-  menuTeleportTarget.value = '#layout-top-start'
-  await nextTick()
-  if (typeof document === 'undefined') return
-  const anchor = document.getElementById('layout-menu-anchor')
-  if (anchor) menuTeleportTarget.value = '#layout-menu-anchor'
-}
-
-watch(activeMenu, () => {
-  void updateMenuTeleportTarget()
-}, { immediate: true })
-
-onMounted(() => {
-  void updateMenuTeleportTarget()
-})
-
-const toggleMenu = () => {
-  menuOpen.value = !menuOpen.value
-}
-
-const closeMenu = () => {
-  menuOpen.value = false
-}
-
 const myInfoOpen = ref(false)
 
 const closeMyInfo = () => {
   myInfoOpen.value = false
 }
 
-const handleMyInfoClick = async () => {
-  closeMenu()
-  await nextTick()
+const handleMyInfoClick = () => {
   myInfoOpen.value = true
 }
 
@@ -209,12 +179,6 @@ const selectMenu = (menu: MainMenuKey) => {
   }).catch(() => undefined)
 }
 
-const handleMenuSelect = async (menu: MainMenuKey) => {
-  closeMenu()
-  await nextTick()
-  selectMenu(menu)
-}
-
 const componentMap: Record<MainMenuKey, unknown> = {
   'character-search': CharacterSearch,
   reforge: ReforgeMenu,
@@ -223,7 +187,7 @@ const componentMap: Record<MainMenuKey, unknown> = {
   friends: FriendManager,
   characters: CharacterManager,
   life: LifeMenu,
-  admin: AdminStats
+  admin: AdminMenu
 }
 
 const activeComponent = computed(() => componentMap[activeMenu.value] ?? CharacterSearch)
@@ -252,11 +216,55 @@ const checkServer = async () => {
 onMounted(() => {
   checkServer()
   statusTimer = window.setInterval(checkServer, 30000)
+
+  if (typeof document !== 'undefined') {
+    const headerHost = document.getElementById('layout-top-main')
+    if (headerHost) {
+      const measureMenuHeader = () => {
+        setMenuHeaderHeight(headerHost.getBoundingClientRect().height)
+      }
+
+      measureMenuHeader()
+      if (typeof window !== 'undefined') {
+        window.requestAnimationFrame(() => {
+          measureMenuHeader()
+          window.requestAnimationFrame(measureMenuHeader)
+        })
+      }
+
+      if (typeof ResizeObserver !== 'undefined') {
+        menuHeaderResizeObserver = new ResizeObserver(entries => {
+          for (const entry of entries) {
+            setMenuHeaderHeight(entry.contentRect.height)
+          }
+        })
+        menuHeaderResizeObserver.observe(headerHost)
+      } else if (typeof window !== 'undefined') {
+        hasMenuHeaderResizeListener = true
+        handleMenuHeaderResize = () => {
+          setMenuHeaderHeight(headerHost.getBoundingClientRect().height)
+        }
+        window.addEventListener('resize', handleMenuHeaderResize)
+      }
+    }
+  }
 })
 
 onBeforeUnmount(() => {
   if (statusTimer) {
     window.clearInterval(statusTimer)
+  }
+
+  if (menuHeaderResizeObserver) {
+    menuHeaderResizeObserver.disconnect()
+    menuHeaderResizeObserver = null
+  }
+  if (hasMenuHeaderResizeListener) {
+    if (handleMenuHeaderResize) {
+      window.removeEventListener('resize', handleMenuHeaderResize)
+      handleMenuHeaderResize = null
+    }
+    hasMenuHeaderResizeListener = false
   }
 })
 </script>
@@ -267,31 +275,6 @@ onBeforeUnmount(() => {
   flex-direction: column;
   min-height: 100vh;
   background: var(--page-bg, #f7f8fa);
-}
-
-.menu-trigger {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-secondary, #f3f4f6);
-  display: grid;
-  place-items: center;
-  font-size: 1.2rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.menu-trigger:hover,
-.menu-trigger:focus-visible {
-  transform: translateY(-1px);
-  border-color: var(--primary-color, #6366f1);
-}
-
-.menu-trigger__icon {
-  line-height: 1;
-  color: var(--text-primary, #111827);
 }
 
 .main-brand {
@@ -311,35 +294,22 @@ onBeforeUnmount(() => {
 }
 
 .menu-drawer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  width: 100%;
   background: var(--card-bg, #ffffff);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
-  z-index: 30;
-  overflow: visible;
 }
 
 .menu-drawer__inner {
-  position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: 0.5fr 1fr 0.5fr;
+  width: 100%;
+  height: 100%;
   align-items: center;
   gap: 12px;
-  padding: 15px;
-  overflow: visible;
-}
-
-.menu-inline {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  white-space: nowrap;
+  padding: 10px 20px;
 }
 
 .menu-logo {
-  font-size: 1.1rem;
+  font-size: var(--font-2xl);
   font-weight: 800;
   color: var(--text-primary, #111827);
 }
@@ -356,24 +326,14 @@ onBeforeUnmount(() => {
 .menu-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
 }
 
-.menu-myinfo {
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-primary, #111827);
-  font-weight: 750;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.menu-myinfo:hover,
-.menu-myinfo:focus-visible {
+.menu-myinfo.active {
+  background: rgba(99, 102, 241, 0.16);
   border-color: var(--primary-color, #6366f1);
-  transform: translateY(-1px);
+  color: var(--primary-color, #6366f1);
 }
 
 .server-status {
@@ -455,41 +415,6 @@ onBeforeUnmount(() => {
 .menu-item.disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.menu-close {
-  position: absolute;
-  left: 50%;
-  bottom: 0px;
-  transform: translate(-50%, 50%) ;
-  width: 40px;
-  height: 34px;
-  border-radius: 999px;
-  border: none;
-  background: var(--card-bg, #ffffff);
-  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.08);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.menu-close::after {
-  content: '▲';
-  font-size: 0.9rem;
-  color: var(--text-primary, #111827);
-  line-height: 1;
-}
-
-.menu-slide-enter-from,
-.menu-slide-leave-to {
-  transform: translateY(-100%);
-  opacity: 0;
-}
-
-.menu-slide-enter-active,
-.menu-slide-leave-active {
-  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .layout-body {

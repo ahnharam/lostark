@@ -374,6 +374,21 @@ export const lostarkApi = {
     return response.data
   },
 
+  async getRaidCatalog() {
+    const response = await apiClient.get<RaidCatalogEntry[]>('/admin/raid-catalog')
+    return response.data
+  },
+
+  async createRaidCatalog(body: { raidKey: string; raidName: string; active?: boolean }) {
+    const response = await apiClient.post<RaidCatalogEntry>('/admin/raid-catalog', body)
+    return response.data
+  },
+
+  async updateRaidCatalog(raidKey: string, body: { raidName?: string; active?: boolean }) {
+    const response = await apiClient.patch<RaidCatalogEntry>(`/admin/raid-catalog/${encodeURIComponent(raidKey)}`, body)
+    return response.data
+  },
+
   async checkServerStatus() {
     try {
       // 가벼운 엔드포인트로 상태 확인
@@ -433,6 +448,13 @@ export const lostarkApi = {
   clearCache() {
     cacheManager.clear()
   }
+}
+
+type RaidCatalogEntry = {
+  raidKey: string
+  raidName: string
+  active: boolean
+  createdAt?: string | null
 }
 
 export type {

@@ -1,30 +1,29 @@
 <template>
   <div class="raid-page">
     <TopPageHeader>
-      <div class="raid-top">
-        <div class="raid-menu-bar">
-          <div class="raid-menu-bar__title">
-            <MenuAnchor />
-            <div>
-              <h2>레이드</h2>
-            </div>
+      <div class="raid-menu-bar">
+        <div class="raid-menu-bar__title">
+          <div>
+            <h3>레이드</h3>
           </div>
-          <div class="raid-menu-bar__right">
-            <div class="raid-menu-bar__tabs" aria-label="레이드 서브 메뉴">
-              <button
-                type="button"
-                class="raid-menu-btn"
-                :class="{ active: true }"
-                disabled
-              >
-                레이드 모집
-              </button>
-            </div>
-            <p class="user-pill">
-              <span class="user-pill__label">로그인</span>
-              <span class="user-pill__value">{{ userLabel }}</span>
-            </p>
+        </div>
+        <div class="raid-menu-bar__center">
+          <div class="raid-menu-bar__tabs" aria-label="레이드 서브 메뉴">
+            <button
+              type="button"
+              class="raid-menu-btn"
+              :class="{ active: true }"
+              disabled
+            >
+              레이드 모집
+            </button>
           </div>
+        </div>
+        <div class="raid-menu-bar__right">
+          <p class="user-pill">
+            <span class="user-pill__label">로그인</span>
+            <span class="user-pill__value">{{ userLabel }}</span>
+          </p>
         </div>
       </div>
     </TopPageHeader>
@@ -50,7 +49,6 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import RaidPartyManager from './RaidPartyManager.vue'
 import TopPageHeader from './common/TopPageHeader.vue'
-import MenuAnchor from './common/MenuAnchor.vue'
 import { apiClient } from '@/api/http'
 
 type MeResponse = {
@@ -113,7 +111,10 @@ onBeforeUnmount(() => {
 }
 
 .raid-menu-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  height: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
@@ -128,6 +129,14 @@ onBeforeUnmount(() => {
 .raid-menu-bar__tabs {
   display: inline-flex;
   gap: 8px;
+}
+
+.raid-menu-bar__center{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .raid-menu-bar__right {
