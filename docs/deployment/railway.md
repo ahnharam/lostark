@@ -17,6 +17,12 @@ Railway Environment 탭에 다음 값을 추가하세요. (FreeDB 정보는 [Fre
 | `SPRING_DATASOURCE_USERNAME` | `<freedb-user>` |
 | `SPRING_DATASOURCE_PASSWORD` | `<freedb-password>` |
 | `LOSTARK_API_KEY` | `<onstove-api-key>` |
+| `FRONTEND_BASE_URL` | `https://<your-vercel-domain>` |
+| `CORS_ALLOWED_ORIGINS` | `https://<your-vercel-domain>` (여러 개면 콤마 구분) |
+| `SESSION_COOKIE_SAME_SITE` | `None` (프론트/백 도메인이 다를 때) |
+| `SESSION_COOKIE_SECURE` | `true` (HTTPS 필수) |
+| `CSRF_COOKIE_SAME_SITE` | (선택) `None` |
+| `CSRF_COOKIE_SECURE` | (선택) `true` |
 | `SPRING_PROFILES_ACTIVE` | `prod` (optional) |
 
 > Railway는 Deploy 시점에 환경 변수를 자동 주입하므로 `.env`는 필요 없습니다.

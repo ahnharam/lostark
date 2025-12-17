@@ -15,6 +15,24 @@
 | `SPRING_DATASOURCE_URL` | 필요 없음 | ✅ (`jdbc:mariadb://<freedb-host>/<db>?useUnicode=true&characterEncoding=UTF-8`) | ✅ (관리 콘솔에서 제공) |
 | `SPRING_DATASOURCE_USERNAME` | 필요 없음 | ✅ | ✅ |
 | `SPRING_DATASOURCE_PASSWORD` | 필요 없음 | ✅ | ✅ |
+| `FRONTEND_BASE_URL` | 필요 없음 | ✅ (OAuth 리다이렉트 기준) | 사용 안 함 |
+| `CORS_ALLOWED_ORIGINS` | 필요 없음 | ✅ (콤마 구분) | 사용 안 함 |
+| `SESSION_COOKIE_SAME_SITE` | 필요 없음 | ✅ | 사용 안 함 |
+| `SESSION_COOKIE_SECURE` | 필요 없음 | ✅ | 사용 안 함 |
+| `CSRF_COOKIE_SAME_SITE` | 필요 없음 | (선택) | 사용 안 함 |
+| `CSRF_COOKIE_SECURE` | 필요 없음 | (선택) | 사용 안 함 |
+
+## Vercel 프론트 + 별도 백엔드(서로 다른 도메인)
+
+프론트/백엔드 도메인이 다르면 브라우저가 쿠키를 3rd-party로 취급하므로, **POST/PUT/PATCH/DELETE 요청이 403(CSRF)** 로 막힐 수 있습니다.
+
+백엔드 환경 변수에 아래 값을 설정하세요.
+
+- `CORS_ALLOWED_ORIGINS=https://<your-vercel-domain>`
+- `FRONTEND_BASE_URL=https://<your-vercel-domain>`
+- `SESSION_COOKIE_SAME_SITE=None`
+- `SESSION_COOKIE_SECURE=true`
+- `CSRF_COOKIE_*`는 미설정 시 `SESSION_COOKIE_*` 값을 따라갑니다. (필요하면 명시적으로 덮어쓰기)
 
 ## 플랫폼별 가이드
 

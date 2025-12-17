@@ -71,5 +71,5 @@ app:
       enabled: ${APP_SECURITY_DEV_LOGIN_ENABLED:false}
     csrf:
       cookie:
-        same-site: ${CSRF_COOKIE_SAME_SITE:Lax}
-        secure: ${CSRF_COOKIE_SECURE:false}
+        same-site: ${CSRF_COOKIE_SAME_SITE:${SESSION_COOKIE_SAME_SITE:Lax}}
+        secure: ${CSRF_COOKIE_SECURE:${SESSION_COOKIE_SECURE:false}}

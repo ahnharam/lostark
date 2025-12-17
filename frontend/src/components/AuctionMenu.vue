@@ -180,7 +180,6 @@
       <p v-if="!leafCategories.length" class="inline-hint">
         등록된 거래소 기록이 없습니다.
       </p>
-      <p v-if="snapshotNotice" class="inline-hint">{{ snapshotNotice }}</p>
     </section>
 
     <section class="items-panel panel-card">
@@ -508,9 +507,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { apiClient } from '@/api/http'
-import { lostarkApi } from '@/api/lostark'
+	import { computed, onMounted, ref, watch } from 'vue'
+	import { lostarkApi } from '@/api/lostark'
 import type {
   StoredMarketCategory,
   MarketOptionsResponse,
@@ -643,10 +641,6 @@ const itemTiers = ref<number[]>([])
 const itemGrades = ref<string[]>([])
 const lastFetchedAt = ref<number | null>(null)
 const lastCenterPage = ref(1)
-const syncingSnapshot = ref(false)
-const snapshotNotice = ref('')
-let snapshotNoticeTimer: number | undefined
-
 const detailOpen = ref(false)
 const detailLoading = ref(false)
 const detailData = ref<MarketItemDetail | null>(null)
@@ -986,33 +980,6 @@ const resetAndLoad = () => {
   page.value = 1
   lastCenterPage.value = 1
   loadItems()
-}
-
-const setSnapshotNotice = (message: string) => {
-  snapshotNotice.value = message
-  if (snapshotNoticeTimer) window.clearTimeout(snapshotNoticeTimer)
-  snapshotNoticeTimer = window.setTimeout(() => {
-    snapshotNotice.value = ''
-  }, 2500)
-}
-
-const syncSnapshot = async () => {
-  if (syncingSnapshot.value) return
-  try {
-    syncingSnapshot.value = true
-    setSnapshotNotice('거래소 스냅샷을 동기화하는 중...')
-    await apiClient.post('/markets/options/sync')
-    await loadCategories()
-    if (selectedCategory.value) {
-      await loadItems()
-    }
-    setSnapshotNotice('동기화 완료!')
-  } catch (error: unknown) {
-    console.error(error)
-    setSnapshotNotice(getHttpErrorMessage(error) || '동기화에 실패했습니다.')
-  } finally {
-    syncingSnapshot.value = false
-  }
 }
 
 const loadCategories = async () => {

@@ -7,6 +7,7 @@ const MAX_RETRY_DELAY_MS = 1200
 const RETRYABLE_STATUS = [429, 502, 503, 504]
 
 type RetryableConfig = AxiosRequestConfig & { __retryCount?: number }
+type CsrfRetryableConfig = RetryableConfig & { __csrfRetried?: boolean }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -34,6 +35,7 @@ export const apiClient = axios.create({
 })
 
 let csrfTokenFromApi: string | null = null
+let csrfRefreshPromise: Promise<void> | null = null
 
 const getCookie = (name: string) => {
   if (typeof document === 'undefined') return null
@@ -46,6 +48,18 @@ const getCookie = (name: string) => {
 const shouldAttachCsrf = (method?: string) => {
   const normalized = (method || 'get').toUpperCase()
   return normalized !== 'GET' && normalized !== 'HEAD' && normalized !== 'OPTIONS'
+}
+
+const refreshCsrfToken = async (): Promise<void> => {
+  if (!csrfRefreshPromise) {
+    csrfRefreshPromise = apiClient
+      .get('/auth/csrf')
+      .then(() => undefined)
+      .finally(() => {
+        csrfRefreshPromise = null
+      })
+  }
+  return csrfRefreshPromise
 }
 
 apiClient.interceptors.request.use(config => {
@@ -71,21 +85,41 @@ apiClient.interceptors.response.use(
     return response
   },
   async (error: AxiosError) => {
+    const config = error.config as CsrfRetryableConfig | undefined
+    const method = (config?.method || 'get').toUpperCase()
+    const url = typeof config?.url === 'string' ? config.url : ''
+
+    if (
+      error.response?.status === 403 &&
+      config &&
+      shouldAttachCsrf(method) &&
+      !config.__csrfRetried &&
+      !url.includes('/auth/csrf')
+    ) {
+      config.__csrfRetried = true
+      try {
+        await refreshCsrfToken()
+        return apiClient(config)
+      } catch {
+        // fall through
+      }
+    }
+
     if (!isRetryableError(error)) {
       return Promise.reject(error)
     }
 
-    const config = error.config as RetryableConfig
-    const currentRetry = config.__retryCount ?? 0
+    const retryConfig = error.config as RetryableConfig
+    const currentRetry = retryConfig.__retryCount ?? 0
 
     if (currentRetry >= MAX_RETRIES) {
       return Promise.reject(error)
     }
 
-    config.__retryCount = currentRetry + 1
+    retryConfig.__retryCount = currentRetry + 1
     const delay = Math.min(BASE_RETRY_DELAY_MS * 2 ** currentRetry, MAX_RETRY_DELAY_MS)
     await sleep(delay)
 
-    return apiClient(config)
+    return apiClient(retryConfig)
   }
 )
