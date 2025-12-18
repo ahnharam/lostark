@@ -36,10 +36,10 @@ public class SecurityConfig {
     @Value("${app.frontend.success-redirect-path:/raid}")
     private String successRedirectPath;
 
-    @Value("${app.security.csrf.cookie.same-site:Lax}")
+    @Value("${app.security.csrf.cookie.same-site:${SESSION_COOKIE_SAME_SITE:Lax}}")
     private String csrfCookieSameSite;
 
-    @Value("${app.security.csrf.cookie.secure:false}")
+    @Value("${app.security.csrf.cookie.secure:${SESSION_COOKIE_SECURE:false}}")
     private boolean csrfCookieSecure;
 
     @Bean

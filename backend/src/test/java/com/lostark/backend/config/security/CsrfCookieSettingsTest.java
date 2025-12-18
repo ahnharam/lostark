@@ -2,6 +2,7 @@ package com.lostark.backend.config.security;
 
 import com.lostark.backend.auth.CsrfController;
 import com.lostark.backend.auth.DiscordOAuth2UserService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -38,11 +39,16 @@ class CsrfCookieSettingsTest {
                 .andReturn();
 
         List<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
-        assertThat(setCookies).anyMatch(value ->
-                value.contains("XSRF-TOKEN=") &&
-                        value.contains("SameSite=None") &&
-                        value.contains("Secure")
-        );
+
+        Cookie xsrfCookie = result.getResponse().getCookie("XSRF-TOKEN");
+        assertThat(xsrfCookie).isNotNull();
+        assertThat(xsrfCookie.getSecure()).isTrue();
+
+        String sameSite = xsrfCookie.getAttribute("SameSite");
+        if (sameSite != null) {
+            assertThat(sameSite).isEqualToIgnoringCase("None");
+        } else {
+            assertThat(setCookies).anyMatch(value -> value.contains("XSRF-TOKEN=") && value.contains("SameSite=None"));
+        }
     }
 }
-

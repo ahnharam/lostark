@@ -13,9 +13,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -23,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {CsrfController.class, CsrfSecurityTest.TestMutationController.class})
+@WebMvcTest(controllers = {CsrfController.class, TestMutationController.class})
 @Import(SecurityConfig.class)
 class CsrfSecurityTest {
 
@@ -35,15 +32,6 @@ class CsrfSecurityTest {
 
     @MockBean
     private DiscordOAuth2UserService discordOAuth2UserService;
-
-    @RestController
-    @RequestMapping("/api/test")
-    static class TestMutationController {
-        @PostMapping("/mutate")
-        public String mutate() {
-            return "ok";
-        }
-    }
 
     @Test
     void postWithoutCsrfReturnsForbidden() throws Exception {
