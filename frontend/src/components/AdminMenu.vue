@@ -1,27 +1,8 @@
 <template>
   <div class="admin-page">
     <TopPageHeader>
-      <div class="admin-menu-bar">
-        <div class="admin-menu-bar__title">
-          <div>
-            <h3>웹페이지 관리</h3>
-          </div>
-        </div>
-        <div class="admin-menu-bar__center">
-          <div class="admin-menu-bar__tabs" aria-label="관리 서브 메뉴">
-            <button
-              v-for="tab in subMenuTabs"
-              :key="tab.key"
-              type="button"
-              class="admin-menu-btn"
-              :class="{ active: activeTab === tab.key }"
-              @click="activeTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-        </div>
-        <div class="admin-menu-bar__right"></div>
+      <div class="layout-title-row">
+        <h3>웹페이지 관리</h3>
       </div>
     </TopPageHeader>
 
@@ -43,19 +24,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import TopPageHeader from './common/TopPageHeader.vue'
 import AdminStats from './AdminStats.vue'
 import AdminRaidCatalog from './AdminRaidCatalog.vue'
 
 type AdminSubTab = 'market-records' | 'raid-catalog'
 
-const subMenuTabs: Array<{ key: AdminSubTab; label: string }> = [
-  { key: 'market-records', label: '거래소 기록' },
-  { key: 'raid-catalog', label: '레이드 추가' }
-]
+const props = defineProps<{
+  activeTab?: AdminSubTab
+}>()
 
-const activeTab = ref<AdminSubTab>('market-records')
+const activeTab = ref<AdminSubTab>(props.activeTab ?? 'market-records')
+watch(
+  () => props.activeTab,
+  value => {
+    if (!value) return
+    activeTab.value = value
+  }
+)
 
 const activeComponent = computed(() => {
   if (activeTab.value === 'raid-catalog') return AdminRaidCatalog

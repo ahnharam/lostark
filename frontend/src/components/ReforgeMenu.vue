@@ -1,24 +1,8 @@
 <template>
   <div class="reforge-page">
     <TopPageHeader>
-      <div class="reforge-menu-bar">
-        <div class="reforge-menu-bar__title">
-          <div>
-            <h3>강화 & 세팅 최적화</h3>
-          </div>
-        </div>
-        <div class="reforge-menu-bar__tabs">
-          <button
-            v-for="tab in subMenuTabs"
-            :key="tab.key"
-            type="button"
-            class="reforge-menu-btn"
-            :class="{ active: activeSubMenuTab === tab.key }"
-            @click="activeSubMenuTab = tab.key"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
+      <div class="layout-title-row">
+        <h3>강화 & 세팅 최적화</h3>
       </div>
     </TopPageHeader>
 
@@ -304,12 +288,24 @@ const scenarioPresets: Record<ReforgeTab, Record<ScenarioTab, ScenarioInfo>> = {
   }
 }
 
+const props = defineProps<{
+  activeSubMenuTab?: SubMenuTab
+}>()
+
 const activeReforgeTab = ref<ReforgeTab>('normal')
-const activeSubMenuTab = ref<SubMenuTab>('normal')
+const activeSubMenuTab = ref<SubMenuTab>(props.activeSubMenuTab ?? 'normal')
 const activeMaterialTab = ref<MaterialTab>('price')
 const activeScenarioTab = ref<ScenarioTab>('optimal')
 const applyResearch = ref(equipmentPresets[activeReforgeTab.value].applyResearch)
 const applySupport = ref(equipmentPresets[activeReforgeTab.value].applySupport)
+
+watch(
+  () => props.activeSubMenuTab,
+  value => {
+    if (!value) return
+    activeSubMenuTab.value = value
+  }
+)
 
 const activeMaterials = computed(() => materialPresets[activeReforgeTab.value][activeMaterialTab.value])
 const activeEquipment = computed(() => equipmentPresets[activeReforgeTab.value])

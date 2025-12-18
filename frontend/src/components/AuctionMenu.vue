@@ -1,33 +1,8 @@
 <template>
   <div class="auction-page">
     <TopPageHeader>
-      <div class="raid-menu-bar">
-        <div class="raid-menu-bar__title">
-          <div>
-            <h3>아이템 검색</h3>
-          </div>
-        </div>
-        <div class="raid-menu-bar__center">
-          <div class="raid-menu-bar__tabs" aria-label="아이템 검색 서브 메뉴">
-            <button
-              type="button"
-              class="raid-menu-btn"
-              :class="{ active: activeSubMenu === 'market' }"
-              @click="activeSubMenu = 'market'"
-            >
-              거래소
-            </button>
-            <button
-              type="button"
-              class="raid-menu-btn"
-              :class="{ active: activeSubMenu === 'auction-house' }"
-              @click="activeSubMenu = 'auction-house'"
-            >
-              경매장
-            </button>
-          </div>
-        </div>
-        <div class="raid-menu-bar__right"></div>
+      <div class="layout-title-row">
+        <h3>아이템 검색</h3>
       </div>
     </TopPageHeader>
 
@@ -536,7 +511,18 @@ type TooltipState = {
   tradeVolume?: number | null
 }
 
-const activeSubMenu = ref<ItemSearchSubMenu>('market')
+const props = defineProps<{
+  activeSubMenu?: ItemSearchSubMenu
+}>()
+
+const activeSubMenu = ref<ItemSearchSubMenu>(props.activeSubMenu ?? 'market')
+watch(
+  () => props.activeSubMenu,
+  value => {
+    if (!value) return
+    activeSubMenu.value = value
+  }
+)
 const marketSubMenu = ref<MarketSubMenu>('all')
 
 const marketSubMenuLabel = computed(() => {

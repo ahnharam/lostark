@@ -3,22 +3,56 @@
     <Teleport to="#layout-top-menu">
       <nav class="menu-drawer" aria-label="주 메뉴">
         <div class="menu-drawer__inner">
-          <span class="menu-logo">Loap</span>
-          <div class="menu-items-row">
+          <div class="menu-left">
+            <span class="menu-logo">Loap</span>
+            <div class="menu-selected" aria-live="polite" role="status">
+              <span class="menu-selected__icon" aria-hidden="true">{{ selectedMenu.icon }}</span>
+              <span class="menu-selected__label">{{ selectedMenu.label }}</span>
+              <span v-if="selectedMenu.badge" class="menu-selected__badge">{{ selectedMenu.badge }}</span>
+            </div>
+            <div
+              v-if="activeSubMenuItems.length"
+              class="menu-submenu"
+              aria-label="서브 메뉴"
+            >
+              <button
+                v-for="tab in activeSubMenuItems"
+                :key="tab.key"
+                type="button"
+                class="menu-submenu__item"
+                :class="{ active: activeSubMenuKey === tab.key }"
+                :disabled="tab.disabled"
+                @click="selectSubMenu(tab.key)"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="menu-divider" :class="{ 'menu-divider--hidden': !hasCenterMenu }" aria-hidden="true"></div>
+
+          <nav
+            class="menu-center"
+            :class="{ 'menu-center--expanded': activeMenu === 'character-search' }"
+            aria-label="메인 메뉴"
+          >
             <button
-              v-for="item in menuItems"
+              v-for="item in centerMenuItems"
               :key="item.key"
               type="button"
-              class="menu-item"
-              :class="{ active: activeMenu === item.key, disabled: !item.available }"
+              class="menu-center__item"
+              :class="{ disabled: !item.available }"
               :disabled="!item.available"
               @click="selectMenu(item.key)"
             >
-              <span class="menu-item__icon" aria-hidden="true">{{ item.icon }}</span>
-              <span class="menu-item__label">{{ item.label }}</span>
-              <span v-if="item.badge" class="menu-item__badge">{{ item.badge }}</span>
+              <span class="menu-center__icon" aria-hidden="true">{{ item.icon }}</span>
+              <span class="menu-center__label">{{ item.label }}</span>
+              <span v-if="item.badge" class="menu-center__badge">{{ item.badge }}</span>
             </button>
-          </div>
+          </nav>
+
+          <div class="menu-divider" :class="{ 'menu-divider--hidden': !hasCenterMenu }" aria-hidden="true"></div>
+
           <div class="menu-actions">
             <button
               type="button"
@@ -44,7 +78,7 @@
         <span>광고 영역</span>
       </aside>
       <main class="layout-content">
-        <component :is="activeComponent" />
+        <component :is="activeComponent" v-bind="activeComponentProps" />
       </main>
       <aside class="ad-slot ad-slot--right" aria-label="오른쪽 광고 영역">
         <span>광고 영역</span>
@@ -96,8 +130,14 @@ interface MainMenuItem {
   badge?: string
 }
 
+type AuctionSubMenuKey = 'market' | 'auction-house'
+type ReforgeSubMenuKey = 'normal' | 'advanced' | 'blunt-thorn' | 'supersonic'
+type AdminSubMenuKey = 'market-records' | 'raid-catalog'
+
+type SubMenuItem = { key: string; label: string; disabled?: boolean }
+
 const menuItems: MainMenuItem[] = [
-  { key: 'character-search', label: '캐릭터 검색', icon: '🧭', available: true, badge: '기본' },
+  { key: 'character-search', label: '캐릭터 검색', icon: '😊', available: true, badge: '기본' },
   { key: 'auction', label: '아이템 검색', icon: '💰', available: true, badge: '' },
   { key: 'reforge', label: '제련', icon: '⚒️', available: true, badge: '' },
   { key: 'raid', label: '레이드', icon: '⚔️', available: true, badge: '' },
@@ -127,6 +167,76 @@ const { initTheme } = useTheme()
 initTheme()
 
 const activeMenu = ref<MainMenuKey>(normalizeMenu(route.params.menu))
+const auctionSubMenu = ref<AuctionSubMenuKey>('market')
+const reforgeSubMenu = ref<ReforgeSubMenuKey>('normal')
+const adminSubMenu = ref<AdminSubMenuKey>('market-records')
+
+const isPrimaryMenu = (menu: MainMenuKey) => menuItems.some(item => item.key === menu)
+
+const selectedMenu = computed<MainMenuItem>(() => {
+  const found = menuItems.find(item => item.key === activeMenu.value)
+  if (found) return found
+  if (activeMenu.value === 'friends') return { key: 'friends', label: '친구', icon: '👥', available: true }
+  if (activeMenu.value === 'characters') return { key: 'characters', label: '내 캐릭터', icon: '📒', available: true }
+  return { key: 'character-search', label: '캐릭터 검색', icon: '😊', available: true, badge: '기본' }
+})
+
+const centerMenuItems = computed(() => {
+  if (!isPrimaryMenu(activeMenu.value)) return menuItems
+  return menuItems.filter(item => item.key !== activeMenu.value)
+})
+
+const hasCenterMenu = computed(() => centerMenuItems.value.length > 0)
+
+const activeSubMenuItems = computed<SubMenuItem[]>(() => {
+  if (activeMenu.value === 'auction') {
+    return [
+      { key: 'market', label: '거래소' },
+      { key: 'auction-house', label: '경매장' },
+    ]
+  }
+  if (activeMenu.value === 'reforge') {
+    return [
+      { key: 'normal', label: '제련' },
+      { key: 'advanced', label: '상급 제련' },
+      { key: 'blunt-thorn', label: '뭉가 계산기' },
+      { key: 'supersonic', label: '음돌 계산기' },
+    ]
+  }
+  if (activeMenu.value === 'admin') {
+    return [
+      { key: 'market-records', label: '거래소 기록' },
+      { key: 'raid-catalog', label: '레이드 추가' },
+    ]
+  }
+  return []
+})
+
+const activeSubMenuKey = computed<string | null>(() => {
+  if (activeMenu.value === 'auction') return auctionSubMenu.value
+  if (activeMenu.value === 'reforge') return reforgeSubMenu.value
+  if (activeMenu.value === 'admin') return adminSubMenu.value
+  return null
+})
+
+const selectSubMenu = (key: string) => {
+  if (activeMenu.value === 'auction') {
+    if (key === 'market' || key === 'auction-house') auctionSubMenu.value = key
+    return
+  }
+
+  if (activeMenu.value === 'reforge') {
+    if (key === 'normal' || key === 'advanced' || key === 'blunt-thorn' || key === 'supersonic') {
+      reforgeSubMenu.value = key
+    }
+    return
+  }
+
+  if (activeMenu.value === 'admin') {
+    if (key === 'market-records' || key === 'raid-catalog') adminSubMenu.value = key
+  }
+}
+
 const serverStatus = ref<'unknown' | 'ok' | 'down'>('unknown')
 let statusTimer: number | undefined
 let menuHeaderResizeObserver: ResizeObserver | null = null
@@ -191,6 +301,12 @@ const componentMap: Record<MainMenuKey, unknown> = {
 }
 
 const activeComponent = computed(() => componentMap[activeMenu.value] ?? CharacterSearch)
+const activeComponentProps = computed<Record<string, unknown>>(() => {
+  if (activeMenu.value === 'auction') return { activeSubMenu: auctionSubMenu.value }
+  if (activeMenu.value === 'reforge') return { activeSubMenuTab: reforgeSubMenu.value }
+  if (activeMenu.value === 'admin') return { activeTab: adminSubMenu.value }
+  return {}
+})
 
 const statusClass = computed(() => {
   if (serverStatus.value === 'ok') return 'status--ok'
@@ -208,7 +324,8 @@ const checkServer = async () => {
   try {
     const ok = await lostarkApi.checkServerStatus()
     serverStatus.value = ok ? 'ok' : 'down'
-  } catch {
+  } catch (err: unknown) {
+    void err
     serverStatus.value = 'down'
   }
 }
@@ -300,7 +417,7 @@ onBeforeUnmount(() => {
 
 .menu-drawer__inner {
   display: grid;
-  grid-template-columns: 0.5fr 1fr 0.5fr;
+  grid-template-columns: auto 1px 1fr 1px auto;
   width: 100%;
   height: 100%;
   align-items: center;
@@ -314,13 +431,172 @@ onBeforeUnmount(() => {
   color: var(--text-primary, #111827);
 }
 
-.menu-items-row {
+.menu-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.menu-selected {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--primary-color, #6366f1);
+  box-shadow: 0 10px 20px rgba(99, 102, 241, 0.06);
+  min-width: 0;
+}
+
+.menu-selected__icon {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.menu-selected__label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.menu-selected__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary-color, #6366f1);
+  font-size: 0.7rem;
+  color: #ffffff;
+}
+
+.menu-submenu {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.menu-submenu__item {
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--card-bg, #ffffff);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 750;
+  color: var(--text-secondary, #374151);
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.menu-submenu__item.active {
+  background: var(--primary-soft-bg, rgba(99, 102, 241, 0.16));
+  color: var(--primary-color, #6366f1);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.menu-submenu__item:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.menu-submenu__item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.menu-divider {
+  width: 1px;
+  height: 36px;
+  background-color: rgba(0, 0, 0, 0.12);
+  align-self: center;
+  transition: opacity 0.18s ease;
+}
+
+.menu-divider--hidden {
+  opacity: 0;
+}
+
+.menu-center {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1;
-  overflow: visible;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-width: 0;
   padding: 4px 0;
+  scrollbar-width: none;
+}
+
+.menu-center::-webkit-scrollbar {
+  height: 0;
+  display: none;
+}
+
+.menu-center__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: transparent;
+  color: var(--text-primary, #111827);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.menu-center--expanded .menu-center__item {
+  padding: 10px 14px;
+  background: rgba(156, 163, 175, 0.06);
+  border-radius: 9999px;
+  border: 1px solid rgba(156, 163, 175, 0.12);
+  color: #111827;
+}
+
+.menu-center__icon {
+  font-size: 1.1rem;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.menu-center__label {
+  font-size: 0.92rem;
+}
+
+.menu-center__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-secondary, #eef2ff);
+  font-size: 0.75rem;
+  color: var(--primary-color, #6366f1);
+}
+
+.menu-center__item:hover:not(.disabled),
+.menu-center__item:focus-visible:not(.disabled) {
+  border-color: var(--primary-color, #6366f1);
+  transform: translateY(-1px);
+}
+
+.menu-center__item.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .menu-actions {
@@ -366,55 +642,6 @@ onBeforeUnmount(() => {
 
 .server-status.status--unknown .status-dot {
   background: #d1d5db;
-}
-
-.menu-item {
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-primary, #111827);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.menu-item__icon {
-  font-size: 1.1rem;
-}
-
-.menu-item__label {
-  flex: 1;
-  text-align: left;
-}
-
-.menu-item__badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--bg-secondary, #eef2ff);
-  font-size: 0.75rem;
-  color: var(--primary-color, #6366f1);
-}
-
-.menu-item:hover:not(.disabled),
-.menu-item:focus-visible:not(.disabled) {
-  border-color: var(--primary-color, #6366f1);
-  transform: translateY(-1px);
-}
-
-.menu-item.active {
-  background: rgba(99, 102, 241, 0.16);
-  border-color: var(--primary-color, #6366f1);
-  color: var(--primary-color, #6366f1);
-}
-
-.menu-item.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .layout-body {
