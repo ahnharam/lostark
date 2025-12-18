@@ -1267,8 +1267,6 @@ const engravingLevelBadgeStyle = (engrave: EngravingSummaryItem) => {
     heroic: '75% 0%',
     relic: '100% 0%'
   }
-  console.log(engrave);
-  console.log(slice);
   return {
     backgroundImage: `url('${ENGRAVING_LEVEL_SPRITE}')`,
     backgroundRepeat: 'no-repeat',

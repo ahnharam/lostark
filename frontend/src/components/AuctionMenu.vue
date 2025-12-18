@@ -823,15 +823,15 @@ const handleTooltip = (dot: { x: number; y: number; value: number; date?: string
   const hoverKey = `${type}-${dot.date}-${tradeCount}-${avgPrice}-${tradeVolume}`
   if (lastHoverKey.value !== hoverKey) {
     lastHoverKey.value = hoverKey
-    console.log('[AuctionMenu] chart hover', {
-      chart: type,
-      date: dot.date,
-      value: dot.value,
-      tradeCount,
-      avgPrice,
-      tradeVolume,
-      coords: { x: clampedX, y: clampedYAnchor }
-    })
+    // console.log('[AuctionMenu] chart hover', {
+    //   chart: type,
+    //   date: dot.date,
+    //   value: dot.value,
+    //   tradeCount,
+    //   avgPrice,
+    //   tradeVolume,
+    //   coords: { x: clampedX, y: clampedYAnchor }
+    // })
   }
   tooltip.value = {
     visible: true,
