@@ -578,7 +578,25 @@
             </li>
           </ul>
           <!-- <p v-else class="summary-note">요약할 스킬 정보가 없습니다.</p> -->
+          <div class="summary-skill-actions">
+            <button
+              type="button"
+              class="summary-skill-code-btn"
+              :disabled="!activeCharacterName"
+              @click="openSkillCodeModal"
+            >
+              스킬코드 복사
+            </button>
+          </div>
         </div>
+        <SkillCodeModal
+          :show="showSkillCodeModal"
+          :character-name="activeCharacterName"
+          :skill-code="skillCodeValue"
+          :loading="skillCodeLoading"
+          :error-message="skillCodeError"
+          @close="closeSkillCodeModal"
+        />
         <div class="ark-section__block ark-section__block--engravings">
           <div class="summary-card__head">
             <p class="summary-eyebrow">각인</p>
@@ -697,13 +715,16 @@
 import { computed, ref } from 'vue'
 import IconImage from './IconImage.vue'
 import EmptyState from './EmptyState.vue'
+import SkillCodeModal from './SkillCodeModal.vue'
 import type { CharacterProfile } from '@/api/types'
+import { lostarkApi } from '@/api/lostark'
 import { stripHtml } from '@/utils/tooltipParser'
 import { extractTooltipColor, flattenTooltipLines } from '@/utils/tooltipText'
 import { getEngravingIcon } from '@/assets/BuffImage'
 import { getEngravingDisplayName, ENGRAVING_NAME_ENTRIES } from '@/data/engravingNames'
 import { COMBAT_STATS } from '@/data/combatStats'
 import { isRecord } from '@/utils/typeGuards'
+import { getHttpErrorMessage, getHttpStatus } from '@/utils/httpError'
 import {
   applyEffectAbbreviations,
   hasAbbreviationMatch,
@@ -877,7 +898,46 @@ const props = defineProps<{
 const equipmentView = ref<'equipment' | 'avatar'>('equipment')
 const inlineText = (value?: string | number | null) => (value ?? '').toString().replace(/\s+/g, ' ').trim()
 
+const activeCharacterName = computed(() => props.activeCharacter?.characterName ?? '')
+
 const displaySkillHighlights = computed(() => props.skillHighlights || [])
+
+const showSkillCodeModal = ref(false)
+const skillCodeLoading = ref(false)
+const skillCodeError = ref<string | null>(null)
+const skillCodeValue = ref<string | null>(null)
+const skillCodeLoadedFor = ref<string | null>(null)
+
+const openSkillCodeModal = async () => {
+  const name = activeCharacterName.value.trim()
+  if (!name) return
+
+  showSkillCodeModal.value = true
+  if (!skillCodeError.value && skillCodeLoadedFor.value === name && skillCodeValue.value) return
+  if (skillCodeLoading.value) return
+
+  skillCodeLoading.value = true
+  skillCodeError.value = null
+
+  try {
+    const res = await lostarkApi.getSkillCode(name)
+    const code = res.data.skillCode
+    skillCodeValue.value = code
+    skillCodeLoadedFor.value = name
+  } catch (err: unknown) {
+    const status = getHttpStatus(err)
+    const message = getHttpErrorMessage(err)
+    skillCodeError.value = status === 404 ? (message || `'${name}' 캐릭터의 스킬 코드를 찾을 수 없어요.`) : (message || '스킬 코드를 불러오지 못했어요.')
+    skillCodeValue.value = null
+    skillCodeLoadedFor.value = null
+  } finally {
+    skillCodeLoading.value = false
+  }
+}
+
+const closeSkillCodeModal = () => {
+  showSkillCodeModal.value = false
+}
 
 const equipmentRows = computed(() => {
   const left = props.equipmentSummary?.left || []
@@ -2410,6 +2470,34 @@ const coreNameStyle = (slot: ArkCoreSlot) => {
   .card-head__effects {
     justify-content: flex-start;
   }
+}
+
+.summary-skill-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.summary-skill-code-btn {
+  min-width: 180px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  background: var(--surface-color, #ffffff);
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+}
+
+.summary-skill-code-btn:hover:not(:disabled),
+.summary-skill-code-btn:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}
+
+.summary-skill-code-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 </style>

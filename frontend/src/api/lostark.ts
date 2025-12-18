@@ -12,6 +12,7 @@ import type {
   RankingResponse,
   SearchHistory,
   SkillMenuResponse,
+  SkillCodeResponse,
   SiblingCharacter,
   ArmoryAvatar,
   ArmoryGem,
@@ -35,7 +36,8 @@ const CACHE_TTL = {
   ARK_GRID: 10 * 60 * 1000,
   PROFILE_RANKING: 5 * 60 * 1000,
   SKILLS: 5 * 60 * 1000,
-  COLLECTIBLES: 5 * 60 * 1000
+  COLLECTIBLES: 5 * 60 * 1000,
+  SKILL_CODE: 5 * 60 * 1000
 } as const
 const CARDS_TTL = 5 * 60 * 1000
 
@@ -220,6 +222,24 @@ export const lostarkApi = {
         return response.data
       },
       CACHE_TTL.SKILLS,
+      options
+    )
+  },
+
+  async getSkillCode(
+    characterName: string,
+    options?: { force?: boolean }
+  ): Promise<ApiResult<SkillCodeResponse>> {
+    return cachedRequest(
+      'skillCode',
+      { name: characterName },
+      async () => {
+        const response = await apiClient.get<SkillCodeResponse>(`/skill-codes/${characterName}`, {
+          params: { force: options?.force }
+        })
+        return response.data
+      },
+      CACHE_TTL.SKILL_CODE,
       options
     )
   },

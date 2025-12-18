@@ -3,6 +3,7 @@ package com.lostark.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lostark.backend.exception.ApiException;
+import com.lostark.backend.exception.CharacterNotFoundException;
 import com.lostark.backend.lostark.util.LostArkSkillCodeParser;
 import com.lostark.backend.lostark.util.LostArkSkillCodeParser.ProfileIdentifiers;
 import java.time.Duration;
@@ -13,9 +14,11 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.util.UriUtils;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 
 @Slf4j
 @Service
@@ -44,8 +47,12 @@ public class SkillCodeService {
     }
 
     private String fetchProfileHtml(String characterName) {
-        String encodedName = UriUtils.encodePathSegment(characterName, StandardCharsets.UTF_8);
-        String url = LOSTARK_WEB_BASE + "/Profile/Character/" + encodedName;
+        URI url = UriComponentsBuilder
+                .fromHttpUrl(LOSTARK_WEB_BASE)
+                .path("/Profile/Character/{characterName}")
+                .buildAndExpand(characterName)
+                .encode(StandardCharsets.UTF_8)
+                .toUri();
 
         try {
             return webClientBuilder.build()
@@ -59,6 +66,10 @@ public class SkillCodeService {
                     .timeout(REQUEST_TIMEOUT)
                     .blockOptional()
                     .orElseThrow(() -> new ApiException("프로필 HTML을 가져오지 못했습니다."));
+        } catch (WebClientResponseException.NotFound e) {
+            throw new CharacterNotFoundException(characterName, e);
+        } catch (WebClientResponseException e) {
+            throw new ApiException("프로필 HTML 요청이 실패했습니다. status=" + e.getStatusCode().value(), e);
         } catch (Exception e) {
             throw new ApiException("프로필 HTML을 가져오는 중 오류가 발생했습니다.", e);
         }
@@ -66,7 +77,12 @@ public class SkillCodeService {
 
     private String fetchSkillRecommend(ProfileIdentifiers identifiers, String characterName) {
         String url = LOSTARK_WEB_BASE + "/Profile/SkillRecommend";
-        String referer = LOSTARK_WEB_BASE + "/Profile/Character/" + UriUtils.encodePathSegment(characterName, StandardCharsets.UTF_8);
+        String referer = UriComponentsBuilder
+                .fromHttpUrl(LOSTARK_WEB_BASE)
+                .path("/Profile/Character/{characterName}")
+                .buildAndExpand(characterName)
+                .encode(StandardCharsets.UTF_8)
+                .toUriString();
 
         try {
             return webClientBuilder.build()
@@ -87,6 +103,8 @@ public class SkillCodeService {
                     .timeout(REQUEST_TIMEOUT)
                     .blockOptional()
                     .orElseThrow(() -> new ApiException("SkillRecommend 응답을 가져오지 못했습니다."));
+        } catch (WebClientResponseException e) {
+            throw new ApiException("SkillRecommend 요청이 실패했습니다. status=" + e.getStatusCode().value(), e);
         } catch (Exception e) {
             throw new ApiException("SkillRecommend 호출 중 오류가 발생했습니다.", e);
         }

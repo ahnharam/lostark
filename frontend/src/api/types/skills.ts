@@ -48,3 +48,8 @@ export interface SkillMenuResponse {
   combatSkills?: CombatSkill[]
   skillGems?: SkillGem[]
 }
+
+export interface SkillCodeResponse {
+  characterName: string
+  skillCode: string
+}
