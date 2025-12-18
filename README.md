@@ -42,13 +42,13 @@ curl -s http://localhost:8080/api/admin/market-stats/status
 
 ## 문서/가이드
 - 단일 진입: `docs/dev-quickstart.md` (준비/헬스/구성/트러블슈팅/문서 목록)  
-- 배포: `docs/deployment/` (Railway/Vercel/FreeDB 등)  
+- 배포: `docs/deployment/` (Oracle VM/Vercel 등)  
 - 프론트 UX/기능: `frontend/docs/UX_OVERVIEW.md`, `frontend/docs/CHARACTER_RANKING_GUIDE.md`, `frontend/docs/ARK_GRID_GUIDE.md`  
 - 기타: `docs/lostark-armory.md`, `docs/mcp-usage.md`, `docs/documentation-guidelines.md`
 
 ## 운영/배포
 - 개발: `docker compose up -d --build`
-- 운영 시뮬레이션: `docker compose -f docker-compose.prod.yml up -d --build`
+- 운영 시뮬레이션: `docker compose -f docker-compose.prod.yml up -d --build` (backend는 `backend/build/libs/app.jar` 마운트 방식)
 - 관리: `docker compose restart`, `docker compose logs -f backend`
 
 ## 트러블슈팅 메모

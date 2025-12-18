@@ -16,6 +16,7 @@ backend/build/
 backend/build_root_*/
 backend/target/
 backend/.gradle/
+backend/.gradle-user-home/
 backend/out/
 
 # OS

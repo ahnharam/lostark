@@ -3,24 +3,27 @@
 현재 기준 배포 구조는 다음과 같습니다.
 
 - **Frontend**: Vercel (정적 Vite 빌드 업로드)
-- **Backend**: Railway (Dockerfile 기반 Spring Boot 컨테이너)
-- **Database**: FreeDB (Hosted MariaDB)
+- **Backend**: Oracle VM (Docker Compose 기반 Spring Boot 컨테이너)
+- **Database**: Oracle VM (Docker Compose의 MariaDB 컨테이너 + 볼륨)
 
 ## 환경 변수 매트릭스
 
-| 변수 | Vercel Front | Railway Back | FreeDB |
-| --- | --- | --- | --- |
-| `VITE_API_BASE_URL` | ✅ (Railway 백엔드 URL) | 사용 안 함 | 사용 안 함 |
-| `LOSTARK_API_KEY` | 필요 없음 | ✅ | 필요 없음 |
-| `SPRING_DATASOURCE_URL` | 필요 없음 | ✅ (`jdbc:mariadb://<freedb-host>/<db>?useUnicode=true&characterEncoding=UTF-8`) | ✅ (관리 콘솔에서 제공) |
-| `SPRING_DATASOURCE_USERNAME` | 필요 없음 | ✅ | ✅ |
-| `SPRING_DATASOURCE_PASSWORD` | 필요 없음 | ✅ | ✅ |
-| `FRONTEND_BASE_URL` | 필요 없음 | ✅ (OAuth 리다이렉트 기준) | 사용 안 함 |
-| `CORS_ALLOWED_ORIGINS` | 필요 없음 | ✅ (콤마 구분) | 사용 안 함 |
-| `SESSION_COOKIE_SAME_SITE` | 필요 없음 | ✅ | 사용 안 함 |
-| `SESSION_COOKIE_SECURE` | 필요 없음 | ✅ | 사용 안 함 |
-| `CSRF_COOKIE_SAME_SITE` | 필요 없음 | (선택) | 사용 안 함 |
-| `CSRF_COOKIE_SECURE` | 필요 없음 | (선택) | 사용 안 함 |
+| 변수 | Vercel Front | Oracle VM (.env) |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | ✅ (백엔드 URL) | 사용 안 함 |
+| `LOSTARK_API_KEY` | 필요 없음 | ✅ |
+| `DISCORD_BOT_TOKEN` | 필요 없음 | ✅ |
+| `DISCORD_CLIENT_ID` | 필요 없음 | ✅ (OAuth 사용 시) |
+| `DISCORD_CLIENT_SECRET` | 필요 없음 | ✅ (OAuth 사용 시) |
+| `FRONTEND_BASE_URL` | 필요 없음 | ✅ (OAuth 리다이렉트 기준) |
+| `CORS_ALLOWED_ORIGINS` | 필요 없음 | ✅ (콤마 구분, Origin과 정확히 일치) |
+| `SESSION_COOKIE_SAME_SITE` | 필요 없음 | ✅ |
+| `SESSION_COOKIE_SECURE` | 필요 없음 | ✅ |
+| `CSRF_COOKIE_SAME_SITE` | 필요 없음 | (선택) |
+| `CSRF_COOKIE_SECURE` | 필요 없음 | (선택) |
+| `DB_ROOT_PASSWORD` | 필요 없음 | ✅ |
+| `DB_USER` | 필요 없음 | ✅ |
+| `DB_PASSWORD` | 필요 없음 | ✅ |
 
 ## Vercel 프론트 + 별도 백엔드(서로 다른 도메인)
 
@@ -33,12 +36,14 @@
 - `SESSION_COOKIE_SAME_SITE=None`
 - `SESSION_COOKIE_SECURE=true`
 - `CSRF_COOKIE_*`는 미설정 시 `SESSION_COOKIE_*` 값을 따라갑니다. (필요하면 명시적으로 덮어쓰기)
+  - `CORS_ALLOWED_ORIGINS`는 Origin과 완전 일치해야 하므로 보통 끝 `/` 없이 설정합니다.
 
 ## 플랫폼별 가이드
 
 - [Vercel (Frontend)](./vercel.md)
-- [Railway (Backend)](./railway.md)
-- [FreeDB (Database)](./freedb.md)
+- [Oracle VM (Docker Compose + GitHub Actions)](./oracle-vm.md)
+- (대안/참고) [Railway (Backend)](./railway.md)
+- (대안/참고) [FreeDB (Database)](./freedb.md)
 
 ## 향후 플랫폼 변경을 대비하려면?
 

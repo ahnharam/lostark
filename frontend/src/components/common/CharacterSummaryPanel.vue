@@ -2128,7 +2128,9 @@ const coreNameStyle = (slot: ArkCoreSlot) => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width:fit-content;
+  width: fit-content;
+  height: 100%;
+  justify-content: space-between;
 }
 
 .avatar-slot-column--left{
@@ -2139,10 +2141,11 @@ const coreNameStyle = (slot: ArkCoreSlot) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 5px;
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.158));
+  background: #2b2b2bbd;
+  /* linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.158)); */
   /* border: 1px solid rgba(255, 255, 255, 0.06); */
   position: relative;
   width:fit-content;

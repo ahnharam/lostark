@@ -370,7 +370,13 @@ export const lostarkApi = {
   },
 
   async getMarketStatsStatus() {
-    const response = await apiClient.get<{ running: boolean }>('/admin/market-stats/status')
+    const response = await apiClient.get<{
+      running: boolean
+      scanned: number
+      saved: number
+      targetDate: string
+      startedAt: string
+    }>('/admin/market-stats/status')
     return response.data
   },
 

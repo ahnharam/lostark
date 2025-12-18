@@ -11,7 +11,7 @@
 
 ### 서브 디렉토리
 - `docs/deployment/`: 배포 관련 가이드  
-  - `README.md`, `railway.md`, `vercel.md`, `freedb.md`
+  - `README.md`, `oracle-vm.md`, `railway.md`, `vercel.md`, `freedb.md`
 - `docs/lostark-armory-responses/`: Lost Ark API 원본 응답 JSON 샘플(수동 편집 금지).
 
 ### 프런트엔드 문서

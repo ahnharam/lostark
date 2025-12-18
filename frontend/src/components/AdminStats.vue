@@ -2,12 +2,22 @@
   <div class="admin-page">
     <Teleport to="#admin-submenu-actions" v-if="isActive">
       <div class="actions">
-        <button class="btn" type="button" :disabled="triggering" @click="triggerCapture()">
+        <button
+          class="btn"
+          type="button"
+          :disabled="triggering || running || (gateEnabled && !unlocked)"
+          @click="triggerCapture()"
+        >
           {{ triggering ? '기록 중...' : '기록 시작하기 (전일)' }}
         </button>
         <div class="date-run">
           <input v-model="targetDate" type="date" class="input" />
-          <button class="btn ghost" type="button" :disabled="triggering || !targetDate" @click="triggerCapture(targetDate)">
+          <button
+            class="btn ghost"
+            type="button"
+            :disabled="triggering || running || (gateEnabled && !unlocked) || !targetDate"
+            @click="triggerCapture(targetDate)"
+          >
             지정일 캡처
           </button>
         </div>
@@ -48,10 +58,10 @@
       </div>
 
       <div v-if="running" class="overlay">
-        <LoadingSpinner message="데이터 수집 중입니다. 완료되면 최신 기록을 보여드려요." />
+        <LoadingSpinner :message="runningMessage" />
       </div>
 
-      <LoadingSpinner v-else-if="loading" message="불러오는 중..." />
+      <LoadingSpinner v-if="loading" message="불러오는 중..." />
       <p v-else-if="error" class="error-text">{{ error }}</p>
       <p v-else-if="!stats.length" class="empty">저장된 기록이 없습니다.</p>
       <div v-else class="table">
@@ -92,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { onActivated, onDeactivated, onMounted, ref, onBeforeUnmount } from 'vue'
+import { computed, onActivated, onDeactivated, onMounted, ref, onBeforeUnmount } from 'vue'
 import { lostarkApi } from '@/api/lostark'
 import type { MarketDailyStat } from '@/api/types'
 import { getHttpErrorMessage } from '@/utils/httpError'
@@ -114,6 +124,10 @@ const unlocked = ref(false)
 const gateEnabled = Boolean(import.meta.env.VITE_ADMIN_PASSWORD)
 const ADMIN_KEY = 'admin_unlocked'
 const running = ref(false)
+const captureScanned = ref(0)
+const captureSaved = ref(0)
+const captureSavedMilestone = ref(0)
+const captureTargetDate = ref('')
 let statusTimer: number | undefined
 const isActive = ref(false)
 
@@ -124,9 +138,17 @@ const formatNumber = (value?: number | null) => {
 
 const resolveErrorMessage = (err: unknown, fallback: string) => getHttpErrorMessage(err) ?? fallback
 
+const runningMessage = computed(() => {
+  const parts: string[] = ['데이터 수집 중입니다.']
+  if (captureTargetDate.value) parts.push(`대상일: ${captureTargetDate.value}`)
+  if (captureSavedMilestone.value > 0) parts.push(`저장: ${formatNumber(captureSavedMilestone.value)}건`)
+  if (captureScanned.value > 0) parts.push(`조회: ${formatNumber(captureScanned.value)}건`)
+  parts.push('완료되면 최신 기록을 보여드려요.')
+  return parts.join(' ')
+})
+
 const loadStats = async () => {
   if (gateEnabled && !unlocked.value) return
-  if (running.value) return
   loading.value = true
   error.value = ''
   message.value = ''
@@ -144,14 +166,21 @@ const loadStats = async () => {
 }
 
 const triggerCapture = async (date?: string) => {
-  if (gateEnabled && !unlocked.value) return
-  if (running.value) return
+  if (gateEnabled && !unlocked.value) {
+    error.value = '관리 접근 후 실행하세요.'
+    return
+  }
+  if (running.value) {
+    message.value = '이미 데이터 수집이 진행 중입니다.'
+    return
+  }
   triggering.value = true
   error.value = ''
   message.value = ''
   try {
     const resp = await lostarkApi.triggerMarketStatsCapture(date)
     message.value = resp || '기록 요청을 전송했습니다.'
+    captureSavedMilestone.value = 0
     await loadStats()
   } catch (err: unknown) {
     error.value = resolveErrorMessage(err, '기록을 시작하지 못했습니다.')
@@ -173,10 +202,22 @@ const handleSearch = () => {
 
 const pollStatus = async () => {
   if (!isActive.value) return
+  if (gateEnabled && !unlocked.value) return
   const wasRunning = running.value
   try {
     const status = await lostarkApi.getMarketStatsStatus()
     running.value = status.running
+    captureScanned.value = Number.isFinite(status.scanned) ? status.scanned : 0
+    captureSaved.value = Number.isFinite(status.saved) ? status.saved : 0
+    captureTargetDate.value = status.targetDate || ''
+    if (!wasRunning && status.running) {
+      captureSavedMilestone.value = 0
+    }
+    const milestone = Math.floor(captureSaved.value / 10) * 10
+    if (milestone > captureSavedMilestone.value) {
+      captureSavedMilestone.value = milestone
+      void loadStats()
+    }
   } catch {
     // ignore polling errors
   }

@@ -15,11 +15,11 @@ import com.lostark.backend.dto.market.MarketSyncResultDto;
 import com.lostark.backend.exception.ApiException;
 import com.lostark.backend.lostark.client.LostArkApiClient;
 import com.lostark.backend.market.entity.MarketCategory;
-import com.lostark.backend.market.entity.MarketDailyStat;
 import com.lostark.backend.market.entity.MarketOptionMeta;
+import com.lostark.backend.market.entity.MarketItemDailyStat;
 import com.lostark.backend.market.repository.MarketCategoryRepository;
-import com.lostark.backend.market.repository.MarketDailyStatRepository;
 import com.lostark.backend.market.repository.MarketItemAssetRepository;
+import com.lostark.backend.market.repository.MarketItemDailyStatRepository;
 import com.lostark.backend.market.repository.MarketOptionMetaRepository;
 
 import java.time.LocalDate;
@@ -49,7 +49,7 @@ public class MarketSyncService {
     private final LostArkApiClient lostArkApiClient;
     private final MarketCategoryRepository marketCategoryRepository;
     private final MarketOptionMetaRepository marketOptionMetaRepository;
-    private final MarketDailyStatRepository marketDailyStatRepository;
+    private final MarketItemDailyStatRepository marketItemDailyStatRepository;
     private final MarketItemAssetRepository marketItemAssetRepository;
     private final ObjectMapper objectMapper;
     private static final int MAX_RETRY = 5;
@@ -267,12 +267,27 @@ public class MarketSyncService {
      * 지정한 statDate(예: 전일) 기준 거래 데이터를 저장한다.
      */
     public void captureDailyStats(LocalDate statDate) {
+        captureDailyStats(statDate, null, null);
+    }
+
+    public void captureDailyStats(LocalDate statDate, AtomicInteger scannedCounter, AtomicInteger savedCounter) {
         LocalDate targetDate = statDate != null ? statDate : LocalDate.now(ZONE_SEOUL).minusDays(1);
+        AtomicInteger saved = savedCounter != null ? savedCounter : new AtomicInteger();
+        AtomicInteger scanned = scannedCounter != null ? scannedCounter : new AtomicInteger();
+
+        long categoryCount = marketCategoryRepository.count();
+        if (categoryCount == 0) {
+            log.warn("[MarketStats] market_category is empty; syncing categories before capture");
+            syncCategories();
+        }
+
         List<MarketCategory> leafCategories = marketCategoryRepository.findAll().stream()
                 .filter(cat -> !cat.isHasSubs())
                 .toList();
-        AtomicInteger saved = new AtomicInteger();
-        AtomicInteger scanned = new AtomicInteger();
+        if (leafCategories.isEmpty()) {
+            log.warn("[MarketStats] no leaf categories found; capture skipped date={}", targetDate);
+            return;
+        }
 
         for (MarketCategory category : leafCategories) {
             int page = 1;
@@ -342,12 +357,10 @@ public class MarketSyncService {
             return false;
         }
 
-        MarketDailyStat stat = marketDailyStatRepository
+        MarketItemDailyStat stat = marketItemDailyStatRepository
                 .findByApiItemIdAndStatDate(itemDto.getId(), statDate)
-                .orElseGet(MarketDailyStat::new);
+                .orElseGet(MarketItemDailyStat::new);
         stat.setApiItemId(itemDto.getId());
-        stat.setCategoryCode(categoryCode);
-        stat.setItemName(itemDto.getName());
         stat.setStatDate(statDate);
         stat.setMinPrice(minPrice);
         stat.setAvgPrice(avgPrice);
@@ -355,16 +368,20 @@ public class MarketSyncService {
         stat.setTradeVolume(tradeVolume);
         stat.setFetchedAt(LocalDateTime.now(ZONE_SEOUL));
 
-        marketDailyStatRepository.save(stat);
+        marketItemDailyStatRepository.save(stat);
 
-        upsertAsset(itemDto);
+        upsertAsset(itemDto, categoryCode);
         return true;
     }
 
-    private void upsertAsset(MarketItemDto itemDto) {
+    private void upsertAsset(MarketItemDto itemDto, Integer categoryCode) {
         marketItemAssetRepository.findByApiItemId(itemDto.getId())
                 .ifPresentOrElse(asset -> {
                     boolean dirty = false;
+                    if (categoryCode != null && !categoryCode.equals(asset.getCategoryCode())) {
+                        asset.setCategoryCode(categoryCode);
+                        dirty = true;
+                    }
                     if (itemDto.getName() != null && !itemDto.getName().equals(asset.getName())) {
                         asset.setName(itemDto.getName());
                         dirty = true;
@@ -383,6 +400,7 @@ public class MarketSyncService {
                 }, () -> {
                     var asset = new com.lostark.backend.market.entity.MarketItemAsset();
                     asset.setApiItemId(itemDto.getId());
+                    asset.setCategoryCode(categoryCode);
                     asset.setName(itemDto.getName());
                     asset.setIcon(itemDto.getIcon());
                     asset.setGrade(itemDto.getGrade());

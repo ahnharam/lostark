@@ -23,7 +23,7 @@ bash scripts/dev-prepare.sh
 ```bash
 docker compose ps                                  # 컨테이너 상태
 curl -i http://localhost:8080/api/markets/options  # 백엔드 옵션/헬스
-curl -s http://localhost:8080/api/admin/market-stats/status  # 통계 수집 상태
+curl -s http://localhost:8080/api/admin/market-stats/status  # 통계 수집 상태(running/scanned/saved/targetDate)
 ```
 
 ## 4. 실행 명령
@@ -47,9 +47,11 @@ cd backend
 | 경로 | 설명 | 비고 |
 | --- | --- | --- |
 | `GET /api/markets/options` | 거래소 옵션/헬스 체크 | CORS 프리플라이트 용 |
-| `GET /api/admin/market-stats/status` | 통계 수집 실행 중 여부 | 관리자 |
+| `GET /api/skill-codes/{characterName}` | 로아 웹 프로필 기반 스킬 코드 조회 | 프로필 HTML 파싱 후 `SkillRecommend` 호출 |
+| `GET /api/admin/market-stats/status` | 통계 수집 상태 조회 | `running/scanned/saved/targetDate/startedAt` |
 | `POST /api/admin/market-stats/capture` | 일별 통계 수동 수집(비동기) | `date=yyyy-MM-dd` 옵션 |
 | `GET /api/admin/market-stats/recent` | 일별 통계 조회 | `page/size/q` (ID 또는 이름 검색) |
+| `POST /api/markets/options/sync` | 거래소 카테고리 동기화 | 카테고리 테이블 초기화/갱신 |
 
 ## 6. 프론트 구성 요약
 - 진입: `frontend/src/main.ts` → `App.vue` → `components/MainLayout.vue` (메뉴/컨텐츠 스위치).
@@ -65,26 +67,50 @@ cd backend
 
 ## 7. 백엔드 구성 요약 (Spring Boot)
 - 패키지 루트: `backend/src/main/java/com/lostark/backend`
-- 설정: `config/WebConfig`(CORS), `config/SchedulingConfig`(@EnableScheduling)
+- 설정:
+  - 스케줄: `config/SchedulingConfig`(@EnableScheduling)
+  - 보안/세션/CSRF/CORS: `config/security/SecurityConfig`
+  - `config/WebConfig`는 현재 비어있습니다.
 - 도메인/기능:  
   - 거래소 수집/통계: `market/service/MarketSyncService`  
   - 스케줄러: `market/scheduler/MarketStatsScheduler` (04:30 매일, 수 06:05, 수동 비동기)  
   - API: `market/controller/MarketController`(검색/카테고리/상세), `MarketStatsAdminController`(통계 조회/캡처/상태)  
-  - 저장소: `market/entity` (`MarketDailyStat`, `MarketItemAsset`, `MarketCategory` 등), `market/repository`  
+  - 저장소: `market/entity` (`MarketItemDailyStat`, `MarketItemAsset`, `MarketCategory` 등), `market/repository`
+  - 마이그레이션: `market/migration/MarketDailyStatsMigration` (legacy 통계 테이블 → 신규 통계 테이블 자동 이관)
   - 외부연동: `lostark/client/LostArkApiClient` (로아 API)
 - 실행: `./gradlew bootRun` (8080) 또는 Docker Compose `backend` 서비스.
 
 ## 8. 스케줄/통계 특징
-- 일별 거래소 통계: `market_daily_stats`, 아이템 메타: `market_item_assets`
+- 아이템 메타(아이템ID/이름/아이콘/카테고리): `market_item_assets`
+- 일별 거래소 통계(아이템ID/날짜/지표들): `market_item_daily_stats`
+- 레거시: 기존 `market_daily_stats`는 백엔드 기동 시 `MarketDailyStatsMigration`에서 신규 테이블로 자동 이관(검증 후 수동 정리 권장)
 - 스케줄: 04:30(전일), 수 06:05(초기화 후). 수동 캡처는 비동기로 처리.
-- AdminStats 화면: 검색/페이징, 수집 중 오버레이, 완료 시 자동 갱신.
+- AdminStats 화면: 검색/페이징, 수집 중 오버레이에 진행상황 표출(저장 10건 단위), 완료 시 자동 갱신.
+- 캡처는 카테고리(`market_categories`)를 기준으로 루프를 돌며, 카테고리가 비어있으면 캡처 시작 시 자동으로 동기화 시도.
 
 ## 9. 트러블슈팅 체크리스트
 1) `.env` 존재/값 확인  
 2) `docker compose logs backend database` 확인  
 3) 포트 충돌 여부(3307/8080/8082/5173)  
 4) 프론트 CORS/OPTIONS 실패: `VITE_API_BASE_URL` 확인 + 백엔드 기동 여부 확인  
-5) 프론트 툴팁: 브라우저 기본 `title` 기반 툴팁 사용 금지. `popup-surface--tooltip`로만 표출하고 `:title`/`title` 속성은 제거한다.  
+5) Vercel + 별도 백엔드(도메인 다름)에서 `POST`가 403(CSRF)인 경우:
+   - 먼저 `GET /api/auth/csrf`가 200이고 `Set-Cookie: XSRF-TOKEN=...`를 내려주는지 확인
+   - 브라우저의 cross-site 요청에서는 `SameSite=Lax` 쿠키가 `POST`에 포함되지 않을 수 있으므로, 백엔드 `.env`에서 아래를 설정
+     - `SESSION_COOKIE_SAME_SITE=None`, `SESSION_COOKIE_SECURE=true`
+     - `CSRF_COOKIE_SAME_SITE=None`, `CSRF_COOKIE_SECURE=true`
+   - `CORS_ALLOWED_ORIGINS`는 브라우저의 `Origin`과 **완전히 일치**해야 하므로, 보통 끝 `/` 없이 `https://<your-vercel-domain>` 형태로 설정
+6) Vercel에서 새로고침/직접 진입 시 404(`NOT_FOUND`)가 나는 경우:
+   - Vue Router가 history 모드(`createWebHistory`)라서, 모든 경로를 `index.html`로 rewrite 해야 합니다.
+   - `frontend/vercel.json`이 존재하는지 확인하고(Vercel 프로젝트 Root Directory가 `frontend`인지도 확인)
+7) 관리자 수동 캡처가 안 도는 경우:  
+   - 백엔드 로그에 `[MarketStatsAdmin] manual capture accepted`가 찍히는지 확인  
+   - `/api/admin/market-stats/status`에서 `running/scanned/saved`가 증가하는지 확인  
+   - 카테고리 비어있으면 `/api/markets/options/sync`로 먼저 동기화(또는 캡처 시작 시 자동 동기화 로그 확인)  
+8) 프론트 툴팁: 브라우저 기본 `title` 기반 툴팁 사용 금지. `popup-surface--tooltip`로만 표출하고 `:title`/`title` 속성은 제거한다.  
+9) 로그에 가끔 `Broken pipe` / `ClientAbortException` / `AsyncRequestNotUsableException`가 찍히는 경우:  
+   - 보통 `LazyImage`가 로드하던 `/api/proxy/image` 요청을 브라우저가 취소(페이지 이동/스크롤/탭 전환 등)하면서 연결이 끊긴 경우입니다.  
+   - 서버가 이미지를 내려주던 중 클라이언트가 먼저 끊으면 Tomcat/Spring이 `Broken pipe`를 남길 수 있으며, 기능상 치명적인 오류가 아닙니다.  
+   - (참고) 과거에는 에러 응답(`ErrorResponse`)을 `image/png`로 쓰려다 `No converter ... preset Content-Type 'image/png'` 경고가 추가로 발생할 수 있었고, 현재는 해당 케이스를 별도 처리해 로그 노이즈를 줄였습니다.  
 
 ## 10. 자주 찾는 위치
 - 문서: `docs/dev-quickstart.md`(본 문서)
@@ -102,7 +128,7 @@ cd backend
   - `documentation-guidelines.md`: 문서 작성 규칙.
   - `mcp-usage.md`: MCP 사용 안내.
   - `lostark-armory.md`: 로아 아모리 API 참고.
-  - `deployment/README.md`, `deployment/railway.md`, `deployment/vercel.md`, `deployment/freedb.md`: 배포/인프라 가이드.
+  - `deployment/README.md`, `deployment/oracle-vm.md`, `deployment/vercel.md`, `deployment/railway.md`, `deployment/freedb.md`: 배포/인프라 가이드.
 - frontend/
   - `frontend/README.md`: 프론트 전용 안내.
   - `frontend/docs/UX_OVERVIEW.md`: UX 방향/컨셉.

@@ -1,7 +1,7 @@
 package com.lostark.backend.market.dto;
 
-import com.lostark.backend.market.entity.MarketDailyStat;
 import com.lostark.backend.market.entity.MarketItemAsset;
+import com.lostark.backend.market.entity.MarketItemDailyStat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -24,12 +24,12 @@ public class MarketDailyStatDto {
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 
-    public static MarketDailyStatDto of(MarketDailyStat stat, MarketItemAsset asset) {
+    public static MarketDailyStatDto of(MarketItemDailyStat stat, MarketItemAsset asset) {
         return MarketDailyStatDto.builder()
                 .id(stat.getId())
                 .apiItemId(stat.getApiItemId())
-                .categoryCode(stat.getCategoryCode())
-                .itemName(stat.getItemName() != null ? stat.getItemName() : (asset != null ? asset.getName() : null))
+                .categoryCode(asset != null ? asset.getCategoryCode() : null)
+                .itemName(asset != null ? asset.getName() : null)
                 .icon(asset != null ? asset.getIcon() : null)
                 .minPrice(stat.getMinPrice())
                 .avgPrice(stat.getAvgPrice())

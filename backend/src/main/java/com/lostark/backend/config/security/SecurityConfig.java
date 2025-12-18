@@ -1,6 +1,9 @@
 package com.lostark.backend.config.security;
 
 import com.lostark.backend.auth.DiscordOAuth2UserService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +18,7 @@ import org.springframework.security.web.authentication.logout.HttpStatusReturnin
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -25,6 +29,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@Slf4j
 public class SecurityConfig {
 
     @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:8081}")
@@ -63,6 +68,21 @@ public class SecurityConfig {
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                                 new AntPathRequestMatcher("/api/me/**")
                         )
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            if (accessDeniedException instanceof CsrfException) {
+                                log.warn(
+                                        "CSRF denied: method={} uri={} origin={} referer={} hasXsrfCookie={} hasXsrfHeader={} userAgent={}",
+                                        request.getMethod(),
+                                        request.getRequestURI(),
+                                        request.getHeader("Origin"),
+                                        request.getHeader("Referer"),
+                                        hasCookie(request, "XSRF-TOKEN"),
+                                        request.getHeader("X-XSRF-TOKEN") != null,
+                                        request.getHeader("User-Agent")
+                                );
+                            }
+                            response.sendError(HttpStatus.FORBIDDEN.value(), "Forbidden");
+                        })
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/markets/**").permitAll()
@@ -116,6 +136,15 @@ public class SecurityConfig {
         String path = successRedirectPath != null ? successRedirectPath.trim() : "/";
         if (!path.startsWith("/")) path = "/" + path;
         return base + path;
+    }
+
+    private boolean hasCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null || cookies.length == 0) return false;
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName())) return true;
+        }
+        return false;
     }
 
 }
