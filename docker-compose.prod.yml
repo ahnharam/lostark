@@ -1,5 +1,4 @@
 # docker-compose.prod.yml
-version: '3.8'
 
 services:
   database:
@@ -21,12 +20,14 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: eclipse-temurin:17-jre-alpine
     container_name: lostark-backend
     env_file:
       - .env            # .env 전체를 backend 컨테이너 환경변수로 주입
+    working_dir: /app
+    command: ["java", "-jar", "/app/app.jar"]
+    volumes:
+      - ./backend/build/libs/app.jar:/app/app.jar:ro
     ports:
       - "8080:8080"
     environment:

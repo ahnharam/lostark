@@ -37,7 +37,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}        # 개인키
           port: 22
           # 빌드된 jar 는 레포 루트 기준으로 backend/build/libs에 있음
-          source: "backend/build/libs/*.jar"
+          source: "backend/build/libs/*.jar,docker-compose.prod.yml"
           target: "/home/ubuntu/lostark/"
 
       - name: Deploy via SSH
@@ -55,11 +55,14 @@ jobs:
             echo ">>> backend/build/libs 내용 확인"
             ls -R backend/build || echo "build dir not present"
 
-            echo ">>> backend image build"
-            docker compose -f docker-compose.prod.yml build backend
+            echo ">>> 최신 jar를 app.jar로 고정"
+            jar_path="$(ls -t backend/build/libs/*.jar 2>/dev/null | grep -v '/app\\.jar$' | head -n 1 || true)"
+            if [ -z "$jar_path" ]; then
+              echo "ERROR: backend/build/libs 에 jar 파일이 없습니다."
+              exit 1
+            fi
+            cp -f "$jar_path" backend/build/libs/app.jar
+            ls -l backend/build/libs/app.jar
 
             echo ">>> restart backend"
-            docker compose -f docker-compose.prod.yml up -d backend
-
-            echo ">>> cleanup"
-            docker image prune -f
+            docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate backend
