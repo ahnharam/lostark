@@ -2,33 +2,26 @@
   <div class="raid-page">
     <header class="raid-header">
       <div>
-        <p class="eyebrow">{{ headerEyebrow }}</p>
-        <h2>{{ headerTitle }}</h2>
-        <p class="lead">{{ headerLead }}</p>
+        <p class="eyebrow">레이드 모집</p>
+        <h2>멤버 구성 · DM 초대 · 상태 확인</h2>
+        <p class="lead">레이드를 생성하고 멤버를 추가해 DM 초대를 보낼 수 있어요.</p>
       </div>
       <div class="raid-header-actions">
         <div id="raid-submenu-actions"></div>
       </div>
     </header>
 
-    <KeepAlive>
-      <component :is="activeComponent" />
-    </KeepAlive>
+    <router-view v-slot="{ Component }">
+      <KeepAlive>
+        <component :is="Component" />
+      </KeepAlive>
+    </router-view>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import RaidPartyManager from './RaidPartyManager.vue'
-
-const activeComponent = computed(() => {
-  return RaidPartyManager
-})
-
-const headerEyebrow = computed(() => '레이드 모집')
-const headerTitle = computed(() => '멤버 구성 · DM 초대 · 상태 확인')
-const headerLead = computed(() => '레이드를 생성하고 멤버를 추가해 DM 초대를 보낼 수 있어요.')
-
+// This component now serves as a wrapper for raid sub-routes
+// Actual content is in RaidPartyManager.vue
 </script>
 
 <style scoped>

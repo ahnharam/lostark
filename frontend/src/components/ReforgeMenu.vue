@@ -175,6 +175,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import BluntThornCalculator from './reforge/BluntThornCalculator.vue'
 import SupersonicCalculator from './reforge/SupersonicCalculator.vue'
 
@@ -281,24 +282,17 @@ const scenarioPresets: Record<ReforgeTab, Record<ScenarioTab, ScenarioInfo>> = {
   }
 }
 
-const props = defineProps<{
-  activeSubMenuTab?: SubMenuTab
-}>()
+const route = useRoute()
 
 const activeReforgeTab = ref<ReforgeTab>('normal')
-const activeSubMenuTab = ref<SubMenuTab>(props.activeSubMenuTab ?? 'normal')
+const activeSubMenuTab = computed(() => {
+  const submenu = route.meta.submenu as SubMenuTab | undefined
+  return submenu || 'normal'
+})
 const activeMaterialTab = ref<MaterialTab>('price')
 const activeScenarioTab = ref<ScenarioTab>('optimal')
 const applyResearch = ref(equipmentPresets[activeReforgeTab.value].applyResearch)
 const applySupport = ref(equipmentPresets[activeReforgeTab.value].applySupport)
-
-watch(
-  () => props.activeSubMenuTab,
-  value => {
-    if (!value) return
-    activeSubMenuTab.value = value
-  }
-)
 
 const activeMaterials = computed(() => materialPresets[activeReforgeTab.value][activeMaterialTab.value])
 const activeEquipment = computed(() => equipmentPresets[activeReforgeTab.value])

@@ -11,49 +11,32 @@
       </div>
     </header>
 
-    <KeepAlive>
-      <component :is="activeComponent" />
-    </KeepAlive>
+    <router-view v-slot="{ Component }">
+      <KeepAlive>
+        <component :is="Component" />
+      </KeepAlive>
+    </router-view>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import AdminStats from './AdminStats.vue'
-import AdminRaidCatalog from './AdminRaidCatalog.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
-type AdminSubTab = 'market-records' | 'raid-catalog'
-
-const props = defineProps<{
-  activeTab?: AdminSubTab
-}>()
-
-const activeTab = ref<AdminSubTab>(props.activeTab ?? 'market-records')
-watch(
-  () => props.activeTab,
-  value => {
-    if (!value) return
-    activeTab.value = value
-  }
-)
-
-const activeComponent = computed(() => {
-  if (activeTab.value === 'raid-catalog') return AdminRaidCatalog
-  return AdminStats
-})
+const route = useRoute()
 
 const headerEyebrow = computed(() => {
-  if (activeTab.value === 'raid-catalog') return '레이드 추가'
+  if (route.meta.submenu === 'raid-catalog') return '레이드 추가'
   return '거래소 기록'
 })
 
 const headerTitle = computed(() => {
-  if (activeTab.value === 'raid-catalog') return 'raid_catalog 관리'
+  if (route.meta.submenu === 'raid-catalog') return 'raid_catalog 관리'
   return '거래소 일별 기록 모니터'
 })
 
 const headerLead = computed(() => {
-  if (activeTab.value === 'raid-catalog') return 'DB에 레이드(raidKey/raidName)를 추가해 신규 레이드를 확장할 수 있어요.'
+  if (route.meta.submenu === 'raid-catalog') return 'DB에 레이드(raidKey/raidName)를 추가해 신규 레이드를 확장할 수 있어요.'
   return '거래소 기록을 확인하거나, 필요한 경우 수동 캡처를 실행하세요.'
 })
 </script>

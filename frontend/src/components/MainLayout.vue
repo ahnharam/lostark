@@ -87,7 +87,9 @@
         <span>광고 영역</span>
       </aside>
       <main class="layout-content">
-        <component :is="activeComponent" v-bind="activeComponentProps" />
+        <router-view v-slot="{ Component }">
+          <component :is="Component" v-bind="activeComponentProps" />
+        </router-view>
       </main>
       <aside class="ad-slot ad-slot--right" aria-label="오른쪽 광고 영역">
         <span>광고 영역</span>
@@ -106,16 +108,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import CharacterSearch from './CharacterSearch.vue'
-import ReforgeMenu from './ReforgeMenu.vue'
-import AuctionMenu from './AuctionMenu.vue'
-import FriendManager from './FriendManager.vue'
-import LifeMenu from './LifeMenu.vue'
-import AdminMenu from './AdminMenu.vue'
-import CharacterManager from './CharacterManager.vue'
-import RaidMenu from './RaidMenu.vue'
 import ThemeToggle from './common/ThemeToggle.vue'
 import MyInfoModal from './common/MyInfoModal.vue'
 import { useTheme } from '@/composables/useTheme'
@@ -176,7 +170,17 @@ const normalizeMenu = (value: unknown): MainMenuKey => {
 const { initTheme } = useTheme()
 initTheme()
 
-const activeMenu = ref<MainMenuKey>(normalizeMenu(route.params.menu))
+// route.meta에서 activeMenu 추출
+const activeMenu = computed<MainMenuKey>(() => {
+  const menu = route.meta.menu as MainMenuKey | undefined
+  return menu || 'character-search'
+})
+
+// route.meta에서 activeSubMenu 추출
+const activeSubMenuKey = computed<string | null>(() => {
+  return (route.meta.submenu as string) || null
+})
+
 const auctionSubMenu = ref<AuctionSubMenuKey>('market')
 const reforgeSubMenu = ref<ReforgeSubMenuKey>('normal')
 const raidSubMenu = ref<RaidSubMenuKey>('party')
@@ -215,34 +219,43 @@ const activeSubMenuItems = computed<SubMenuItem[]>(() => {
   return []
 })
 
-const activeSubMenuKey = computed<string | null>(() => {
-  if (activeMenu.value === 'auction') return auctionSubMenu.value
-  if (activeMenu.value === 'reforge') return reforgeSubMenu.value
-  if (activeMenu.value === 'raid') return raidSubMenu.value
-  if (activeMenu.value === 'admin') return adminSubMenu.value
-  return null
-})
-
 const selectSubMenu = (key: string) => {
+  // router.push를 사용하여 서브메뉴 이동
   if (activeMenu.value === 'auction') {
-    if (key === 'market' || key === 'auction-house') auctionSubMenu.value = key
+    if (key === 'market') {
+      void router.push({ name: 'auction-market' }).catch(() => undefined)
+    } else if (key === 'auction-house') {
+      void router.push({ name: 'auction-house' }).catch(() => undefined)
+    }
     return
   }
 
   if (activeMenu.value === 'reforge') {
-    if (key === 'normal' || key === 'advanced' || key === 'blunt-thorn' || key === 'supersonic') {
-      reforgeSubMenu.value = key
+    if (key === 'normal') {
+      void router.push({ name: 'reforge-normal' }).catch(() => undefined)
+    } else if (key === 'advanced') {
+      void router.push({ name: 'reforge-advanced' }).catch(() => undefined)
+    } else if (key === 'blunt-thorn') {
+      void router.push({ name: 'reforge-blunt-thorn' }).catch(() => undefined)
+    } else if (key === 'supersonic') {
+      void router.push({ name: 'reforge-supersonic' }).catch(() => undefined)
     }
     return
   }
 
   if (activeMenu.value === 'raid') {
-    if (key === 'party') raidSubMenu.value = key
+    if (key === 'party') {
+      void router.push({ name: 'raid-party' }).catch(() => undefined)
+    }
     return
   }
 
   if (activeMenu.value === 'admin') {
-    if (key === 'market-records' || key === 'raid-catalog') adminSubMenu.value = key
+    if (key === 'market-records') {
+      void router.push({ name: 'admin-market-records' }).catch(() => undefined)
+    } else if (key === 'raid-catalog') {
+      void router.push({ name: 'admin-raid-catalog' }).catch(() => undefined)
+    }
   }
 }
 
@@ -261,23 +274,7 @@ const setMenuHeaderHeight = (height: number) => {
   document.documentElement.style.setProperty('--menu-header-height', `${menuHeaderHeight}px`)
 }
 
-watch(
-  () => route.params.menu,
-  value => {
-    if (value === 'raid-schedule' || value === 'raid-party') {
-      activeMenu.value = 'raid'
-      void router
-        .replace({
-          name: 'main',
-          params: { menu: 'raid' },
-          query: { ...route.query },
-        })
-        .catch(() => undefined)
-      return
-    }
-    activeMenu.value = normalizeMenu(value)
-  }
-)
+// route.meta에서 activeMenu를 computed로 가져오므로 watch 불필요
 
 const myInfoOpen = ref(false)
 
@@ -290,30 +287,35 @@ const handleMyInfoClick = () => {
 }
 
 const selectMenu = (menu: MainMenuKey) => {
+  // 이미 같은 메뉴면 리턴
   if (activeMenu.value === menu) return
-  activeMenu.value = menu
-  void router.push({
-    name: 'main',
-    params: menu === 'character-search' ? {} : { menu },
-  }).catch(() => undefined)
+
+  // router.push를 사용하여 메뉴 이동
+  if (menu === 'character-search') {
+    void router.push({ name: 'character-search' }).catch(() => undefined)
+  } else if (menu === 'auction') {
+    void router.push({ name: 'auction-market' }).catch(() => undefined)
+  } else if (menu === 'reforge') {
+    void router.push({ name: 'reforge-normal' }).catch(() => undefined)
+  } else if (menu === 'raid') {
+    void router.push({ name: 'raid-party' }).catch(() => undefined)
+  } else if (menu === 'admin') {
+    void router.push({ name: 'admin-market-records' }).catch(() => undefined)
+  } else if (menu === 'friends') {
+    void router.push({ name: 'friends' }).catch(() => undefined)
+  } else if (menu === 'characters') {
+    void router.push({ name: 'characters' }).catch(() => undefined)
+  } else if (menu === 'life') {
+    void router.push({ name: 'life' }).catch(() => undefined)
+  }
 }
 
-const componentMap: Record<MainMenuKey, unknown> = {
-  'character-search': CharacterSearch,
-  reforge: ReforgeMenu,
-  auction: AuctionMenu,
-  raid: RaidMenu,
-  friends: FriendManager,
-  characters: CharacterManager,
-  life: LifeMenu,
-  admin: AdminMenu
-}
-
-const activeComponent = computed(() => componentMap[activeMenu.value] ?? CharacterSearch)
+// activeComponentProps는 각 컴포넌트에서 route.meta.submenu를 직접 사용하도록 변경 예정
 const activeComponentProps = computed<Record<string, unknown>>(() => {
-  if (activeMenu.value === 'auction') return { activeSubMenu: auctionSubMenu.value }
-  if (activeMenu.value === 'reforge') return { activeSubMenuTab: reforgeSubMenu.value }
-  if (activeMenu.value === 'admin') return { activeTab: adminSubMenu.value }
+  // 기존 props 방식 유지 (추후 각 컴포넌트에서 route.meta 직접 사용하도록 마이그레이션)
+  if (activeMenu.value === 'auction') return { activeSubMenu: activeSubMenuKey.value || 'market' }
+  if (activeMenu.value === 'reforge') return { activeSubMenuTab: activeSubMenuKey.value || 'normal' }
+  if (activeMenu.value === 'admin') return { activeTab: activeSubMenuKey.value || 'market-records' }
   return {}
 })
 
