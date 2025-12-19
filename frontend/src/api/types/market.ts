@@ -14,6 +14,7 @@ export interface MarketOptionsResponse {
 export interface MarketItemSummary {
   id: number
   name: string
+  categoryCode?: number
   grade?: string
   icon?: string
   bundleCount?: number

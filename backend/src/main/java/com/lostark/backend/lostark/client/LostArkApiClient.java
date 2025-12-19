@@ -14,6 +14,7 @@ import com.lostark.backend.dto.market.MarketItemsResponse;
 import com.lostark.backend.dto.market.MarketOptionsResponse;
 import com.lostark.backend.dto.market.MarketItemDetailDto;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -28,12 +29,25 @@ public class LostArkApiClient {
     public LostArkApiClient(
             @Value("${lostark.api.key}") String apiKey,
             @Value("${lostark.api.base-url}") String baseUrl,
+            LostArkRateLimitManager rateLimitManager,
             WebClient.Builder webClientBuilder
     ) {
         this.webClient = webClientBuilder
                 .baseUrl(baseUrl)
                 .defaultHeader("authorization", "bearer " + apiKey)
                 .defaultHeader("accept", "application/json")
+                .filter((request, next) -> Mono.defer(() -> {
+                    long delayMs = rateLimitManager.getDelayMillis();
+                    Mono<org.springframework.web.reactive.function.client.ClientResponse> exchange = next.exchange(request)
+                            .doOnNext(response -> rateLimitManager.updateFromHeaders(
+                                    response.headers().asHttpHeaders(),
+                                    response.statusCode().value()
+                            ));
+                    if (delayMs <= 0) {
+                        return exchange;
+                    }
+                    return Mono.delay(Duration.ofMillis(delayMs)).flatMap(ignored -> exchange);
+                }))
                 .build();
     }
 

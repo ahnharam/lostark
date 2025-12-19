@@ -1,11 +1,5 @@
 <template>
   <div class="admin-page">
-    <TopPageHeader>
-      <div class="layout-title-row">
-        <h3>웹페이지 관리</h3>
-      </div>
-    </TopPageHeader>
-
     <header class="admin-header">
       <div>
         <p class="eyebrow">{{ headerEyebrow }}</p>
@@ -25,7 +19,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import TopPageHeader from './common/TopPageHeader.vue'
 import AdminStats from './AdminStats.vue'
 import AdminRaidCatalog from './AdminRaidCatalog.vue'
 

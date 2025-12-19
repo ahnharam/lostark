@@ -2,6 +2,10 @@
   <div class="raid-party-page">
     <Teleport to="#raid-submenu-actions" v-if="isActive">
       <div class="subheader-actions">
+        <p v-if="!me" class="user-pill">
+          <span class="user-pill__label">로그인</span>
+          <span class="user-pill__value">{{ userLabel }}</span>
+        </p>
         <button v-if="!me" type="button" class="btn btn-primary" @click="startDiscordLogin">Discord로 로그인</button>
         <button v-else type="button" class="btn" @click="refreshAll" :disabled="loading">새로고침</button>
       </div>
@@ -18,26 +22,12 @@
       <form class="form-grid" @submit.prevent="createRaid">
         <label class="field">
           <span class="field-label">레이드명</span>
-          <select v-model="draft.raidId" class="input" required>
-            <optgroup label="에픽 레이드">
-              <option v-for="raid in epicRaids" :key="raid.id" :value="raid.id">
-                {{ formatRaidOptionLabel(raid) }}
-              </option>
-            </optgroup>
-            <optgroup label="카제로스 레이드">
-              <option v-for="raid in kazerosRaids" :key="raid.id" :value="raid.id">
-                {{ formatRaidOptionLabel(raid) }}
-              </option>
-            </optgroup>
-          </select>
+          <CustomSelect v-model="draft.raidId" class="input" :groups="raidGroups" required />
         </label>
 
         <label class="field">
           <span class="field-label">난이도</span>
-          <select v-model="draft.difficulty" class="input">
-            <option value="노말">노말</option>
-            <option value="하드">하드</option>
-          </select>
+          <CustomSelect v-model="draft.difficulty" class="input" :options="difficultyOptions" />
         </label>
 
         <label class="field">
@@ -47,11 +37,7 @@
 
         <label class="field">
           <span class="field-label">인원</span>
-          <select v-model.number="draft.maxParticipants" class="input">
-            <option :value="4">4</option>
-            <option :value="8">8</option>
-            <option :value="16">16</option>
-          </select>
+          <CustomSelect v-model="draft.maxParticipants" class="input" :options="participantOptions" />
         </label>
 
         <label class="field field--wide">
@@ -126,12 +112,12 @@
       <div class="member-actions">
         <label class="field">
           <span class="field-label">친구 선택</span>
-          <select v-model.number="selectedFriendUserId" class="input" :disabled="loading || !friends.length">
-            <option :value="0">선택하세요</option>
-            <option v-for="f in friends" :key="f.friendshipId" :value="f.friend.userId">
-              {{ displayFriend(f) }}
-            </option>
-          </select>
+          <CustomSelect
+            v-model="selectedFriendUserId"
+            class="input"
+            :options="friendOptions"
+            :disabled="loading || !friends.length"
+          />
         </label>
         <button
           type="button"
@@ -157,27 +143,14 @@
       <div v-else class="member-grid">
         <div v-for="p in selectedRaid.participants" :key="p.id" class="member-card">
           <span class="member-cell member-cell--name">{{ p.discordUsername || `User#${p.userId}` }}</span>
-          <select
+          <CustomSelect
             class="input member-select member-cell--character"
-            :value="p.characterName || ''"
+            :model-value="p.characterName || ''"
             :disabled="loading || rosterLoadingByUserId[p.userId] || !me"
+            :options="participantSelectOptions(p)"
             @focus="ensureRosterLoaded(p.userId)"
-            @change="event => handleCharacterChange(p.id, p.userId, event)"
-          >
-            <option v-if="rosterLoadingByUserId[p.userId]" value="" disabled>불러오는 중...</option>
-            <option v-else value="" disabled>캐릭터 선택</option>
-            <option
-              v-for="opt in characterOptionsForParticipant(p)"
-              :key="`${p.id}:${opt.characterName}`"
-              :value="opt.characterName"
-              :disabled="opt.disabled"
-            >
-              {{ opt.label }}
-            </option>
-            <option v-if="!rosterLoadingByUserId[p.userId] && !characterOptionsForParticipant(p).length" value="" disabled>
-              조건을 만족하는 캐릭터가 없어요
-            </option>
-          </select>
+            @change="value => handleCharacterChange(p.id, value)"
+          />
           <span class="member-cell member-cell--status">
             <span class="member-status" :data-status="p.status" :title="p.changeRequestReason || undefined">
               {{ statusLabel(p.status) }}
@@ -197,6 +170,7 @@ import { computed, onActivated, onDeactivated, onMounted, ref } from 'vue'
 import { apiClient } from '@/api/http'
 import { getHttpErrorMessage } from '@/utils/httpError'
 import { T4_RAIDS, type RaidDefinition } from '@/data/t4Raids'
+import CustomSelect, { type SelectGroup, type SelectOption } from './common/CustomSelect.vue'
 
 // TODO(2차): 추천 조합/추천 멤버 기능
 // - 직업별 포지션(서폿/딜/기타) 분류 + 시너지(버프/디버프/중복 제한) 규칙 반영
@@ -265,6 +239,12 @@ const isActive = ref(false)
 const rosterByUserId = ref<Record<number, ExpeditionCharacterResponse[]>>({})
 const rosterLoadingByUserId = ref<Record<number, boolean>>({})
 
+const userLabel = computed(() => {
+  const u = me.value
+  if (!u) return '필요'
+  return u.discordUsername || u.kakaoNickname || `User#${u.id}`
+})
+
 const setMessage = (value: string) => {
   message.value = value
   if (messageTimer) window.clearTimeout(messageTimer)
@@ -284,6 +264,33 @@ const draft = ref({
 
 const epicRaids = computed(() => T4_RAIDS.filter(raid => raid.category === 'epic'))
 const kazerosRaids = computed(() => T4_RAIDS.filter(raid => raid.category === 'kazeros'))
+const raidGroups = computed<SelectGroup[]>(() => [
+  {
+    label: '에픽 레이드',
+    options: epicRaids.value.map(raid => ({
+      label: formatRaidOptionLabel(raid),
+      value: raid.id
+    }))
+  },
+  {
+    label: '카제로스 레이드',
+    options: kazerosRaids.value.map(raid => ({
+      label: formatRaidOptionLabel(raid),
+      value: raid.id
+    }))
+  }
+])
+
+const difficultyOptions: SelectOption[] = [
+  { label: '노말', value: '노말' },
+  { label: '하드', value: '하드' }
+]
+
+const participantOptions: SelectOption[] = [
+  { label: '4', value: 4 },
+  { label: '8', value: 8 },
+  { label: '16', value: 16 }
+]
 
 const getRaidMinItemLevel = (raid: RaidDefinition) => {
   const levels = raid.difficulties.map(difficulty => difficulty.minItemLevel)
@@ -358,6 +365,21 @@ const characterOptionsForParticipant = (participant: ParticipantResponse): Chara
   })
 }
 
+const participantSelectOptions = (participant: ParticipantResponse): SelectOption[] => {
+  if (rosterLoadingByUserId.value[participant.userId]) {
+    return [{ label: '불러오는 중...', value: '', disabled: true }]
+  }
+  const options = characterOptionsForParticipant(participant).map(option => ({
+    label: option.label,
+    value: option.characterName,
+    disabled: option.disabled
+  }))
+  if (!options.length) {
+    return [{ label: '조건을 만족하는 캐릭터가 없어요', value: '', disabled: true }]
+  }
+  return [{ label: '캐릭터 선택', value: '', disabled: true }, ...options]
+}
+
 const ensureRosterLoaded = async (userId: number) => {
   if (!selectedRaid.value) return
   if (rosterByUserId.value[userId]) return
@@ -377,18 +399,15 @@ const ensureRosterLoaded = async (userId: number) => {
   }
 }
 
-const handleCharacterChange = async (participantId: number, userId: number, event: Event) => {
+const handleCharacterChange = async (participantId: number, nextValue: string | number | null) => {
   if (!selectedRaid.value) return
-  const target = event.target
-  if (!(target instanceof HTMLSelectElement)) return
-  const next = target.value
-  if (!next) return
+  if (typeof nextValue !== 'string' || !nextValue) return
 
   try {
     loading.value = true
     errorMessage.value = ''
     const response = await apiClient.patch<RaidScheduleResponse>(`/me/raids/${selectedRaid.value.id}/members/${participantId}`, {
-      characterName: next
+      characterName: nextValue
     })
     selectedRaid.value = response.data
     await loadMyRaids()
@@ -429,6 +448,14 @@ const displayFriend = (friend: FriendResponse) => {
   const u = friend.friend
   return u.discordUsername || (u.discordUserId ? `User#${u.discordUserId}` : `User#${u.userId}`)
 }
+
+const friendOptions = computed<SelectOption[]>(() => [
+  { label: '선택하세요', value: 0 },
+  ...friends.value.map(friend => ({
+    label: displayFriend(friend),
+    value: friend.friend.userId
+  }))
+])
 
 const isMeInSelectedRaid = computed(() => {
   if (!me.value || !selectedRaid.value?.participants) return false
@@ -730,7 +757,8 @@ onDeactivated(() => {
   color: var(--text-muted);
 }
 
-.input {
+.input,
+:deep(.input) {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px 12px;
@@ -863,7 +891,8 @@ onDeactivated(() => {
   font-weight: 750;
 }
 
-.member-select {
+.member-select,
+:deep(.member-select) {
   width: 100%;
   min-width: 0;
   padding: 6px 8px;

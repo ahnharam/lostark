@@ -1,11 +1,5 @@
 <template>
   <div class="reforge-page">
-    <TopPageHeader>
-      <div class="layout-title-row">
-        <h3>강화 & 세팅 최적화</h3>
-      </div>
-    </TopPageHeader>
-
     <header class="reforge-header" :class="{ 'optimization-header': isCalculatorTab }">
       <div>
         <p class="eyebrow">{{ headerEyebrow }}</p>
@@ -183,7 +177,6 @@
 import { computed, ref, watch } from 'vue'
 import BluntThornCalculator from './reforge/BluntThornCalculator.vue'
 import SupersonicCalculator from './reforge/SupersonicCalculator.vue'
-import TopPageHeader from './common/TopPageHeader.vue'
 
 type ReforgeTab = 'normal' | 'advanced'
 type OptimizationTab = 'blunt-thorn' | 'supersonic'

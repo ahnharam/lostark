@@ -109,6 +109,114 @@ public class MarketSyncService {
      * 카테고리/정렬/직업/페이지 조건에 맞춰 필요한 페이지만 불러오고,
      * 앞뒤로 prefetchRange만큼 추가 페이지를 같이 가져온다.
      */
+    public MarketSearchResponse searchMarketItemsByCategories(Integer categoryCode,
+                                                              List<Integer> categoryCodes,
+                                                              String characterClass,
+                                                              Integer itemTier,
+                                                              String itemGrade,
+                                                              String itemName,
+                                                              String sort,
+                                                              String sortCondition,
+                                                              int page,
+                                                              int size,
+                                                              int prefetchRange) {
+        List<Integer> mergedCodes = new ArrayList<>();
+        if (categoryCodes != null) {
+            mergedCodes.addAll(categoryCodes);
+        }
+        if (categoryCode != null) {
+            mergedCodes.add(categoryCode);
+        }
+        List<Integer> uniqueCodes = new ArrayList<>();
+        for (Integer code : mergedCodes) {
+            if (code == null || uniqueCodes.contains(code)) continue;
+            uniqueCodes.add(code);
+        }
+        if (uniqueCodes.isEmpty()) {
+            throw new ApiException("categoryCode가 필요합니다.");
+        }
+        if (uniqueCodes.size() == 1) {
+            return searchMarketItems(
+                    uniqueCodes.get(0),
+                    characterClass,
+                    itemTier,
+                    itemGrade,
+                    itemName,
+                    sort,
+                    sortCondition,
+                    page,
+                    size,
+                    prefetchRange
+            );
+        }
+
+        int pageNo = Math.max(page, 1);
+        int pageSize = Math.max(size, 1);
+        int range = Math.max(prefetchRange, 0);
+        int endPage = pageNo + range;
+        int requiredItems = pageSize * endPage;
+
+        String effectiveSort = sort != null ? sort : "RECENT_PRICE";
+        String effectiveSortCondition = sortCondition != null ? sortCondition : "ASC";
+
+        List<MarketItemDto> combined = new ArrayList<>();
+        int totalCount = 0;
+
+        for (Integer code : uniqueCodes) {
+            MarketItemsRequest baseRequest = MarketItemsRequest.builder()
+                    .sort(effectiveSort)
+                    .sortCondition(effectiveSortCondition)
+                    .categoryCode(code)
+                    .characterClass(characterClass)
+                    .itemTier(itemTier)
+                    .itemGrade(itemGrade)
+                    .itemName(itemName)
+                    .build();
+            PageBundle bundle = fetchPageBundle(baseRequest, code, 1, requiredItems);
+            List<MarketItemDto> items = bundle.items();
+            if (!CollectionUtils.isEmpty(items)) {
+                combined.addAll(items);
+            }
+            Integer bundleCount = bundle.totalCount();
+            totalCount += bundleCount != null ? bundleCount : (items != null ? items.size() : 0);
+            categoryFetchTimestamps.put(code, System.currentTimeMillis());
+        }
+
+        combined.sort(resolveMarketItemComparator(effectiveSort, effectiveSortCondition));
+
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) totalCount / pageSize) : pageNo;
+        int start = Math.max(1, pageNo - range);
+        int end = Math.min(totalPages, pageNo + range);
+        int maxItems = pageSize * end;
+        if (combined.size() > maxItems) {
+            combined = combined.subList(0, maxItems);
+        }
+
+        Map<Integer, List<MarketItemDto>> pages = new HashMap<>();
+        for (int p = start; p <= end; p++) {
+            int fromIndex = (p - 1) * pageSize;
+            if (fromIndex >= combined.size()) break;
+            int toIndex = Math.min(fromIndex + pageSize, combined.size());
+            pages.put(p, combined.subList(fromIndex, toIndex));
+        }
+
+        return MarketSearchResponse.builder()
+                .categoryCode(null)
+                .characterClass(characterClass)
+                .sort(effectiveSort)
+                .sortCondition(effectiveSortCondition)
+                .itemTier(itemTier)
+                .itemGrade(itemGrade)
+                .itemName(itemName)
+                .page(pageNo)
+                .pageSize(pageSize)
+                .totalCount(totalCount)
+                .totalPages(totalPages)
+                .pages(pages)
+                .fetchedAt(System.currentTimeMillis())
+                .build();
+    }
+
     public MarketSearchResponse searchMarketItems(Integer categoryCode,
                                                   String characterClass,
                                                   Integer itemTier,
@@ -193,6 +301,38 @@ public class MarketSyncService {
                 .build();
     }
 
+    private Comparator<MarketItemDto> resolveMarketItemComparator(String sort, String sortCondition) {
+        boolean desc = "DESC".equalsIgnoreCase(sortCondition);
+        return (left, right) -> {
+            Double leftValue = extractSortValue(left, sort);
+            Double rightValue = extractSortValue(right, sort);
+            if (leftValue == null && rightValue == null) {
+                return compareIds(left, right);
+            }
+            if (leftValue == null) return 1;
+            if (rightValue == null) return -1;
+            int cmp = leftValue.compareTo(rightValue);
+            if (desc) cmp = -cmp;
+            return cmp != 0 ? cmp : compareIds(left, right);
+        };
+    }
+
+    private int compareIds(MarketItemDto left, MarketItemDto right) {
+        Long leftId = left != null ? left.getId() : null;
+        Long rightId = right != null ? right.getId() : null;
+        if (leftId == null && rightId == null) return 0;
+        if (leftId == null) return 1;
+        if (rightId == null) return -1;
+        return leftId.compareTo(rightId);
+    }
+
+    private Double extractSortValue(MarketItemDto item, String sort) {
+        if (item == null) return null;
+        if ("CURRENT_MIN_PRICE".equals(sort)) return item.getCurrentMinPrice();
+        if ("YDAY_AVG_PRICE".equals(sort)) return item.getYDayAvgPrice();
+        return item.getRecentPrice();
+    }
+
     private void collectCategory(MarketCategoryDto dto, Integer parentCode, int depth, List<MarketCategory> out) {
         MarketCategory category = new MarketCategory();
         category.setCode(dto.getCode());
@@ -247,6 +387,13 @@ public class MarketSyncService {
             }
 
             List<MarketItemDto> items = resp.getItems();
+            if (!CollectionUtils.isEmpty(items)) {
+                items.forEach(item -> {
+                    if (item != null) {
+                        item.setCategoryCode(categoryCode);
+                    }
+                });
+            }
             if (currentApiPage == startApiPage && skip > 0 && items.size() > skip) {
                 items = items.subList(skip, items.size());
             }
@@ -523,6 +670,11 @@ public class MarketSyncService {
         if (response == null || CollectionUtils.isEmpty(response.getItems())) {
             throw new ApiException("아이템을 갱신하지 못했습니다.");
         }
+        response.getItems().forEach(item -> {
+            if (item != null) {
+                item.setCategoryCode(request.getCategoryCode());
+            }
+        });
 
         return response.getItems().stream()
                 .filter(dto -> apiItemId.equals(dto.getId()))

@@ -1,33 +1,5 @@
 <template>
   <div class="raid-page">
-    <TopPageHeader>
-      <div class="raid-menu-bar">
-        <div class="raid-menu-bar__title">
-          <div>
-            <h3>레이드</h3>
-          </div>
-        </div>
-        <div class="raid-menu-bar__center">
-          <div class="raid-menu-bar__tabs" aria-label="레이드 서브 메뉴">
-            <button
-              type="button"
-              class="raid-menu-btn"
-              :class="{ active: true }"
-              disabled
-            >
-              레이드 모집
-            </button>
-          </div>
-        </div>
-        <div class="raid-menu-bar__right">
-          <p class="user-pill">
-            <span class="user-pill__label">로그인</span>
-            <span class="user-pill__value">{{ userLabel }}</span>
-          </p>
-        </div>
-      </div>
-    </TopPageHeader>
-
     <header class="raid-header">
       <div>
         <p class="eyebrow">{{ headerEyebrow }}</p>
@@ -46,17 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import RaidPartyManager from './RaidPartyManager.vue'
-import TopPageHeader from './common/TopPageHeader.vue'
-import { apiClient } from '@/api/http'
-
-type MeResponse = {
-  id: number
-  kakaoNickname?: string | null
-  discordUsername?: string | null
-  discordId?: string | null
-}
 
 const activeComponent = computed(() => {
   return RaidPartyManager
@@ -66,35 +29,6 @@ const headerEyebrow = computed(() => '레이드 모집')
 const headerTitle = computed(() => '멤버 구성 · DM 초대 · 상태 확인')
 const headerLead = computed(() => '레이드를 생성하고 멤버를 추가해 DM 초대를 보낼 수 있어요.')
 
-const me = ref<MeResponse | null>(null)
-
-const fetchMe = async () => {
-  try {
-    const response = await apiClient.get<MeResponse>('/auth/me')
-    me.value = response.data
-  } catch {
-    me.value = null
-  }
-}
-
-const userLabel = computed(() => {
-  const u = me.value
-  if (!u) return '필요'
-  return u.discordUsername || u.kakaoNickname || `User#${u.id}`
-})
-
-const handleAuthChanged = () => {
-  void fetchMe()
-}
-
-onMounted(() => {
-  void fetchMe()
-  window.addEventListener('loap-auth-changed', handleAuthChanged)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('loap-auth-changed', handleAuthChanged)
-})
 </script>
 
 <style scoped>
@@ -189,28 +123,6 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
-.user-pill {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 999px;
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-primary, #111827);
-  width: fit-content;
-}
-
-.user-pill__label {
-  font-size: 0.8rem;
-  color: var(--text-muted, #6b7280);
-}
-
-.user-pill__value {
-  font-weight: 700;
-  font-size: 0.9rem;
-}
 
 .eyebrow {
   margin: 0 0 6px;

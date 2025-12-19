@@ -294,9 +294,9 @@ defineExpose({
 .input-frame {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  height: 52px;
-  width: 450px;
+  gap: var(--space-xs);
+  height: 37px;
+  width: 250px;
   padding: 0 var(--space-xl);
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -325,7 +325,7 @@ defineExpose({
   border: none;
   background: none;
   outline: none;
-  font-size: var(--font-base);
+  font-size: var(--font-sm);
   color: var(--text-primary);
   font-weight: var(--font-medium);
   width: 100%;

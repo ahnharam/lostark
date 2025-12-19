@@ -5,50 +5,59 @@
         <div class="menu-drawer__inner">
           <div class="menu-left">
             <span class="menu-logo">Loap</span>
-            <div class="menu-selected" aria-live="polite" role="status">
-              <span class="menu-selected__icon" aria-hidden="true">{{ selectedMenu.icon }}</span>
-              <span class="menu-selected__label">{{ selectedMenu.label }}</span>
-              <span v-if="selectedMenu.badge" class="menu-selected__badge">{{ selectedMenu.badge }}</span>
-            </div>
-            <div
-              v-if="activeSubMenuItems.length"
-              class="menu-submenu"
-              aria-label="서브 메뉴"
-            >
-              <button
-                v-for="tab in activeSubMenuItems"
-                :key="tab.key"
-                type="button"
-                class="menu-submenu__item"
-                :class="{ active: activeSubMenuKey === tab.key }"
-                :disabled="tab.disabled"
-                @click="selectSubMenu(tab.key)"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
           </div>
 
           <div class="menu-divider" :class="{ 'menu-divider--hidden': !hasCenterMenu }" aria-hidden="true"></div>
 
           <nav
             class="menu-center"
-            :class="{ 'menu-center--expanded': activeMenu === 'character-search' }"
             aria-label="메인 메뉴"
           >
-            <button
+            <div
               v-for="item in centerMenuItems"
               :key="item.key"
-              type="button"
-              class="menu-center__item"
-              :class="{ disabled: !item.available }"
-              :disabled="!item.available"
-              @click="selectMenu(item.key)"
+              class="menu-center__group"
             >
-              <span class="menu-center__icon" aria-hidden="true">{{ item.icon }}</span>
-              <span class="menu-center__label">{{ item.label }}</span>
-              <span v-if="item.badge" class="menu-center__badge">{{ item.badge }}</span>
-            </button>
+              <button
+                type="button"
+                class="menu-center__item"
+                :class="{ active: activeMenu === item.key, disabled: !item.available }"
+                :disabled="!item.available"
+                @click="selectMenu(item.key)"
+              >
+                <span class="menu-center__icon" aria-hidden="true">{{ item.icon }}</span>
+                <span class="menu-center__label">{{ item.label }}</span>
+                <span v-if="item.badge" class="menu-center__badge">{{ item.badge }}</span>
+              </button>
+              <Transition name="menu-submenu-slide">
+                <div
+                  v-if="activeMenu === item.key && (activeMenu === 'character-search' || activeSubMenuItems.length)"
+                  class="menu-submenu menu-submenu--inline"
+                  :class="{ 'menu-submenu--character-search': activeMenu === 'character-search' }"
+                  aria-label="서브 메뉴"
+                >
+                  <div
+                    v-if="activeMenu === 'character-search'"
+                    id="character-search-submenu"
+                    class="menu-submenu__character-search"
+                    aria-label="캐릭터 검색"
+                  />
+                  <template v-else>
+                    <button
+                      v-for="tab in activeSubMenuItems"
+                      :key="tab.key"
+                      type="button"
+                      class="menu-submenu__item"
+                      :class="{ active: activeSubMenuKey === tab.key }"
+                      :disabled="tab.disabled"
+                      @click="selectSubMenu(tab.key)"
+                    >
+                      {{ tab.label }}
+                    </button>
+                  </template>
+                </div>
+              </Transition>
+            </div>
           </nav>
 
           <div class="menu-divider" :class="{ 'menu-divider--hidden': !hasCenterMenu }" aria-hidden="true"></div>
@@ -132,6 +141,7 @@ interface MainMenuItem {
 
 type AuctionSubMenuKey = 'market' | 'auction-house'
 type ReforgeSubMenuKey = 'normal' | 'advanced' | 'blunt-thorn' | 'supersonic'
+type RaidSubMenuKey = 'party'
 type AdminSubMenuKey = 'market-records' | 'raid-catalog'
 
 type SubMenuItem = { key: string; label: string; disabled?: boolean }
@@ -169,22 +179,10 @@ initTheme()
 const activeMenu = ref<MainMenuKey>(normalizeMenu(route.params.menu))
 const auctionSubMenu = ref<AuctionSubMenuKey>('market')
 const reforgeSubMenu = ref<ReforgeSubMenuKey>('normal')
+const raidSubMenu = ref<RaidSubMenuKey>('party')
 const adminSubMenu = ref<AdminSubMenuKey>('market-records')
 
-const isPrimaryMenu = (menu: MainMenuKey) => menuItems.some(item => item.key === menu)
-
-const selectedMenu = computed<MainMenuItem>(() => {
-  const found = menuItems.find(item => item.key === activeMenu.value)
-  if (found) return found
-  if (activeMenu.value === 'friends') return { key: 'friends', label: '친구', icon: '👥', available: true }
-  if (activeMenu.value === 'characters') return { key: 'characters', label: '내 캐릭터', icon: '📒', available: true }
-  return { key: 'character-search', label: '캐릭터 검색', icon: '😊', available: true, badge: '기본' }
-})
-
-const centerMenuItems = computed(() => {
-  if (!isPrimaryMenu(activeMenu.value)) return menuItems
-  return menuItems.filter(item => item.key !== activeMenu.value)
-})
+const centerMenuItems = computed(() => menuItems)
 
 const hasCenterMenu = computed(() => centerMenuItems.value.length > 0)
 
@@ -203,6 +201,11 @@ const activeSubMenuItems = computed<SubMenuItem[]>(() => {
       { key: 'supersonic', label: '음돌 계산기' },
     ]
   }
+  if (activeMenu.value === 'raid') {
+    return [
+      { key: 'party', label: '레이드 모집' },
+    ]
+  }
   if (activeMenu.value === 'admin') {
     return [
       { key: 'market-records', label: '거래소 기록' },
@@ -215,6 +218,7 @@ const activeSubMenuItems = computed<SubMenuItem[]>(() => {
 const activeSubMenuKey = computed<string | null>(() => {
   if (activeMenu.value === 'auction') return auctionSubMenu.value
   if (activeMenu.value === 'reforge') return reforgeSubMenu.value
+  if (activeMenu.value === 'raid') return raidSubMenu.value
   if (activeMenu.value === 'admin') return adminSubMenu.value
   return null
 })
@@ -229,6 +233,11 @@ const selectSubMenu = (key: string) => {
     if (key === 'normal' || key === 'advanced' || key === 'blunt-thorn' || key === 'supersonic') {
       reforgeSubMenu.value = key
     }
+    return
+  }
+
+  if (activeMenu.value === 'raid') {
+    if (key === 'party') raidSubMenu.value = key
     return
   }
 
@@ -438,52 +447,43 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.menu-selected {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--primary-color, #6366f1);
-  box-shadow: 0 10px 20px rgba(99, 102, 241, 0.06);
-  min-width: 0;
-}
-
-.menu-selected__icon {
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-}
-
-.menu-selected__label {
-  font-size: 0.95rem;
-  font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 180px;
-}
-
-.menu-selected__badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--primary-color, #6366f1);
-  font-size: 0.7rem;
-  color: #ffffff;
-}
-
 .menu-submenu {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.menu-submenu--inline {
+  flex-wrap: nowrap;
+}
+
+.menu-submenu-slide-enter-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.menu-submenu-slide-enter-from {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+.menu-submenu-slide-leave-active {
+  transition: none;
+}
+
+.menu-submenu-slide-leave-to {
+  opacity: 0;
+  transform: none;
+}
+
+.menu-submenu--character-search {
+  flex-wrap: nowrap;
+}
+
+.menu-submenu__character-search {
+  flex: 0 1 260px;
+  min-width: 200px;
+  width: min(260px, 28vw);
 }
 
 .menu-submenu__item {
@@ -529,11 +529,19 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  overflow: visible;
+  justify-content: center;
   min-width: 0;
   padding: 4px 0;
   scrollbar-width: none;
+}
+
+.menu-center__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .menu-center::-webkit-scrollbar {
@@ -556,12 +564,11 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.menu-center--expanded .menu-center__item {
-  padding: 10px 14px;
-  background: rgba(156, 163, 175, 0.06);
-  border-radius: 9999px;
-  border: 1px solid rgba(156, 163, 175, 0.12);
-  color: #111827;
+.menu-center__item.active {
+  background: var(--primary-soft-bg, rgba(99, 102, 241, 0.16));
+  border-color: rgba(99, 102, 241, 0.35);
+  color: var(--primary-color, #6366f1);
+  font-weight: 700;
 }
 
 .menu-center__icon {

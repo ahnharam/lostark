@@ -27,6 +27,8 @@ public class MarketItemDto {
     @JsonAlias("TradeRemainCount")
     private Integer tradeRemainCount;
 
+    private Integer categoryCode;
+
     @JsonProperty("yDayAvgPrice")
     @JsonAlias({ "YDayAvgPrice", "yDayAvgPrice", "ydayAvgPrice", "y_day_avg_price", "YDAY_AVG_PRICE" })
     private Double yDayAvgPrice;

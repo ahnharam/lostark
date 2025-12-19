@@ -3,19 +3,12 @@
     <div class="filter-group">
       <label class="filter-label">
         <span>리더보드</span>
-        <select
+        <CustomSelect
           class="filter-select"
-          :value="leaderboardCode"
-          @change="$emit('update:leaderboardCode', ($event.target as HTMLSelectElement).value)"
-        >
-          <option
-            v-for="option in leaderboardOptions"
-            :key="option.value"
-            :value="option.value"
-          >
-            {{ option.label }}
-          </option>
-        </select>
+          :model-value="leaderboardCode"
+          :options="leaderboardOptions"
+          @change="handleLeaderboardChange"
+        />
       </label>
       <p class="filter-hint">
         {{ selectedOption?.description || '원하는 리더보드를 선택하세요.' }}
@@ -70,8 +63,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import CustomSelect, { type SelectOption } from '../common/CustomSelect.vue'
 
-interface LeaderboardOption {
+interface LeaderboardOption extends SelectOption {
   value: string
   label: string
   description: string
@@ -84,7 +78,7 @@ const props = defineProps<{
   loading: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:leaderboardCode', value: string): void
   (e: 'update:seasonId', value: string | undefined): void
   (e: 'update:page', value: number): void
@@ -101,6 +95,11 @@ const leaderboardOptions: LeaderboardOption[] = [
 const selectedOption = computed(() =>
   leaderboardOptions.find(option => option.value === props.leaderboardCode)
 )
+
+const handleLeaderboardChange = (value: string | number | null) => {
+  if (typeof value !== 'string') return
+  emit('update:leaderboardCode', value)
+}
 </script>
 
 <style scoped>
@@ -134,6 +133,7 @@ const selectedOption = computed(() =>
 }
 
 .filter-select,
+:deep(.filter-select),
 .filter-input {
   padding: 0.4rem 0.6rem;
   border-radius: 8px;
@@ -143,6 +143,7 @@ const selectedOption = computed(() =>
 }
 
 .filter-select:focus,
+:deep(.filter-select:focus),
 .filter-input:focus {
   outline: none;
   border-color: var(--accent-color, #80b2ff);

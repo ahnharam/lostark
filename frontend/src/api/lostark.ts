@@ -324,7 +324,8 @@ export const lostarkApi = {
   },
 
   async searchMarketItems(params: {
-    categoryCode: number
+    categoryCode?: number
+    categoryCodes?: number[]
     characterClass?: string
     itemTier?: number
     itemGrade?: string
@@ -338,6 +339,7 @@ export const lostarkApi = {
     const response = await apiClient.get<MarketSearchResponse>('/markets/items', {
       params: {
         categoryCode: params.categoryCode,
+        categoryCodes: params.categoryCodes?.length ? params.categoryCodes.join(',') : undefined,
         characterClass: params.characterClass,
         itemTier: params.itemTier,
         itemGrade: params.itemGrade,

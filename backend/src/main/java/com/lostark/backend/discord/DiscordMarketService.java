@@ -2,6 +2,7 @@ package com.lostark.backend.discord;
 
 import com.lostark.backend.dto.CharacterProfileDto;
 import com.lostark.backend.lostark.domain.LostArkProfileDomainService;
+import com.lostark.backend.lostark.client.LostArkRateLimitManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -10,12 +11,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.awt.Color;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.time.Duration;
 
 @Slf4j
 @Service
@@ -23,6 +26,7 @@ import java.util.Map;
 public class DiscordMarketService {
 
     private final LostArkProfileDomainService profileDomainService;
+    private final LostArkRateLimitManager rateLimitManager;
 
     @Value("${lostark.api.key}")
     private String apiKey;
@@ -35,6 +39,18 @@ public class DiscordMarketService {
                 .baseUrl(baseUrl)
                 .defaultHeader("authorization", "bearer " + apiKey)
                 .defaultHeader("accept", "application/json")
+                .filter((request, next) -> Mono.defer(() -> {
+                    long delayMs = rateLimitManager.getDelayMillis();
+                    Mono<org.springframework.web.reactive.function.client.ClientResponse> exchange = next.exchange(request)
+                            .doOnNext(response -> rateLimitManager.updateFromHeaders(
+                                    response.headers().asHttpHeaders(),
+                                    response.statusCode().value()
+                            ));
+                    if (delayMs <= 0) {
+                        return exchange;
+                    }
+                    return Mono.delay(Duration.ofMillis(delayMs)).flatMap(ignored -> exchange);
+                }))
                 .build();
     }
 

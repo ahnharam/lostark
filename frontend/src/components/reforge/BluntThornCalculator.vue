@@ -47,19 +47,11 @@
         <div class="form-grid">
           <label class="input-field">
             <span>아드레날린</span>
-            <select v-model.number="adrenalineCrit">
-              <option v-for="option in adrenalineOptions" :key="option.value" :value="option.value">
-                {{ option.label }} ({{ option.value }}%)
-              </option>
-            </select>
+            <CustomSelect v-model="adrenalineCrit" :options="adrenalineSelectOptions" />
           </label>
           <label class="input-field">
             <span>정밀 단도</span>
-            <select v-model.number="preciseDaggerCrit">
-              <option v-for="option in preciseDaggerOptions" :key="option.value" :value="option.value">
-                {{ option.label }} ({{ option.value }}%)
-              </option>
-            </select>
+            <CustomSelect v-model="preciseDaggerCrit" :options="preciseDaggerSelectOptions" />
           </label>
           <div></div>
           <div></div>
@@ -69,35 +61,19 @@
         <div class="form-grid form-grid-compact">
           <label class="input-field">
             <span>예리한 감각</span>
-            <select v-model.number="sharpSenseCrit">
-              <option v-for="option in sharpSenseOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="sharpSenseCrit" :options="sharpSenseOptions" />
           </label>
           <label class="input-field">
             <span>혼신의 강타</span>
-            <select v-model.number="focusedStrikeCrit">
-              <option v-for="option in focusedStrikeOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="focusedStrikeCrit" :options="focusedStrikeOptions" />
           </label>
           <label class="input-field">
             <span>일격</span>
-            <select v-model.number="fatalStrikeCrit">
-              <option v-for="option in fatalStrikeOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="fatalStrikeCrit" :options="fatalStrikeOptions" />
           </label>
           <label class="input-field">
             <span>달인</span>
-            <select v-model.number="artisanElixirCrit">
-              <option v-for="option in artisanElixirOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="artisanElixirCrit" :options="artisanElixirOptions" />
           </label>
         </div>
 
@@ -107,11 +83,7 @@
             <div class="form-grid">
               <label class="input-field">
                 <span>부수는 일격</span>
-                <select v-model.number="destructStrikeCrit">
-                  <option v-for="option in arcGridOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
+                <CustomSelect v-model="destructStrikeCrit" :options="arcGridOptions" />
               </label>
               <div></div>
             </div>
@@ -122,19 +94,11 @@
             <div class="form-grid ring-grid">
               <label class="input-field">
                 <span>반지 1</span>
-                <select v-model.number="ringOneCrit">
-                  <option v-for="option in ringOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
+                <CustomSelect v-model="ringOneCrit" :options="ringOptions" />
               </label>
               <label class="input-field">
                 <span>반지 2</span>
-                <select v-model.number="ringTwoCrit">
-                  <option v-for="option in ringOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
+                <CustomSelect v-model="ringTwoCrit" :options="ringOptions" />
               </label>
             </div>
           </div>
@@ -152,27 +116,15 @@
         <div class="form-grid form-grid-compact">
           <label class="input-field">
             <span>서포터 팔찌 (%)</span>
-            <select v-model.number="supportCrit">
-              <option v-for="option in supportWeaknessOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="supportCrit" :options="supportWeaknessOptions" />
           </label>
           <label class="input-field">
             <span>구슬 동자</span>
-            <select v-model.number="beadBoyCrit">
-              <option v-for="option in beadBoyOptions" :key="option.value" :value="option.value">
-                {{ option.label }} ({{ option.value }}%)
-              </option>
-            </select>
+            <CustomSelect v-model="beadBoyCrit" :options="beadBoySelectOptions" />
           </label>
           <label class="input-field">
             <span>구슬동자 돌</span>
-            <select v-model.number="beadSupportCrit">
-              <option v-for="option in beadSupportOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="beadSupportCrit" :options="beadSupportOptions" />
           </label>
         </div>
       </section>
@@ -243,6 +195,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import CustomSelect, { type SelectOption } from '../common/CustomSelect.vue'
 
 const critPerStat = 0.0357
 
@@ -337,6 +290,27 @@ const beadBoyOptions = [
   { label: '유물 3레벨', value: 16.8 },
   { label: '유물 4레벨', value: 17.4 }
 ]
+
+const adrenalineSelectOptions = computed<SelectOption[]>(() =>
+  adrenalineOptions.map(option => ({
+    label: `${option.label} (${option.value}%)`,
+    value: option.value
+  }))
+)
+
+const preciseDaggerSelectOptions = computed<SelectOption[]>(() =>
+  preciseDaggerOptions.map(option => ({
+    label: `${option.label} (${option.value}%)`,
+    value: option.value
+  }))
+)
+
+const beadBoySelectOptions = computed<SelectOption[]>(() =>
+  beadBoyOptions.map(option => ({
+    label: `${option.label} (${option.value}%)`,
+    value: option.value
+  }))
+)
 
 const beadSupportOptions = [
   { label: '구슬동자 돌 없음', value: 0 },
@@ -594,7 +568,8 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 }
 
 .input-field input,
-.input-field select {
+.input-field select,
+:deep(.input-field .custom-select__trigger) {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px 12px;
@@ -604,7 +579,8 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 }
 
 .input-field input:focus,
-.input-field select:focus {
+.input-field select:focus,
+:deep(.input-field .custom-select__trigger:focus) {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);

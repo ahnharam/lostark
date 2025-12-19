@@ -42,7 +42,8 @@ public class MarketController {
 
     @GetMapping("/items")
     public ResponseEntity<MarketSearchResponse> searchItems(
-            @RequestParam Integer categoryCode,
+            @RequestParam(required = false) Integer categoryCode,
+            @RequestParam(required = false) List<Integer> categoryCodes,
             @RequestParam(required = false) String characterClass,
             @RequestParam(required = false) Integer itemTier,
             @RequestParam(required = false) String itemGrade,
@@ -53,8 +54,9 @@ public class MarketController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "3") int prefetchRange
     ) {
-        MarketSearchResponse response = marketSyncService.searchMarketItems(
+        MarketSearchResponse response = marketSyncService.searchMarketItemsByCategories(
                 categoryCode,
+                categoryCodes,
                 characterClass,
                 itemTier,
                 itemGrade,

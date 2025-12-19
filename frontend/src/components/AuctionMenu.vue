@@ -1,138 +1,53 @@
 <template>
   <div class="auction-page">
-    <TopPageHeader>
-      <div class="layout-title-row">
-        <h3>아이템 검색</h3>
-      </div>
-    </TopPageHeader>
-
 	    <template v-if="activeSubMenu === 'market'">
-	      <section class="auction-hero panel-card">
-	        <div>
-	          <div class="layout-title-row">
-	            <h3>거래소 검색</h3>
-	          </div>
-	        </div>
-	        <div class="auction-hero__center">
-	          <div class="market-submenu-tabs" aria-label="거래소 검색 하위 메뉴">
-	            <button
-	              type="button"
-	              class="raid-menu-btn"
-	              :class="{ active: marketSubMenu === 'reforge-materials' }"
-	              @click="marketSubMenu = 'reforge-materials'"
-	            >
-	              재련재료
-	            </button>
-	            <button
-	              type="button"
-	              class="raid-menu-btn"
-	              :class="{ active: marketSubMenu === 'life-materials' }"
-	              @click="marketSubMenu = 'life-materials'"
-	            >
-	              생활재료
-	            </button>
-	            <button
-	              type="button"
-	              class="raid-menu-btn"
-	              :class="{ active: marketSubMenu === 'engravings' }"
-	              @click="marketSubMenu = 'engravings'"
-	            >
-	              각인서
-	            </button>
-	            <button
-	              type="button"
-	              class="raid-menu-btn"
-	              :class="{ active: marketSubMenu === 'battle-items' }"
-	              @click="marketSubMenu = 'battle-items'"
-	            >
-	              배틀아이템
-	            </button>
-	            <button
-	              type="button"
-	              class="raid-menu-btn"
-	              :class="{ active: marketSubMenu === 'all' }"
-	              @click="marketSubMenu = 'all'"
-	            >
-	              전체검색
-	            </button>
-	          </div>
-	        </div>
-	        <div class="hero-meta">
-	          <div class="meta-chip">
-	            <span class="meta-label">총 카테고리</span>
-	            <strong>{{ categoryCount }}</strong>
-          </div>
-          <div class="meta-chip">
-            <span class="meta-label">수집된 아이템</span>
-            <strong>{{ formatNumber(totalItems) }}</strong>
-          </div>
-          <div class="meta-chip accent" :class="{ muted: !lastFetchedLabel }">
-            <span class="meta-label">최근 수집</span>
-            <strong>{{ lastFetchedLabel || '정보 없음' }}</strong>
-          </div>
-        </div>
-	      </section>
-
-	    <template v-if="marketSubMenu === 'all'">
+	    <template v-if="isMarketSearchVisible">
 	    <section class="control-panel panel-card">
+	      <div v-if="mainCategoryTabs.length" class="category-main-tabs" aria-label="카테고리 메인 메뉴">
+	        <button
+	          v-if="showAllMainCategoryButton"
+	          type="button"
+	          class="raid-menu-btn"
+	          :class="{ active: selectedMainCategory === 'all' }"
+	          @click="selectMainCategory('all')"
+	        >
+	          전체
+	        </button>
+	        <button
+	          v-for="tab in mainCategoryTabs"
+	          :key="tab.code"
+	          type="button"
+	          class="raid-menu-btn"
+	          :class="{ active: selectedMainCategory === tab.code }"
+	          @click="selectMainCategory(tab.code)"
+	        >
+	          {{ tab.label }}
+	        </button>
+	      </div>
 	      <div class="control-row">
 	        <label class="field">
 	          <span class="field-label">카테고리</span>
-          <select v-model="selectedCategory" class="input" :disabled="loadingCategories">
-            <option :value="null">전체 보기</option>
-            <option v-for="cat in leafCategories" :key="cat.code" :value="cat.code">
-              {{ cat.codeName }}
-            </option>
-          </select>
+          <CustomSelect
+            v-model="selectedCategory"
+            class="input"
+            :options="categoryOptions"
+            :disabled="loadingCategories"
+          />
         </label>
 
         <label class="field">
           <span class="field-label">직업</span>
-          <select v-model="characterClass" class="input">
-            <option :value="null">전체</option>
-            <option v-for="cls in classes" :key="cls" :value="cls">{{ cls }}</option>
-          </select>
+          <CustomSelect v-model="characterClass" class="input" :options="classOptions" />
         </label>
 
         <label class="field">
           <span class="field-label">티어</span>
-          <select v-model.number="itemTier" class="input">
-            <option :value="null">전체</option>
-            <option v-for="tier in itemTiers" :key="tier" :value="tier">{{ tier }} 티어</option>
-          </select>
+          <CustomSelect v-model="itemTier" class="input" :options="tierOptions" />
         </label>
 
         <label class="field">
           <span class="field-label">등급</span>
-          <select v-model="itemGrade" class="input">
-            <option :value="null">전체</option>
-            <option v-for="grade in itemGrades" :key="grade" :value="grade">{{ grade }}</option>
-          </select>
-        </label>
-
-        <label class="field field--small">
-          <span class="field-label">정렬</span>
-          <div class="sort-row">
-            <select v-model="sort" class="input">
-              <option value="RECENT_PRICE">최근 거래가</option>
-              <option value="CURRENT_MIN_PRICE">현재 최저가</option>
-              <option value="YDAY_AVG_PRICE">전일 평균가</option>
-            </select>
-            <select v-model="sortCondition" class="input sort-order">
-              <option value="ASC">오름차순</option>
-              <option value="DESC">내림차순</option>
-            </select>
-          </div>
-        </label>
-
-        <label class="field field--small">
-          <span class="field-label">페이징</span>
-          <select v-model.number="pageSize" class="input" @change="resetAndLoad">
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="30">30</option>
-            <option :value="50">50</option>
-          </select>
+          <CustomSelect v-model="itemGrade" class="input" :options="gradeOptions" />
         </label>
 
         <label class="field">
@@ -152,7 +67,7 @@
         </div>
       </div>
 
-      <p v-if="!leafCategories.length" class="inline-hint">
+      <p v-if="!marketLeafCategories.length" class="inline-hint">
         등록된 거래소 기록이 없습니다.
       </p>
     </section>
@@ -164,6 +79,10 @@
           <h3>거래소 스냅샷 {{ filteredItems.length ? `(${filteredItems.length}개 표시 중)` : '' }}</h3>
         </div>
         <div class="pager">
+          <label class="pager-size">
+            <span class="pager-label">표시</span>
+            <CustomSelect v-model="pageSize" class="input pager-select" :options="pageSizeOptions" />
+          </label>
           <button class="pager-btn" type="button" :disabled="page === 1 || loadingItems" @click="changePage(page - 1)">
             이전
           </button>
@@ -186,9 +105,82 @@
       <div v-else class="table">
         <div class="table-head">
           <span>아이템</span>
-          <span class="align-right">현재 최저가</span>
-          <span class="align-right">최근 거래가</span>
-          <span class="align-right">전일 평균</span>
+          <div class="table-head__cell align-right" :class="{ active: isSortActive('CURRENT_MIN_PRICE') }">
+            <button
+              type="button"
+              class="sort-label"
+              :class="{ active: isSortActive('CURRENT_MIN_PRICE') }"
+              @click="setSort('CURRENT_MIN_PRICE')"
+            >
+              현재 최저가
+            </button>
+            <button
+              type="button"
+              class="sort-direction"
+              :class="{ active: isSortActive('CURRENT_MIN_PRICE') }"
+              :aria-label="sortDirectionAriaLabel('현재 최저가')"
+              @click="toggleSortCondition('CURRENT_MIN_PRICE')"
+            >
+              <span class="sort-icon" aria-hidden="true">{{ sortIcon }}</span>
+            </button>
+          </div>
+          <div class="table-head__cell align-right" :class="{ active: isSortActive('RECENT_PRICE') }">
+            <button
+              type="button"
+              class="sort-label"
+              :class="{ active: isSortActive('RECENT_PRICE') }"
+              @click="setSort('RECENT_PRICE')"
+            >
+              최근 거래가
+            </button>
+            <button
+              type="button"
+              class="sort-direction"
+              :class="{ active: isSortActive('RECENT_PRICE') }"
+              :aria-label="sortDirectionAriaLabel('최근 거래가')"
+              @click="toggleSortCondition('RECENT_PRICE')"
+            >
+              <span class="sort-icon" aria-hidden="true">{{ sortIcon }}</span>
+            </button>
+          </div>
+          <div class="table-head__cell align-right" :class="{ active: isSortActive('YDAY_AVG_PRICE') }">
+            <button
+              type="button"
+              class="sort-label"
+              :class="{ active: isSortActive('YDAY_AVG_PRICE') }"
+              @click="setSort('YDAY_AVG_PRICE')"
+            >
+              전일 평균
+            </button>
+            <button
+              type="button"
+              class="sort-direction"
+              :class="{ active: isSortActive('YDAY_AVG_PRICE') }"
+              :aria-label="sortDirectionAriaLabel('전일 평균')"
+              @click="toggleSortCondition('YDAY_AVG_PRICE')"
+            >
+              <span class="sort-icon" aria-hidden="true">{{ sortIcon }}</span>
+            </button>
+          </div>
+          <div class="table-head__cell align-right" :class="{ active: isSortActive('CHANGE_RATE') }">
+            <button
+              type="button"
+              class="sort-label"
+              :class="{ active: isSortActive('CHANGE_RATE') }"
+              @click="setSort('CHANGE_RATE')"
+            >
+              등락률
+            </button>
+            <button
+              type="button"
+              class="sort-direction"
+              :class="{ active: isSortActive('CHANGE_RATE') }"
+              :aria-label="sortDirectionAriaLabel('등락률')"
+              @click="toggleSortCondition('CHANGE_RATE')"
+            >
+              <span class="sort-icon" aria-hidden="true">{{ sortIcon }}</span>
+            </button>
+          </div>
           <span class="align-right">묶음/거래</span>
           <span class="align-right">카테고리</span>
           <span class="align-right">수집시각</span>
@@ -219,9 +211,21 @@
               <p class="item-sub">{{ item.grade || '등급 없음' }}</p>
             </div>
           </div>
-          <span class="align-right strong">{{ formatGold(item.currentMinPrice) }}</span>
-          <span class="align-right">{{ formatGold(item.recentPrice) }}</span>
-          <span class="align-right muted">{{ formatGold(item.yDayAvgPrice) }}</span>
+          <span class="align-right" :class="{ strong: isSortActive('CURRENT_MIN_PRICE') }">
+            {{ formatGold(item.currentMinPrice) }}
+          </span>
+          <span class="align-right" :class="{ strong: isSortActive('RECENT_PRICE') }">
+            {{ formatGold(item.recentPrice) }}
+          </span>
+          <span
+            class="align-right"
+            :class="{ strong: isSortActive('YDAY_AVG_PRICE'), muted: !isSortActive('YDAY_AVG_PRICE') }"
+          >
+            {{ formatGold(item.yDayAvgPrice) }}
+          </span>
+          <span class="align-right" :class="[getChangeRateClass(item), { strong: isSortActive('CHANGE_RATE') }]">
+            {{ getChangeRateLabel(item) }}
+          </span>
           <span class="align-right muted">
             {{ item.bundleCount ? `${item.bundleCount}개` : '-' }}
             <span v-if="item.tradeRemainCount !== undefined && item.tradeRemainCount !== null">
@@ -495,11 +499,12 @@ import { getHttpErrorMessage } from '@/utils/httpError'
 import { expandEngravingAbbreviation } from '@/data/engravingNames'
 import LoadingSpinner from './common/LoadingSpinner.vue'
 import LazyImage from './common/LazyImage.vue'
-import TopPageHeader from './common/TopPageHeader.vue'
+import CustomSelect, { type SelectOption } from './common/CustomSelect.vue'
 
 type ItemSearchSubMenu = 'market' | 'auction-house'
 
 type MarketSubMenu = 'reforge-materials' | 'life-materials' | 'engravings' | 'battle-items' | 'all'
+type MarketSortKey = 'RECENT_PRICE' | 'CURRENT_MIN_PRICE' | 'YDAY_AVG_PRICE' | 'CHANGE_RATE'
 
 type TooltipState = {
   visible: boolean
@@ -524,6 +529,24 @@ watch(
   }
 )
 const marketSubMenu = ref<MarketSubMenu>('all')
+const reforgeCategoryCodes = [50010, 50020] as const
+const lifeCategoryCodes = [90200, 90300, 90400, 90500, 90600, 90700] as const
+const engravingCategoryCodes = [40000] as const
+const defaultBattleCategoryCodes = [60200, 60300, 60400, 60500] as const
+const showAllMainCategoryButton = false
+const categoryRootCodes = {
+  engravings: 40000,
+  reforge: 50000,
+  battle: 60000,
+  cooking: 70000,
+  life: 90000,
+  adventureBook: 100000,
+  sailing: 110000,
+  pet: 140000,
+  mount: 160000
+} as const
+type MainCategoryKey = number | 'all'
+const selectedMainCategory = ref<MainCategoryKey>(10100)
 
 const marketSubMenuLabel = computed(() => {
   switch (marketSubMenu.value) {
@@ -541,6 +564,15 @@ const marketSubMenuLabel = computed(() => {
       return '전체검색'
   }
 })
+
+const isMarketSearchVisible = computed(() =>
+  marketSubMenu.value === 'all' ||
+  marketSubMenu.value === 'reforge-materials' ||
+  marketSubMenu.value === 'life-materials' ||
+  marketSubMenu.value === 'engravings' ||
+  marketSubMenu.value === 'battle-items'
+)
+const showAllCategoryOption = computed(() => true)
 
 const toNumberOrUndefined = (value: unknown) => {
   if (value === null || value === undefined) return undefined
@@ -611,20 +643,50 @@ const selectedCategory = ref<number | null>(null)
 const searchText = ref('')
 const page = ref(1)
 const totalPages = ref(1)
-const totalItems = ref(0)
 const pageSize = ref(20)
 const loadingCategories = ref(false)
 const loadingItems = ref(false)
 const errorMessage = ref('')
-const sort = ref('RECENT_PRICE')
+const sort = ref<MarketSortKey>('RECENT_PRICE')
 const sortCondition = ref<'ASC' | 'DESC'>('ASC')
 const characterClass = ref<string | null>(null)
 const classes = ref<string[]>([])
+const defaultTier = 4
 const itemTier = ref<number | null>(null)
+const defaultEngravingGrade = '유물'
 const itemGrade = ref<string | null>(null)
 const prefetchRange = 3
 const itemTiers = ref<number[]>([])
 const itemGrades = ref<string[]>([])
+type GradeRule = {
+  grades: readonly string[]
+  allowAll: boolean
+  defaultValue: string | null
+}
+
+const gradeRulesByRootCode = new Map<number, GradeRule>([
+  [
+    categoryRootCodes.engravings,
+    { grades: ['전설', '유물'], allowAll: false, defaultValue: defaultEngravingGrade }
+  ],
+  [
+    categoryRootCodes.reforge,
+    { grades: ['일반', '고급', '희귀', '영웅'], allowAll: true, defaultValue: null }
+  ],
+  [categoryRootCodes.battle, { grades: ['고급', '희귀', '영웅'], allowAll: true, defaultValue: null }],
+  [categoryRootCodes.cooking, { grades: ['고급', '희귀'], allowAll: true, defaultValue: null }],
+  [categoryRootCodes.life, { grades: ['일반', '고급', '희귀'], allowAll: true, defaultValue: null }],
+  [
+    categoryRootCodes.adventureBook,
+    { grades: ['일반', '고급', '희귀', '영웅', '전설'], allowAll: true, defaultValue: null }
+  ],
+  [
+    categoryRootCodes.sailing,
+    { grades: ['일반', '고급', '희귀', '영웅'], allowAll: true, defaultValue: null }
+  ],
+  [categoryRootCodes.pet, { grades: ['영웅'], allowAll: true, defaultValue: null }],
+  [categoryRootCodes.mount, { grades: ['영웅', '전설'], allowAll: true, defaultValue: null }]
+])
 const lastFetchedAt = ref<number | null>(null)
 const lastCenterPage = ref(1)
 const detailOpen = ref(false)
@@ -770,18 +832,303 @@ const selectedYDayAvgPrice = computed(() => {
 })
 
 const leafCategories = computed(() => categories.value.filter(cat => !cat.hasSubs))
-const categoryCount = computed(() => categories.value.length)
+type CategoryNode = {
+  code: number
+  codeName: string
+  parentCode?: number | null
+  children: CategoryNode[]
+}
+
+const findCategoryNode = (nodes: CategoryNode[], code: number): CategoryNode | null => {
+  for (const node of nodes) {
+    if (node.code === code) return node
+    const found = findCategoryNode(node.children, code)
+    if (found) return found
+  }
+  return null
+}
+
+const categoryTree = computed<CategoryNode[]>(() => {
+  if (!categories.value.length) return []
+  const nodes = new Map<number, CategoryNode>()
+  categories.value.forEach(cat => {
+    nodes.set(cat.code, {
+      code: cat.code,
+      codeName: cat.codeName,
+      parentCode: cat.parentCode ?? null,
+      children: []
+    })
+  })
+  const roots: CategoryNode[] = []
+  nodes.forEach(node => {
+    if (node.parentCode !== null && node.parentCode !== undefined && nodes.has(node.parentCode)) {
+      const parent = nodes.get(node.parentCode)
+      if (parent) parent.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  })
+  const sortNodes = (items: CategoryNode[]) => {
+    items.sort((a, b) => a.code - b.code)
+    items.forEach(item => sortNodes(item.children))
+  }
+  sortNodes(roots)
+  return roots
+})
+
+const collectLeafCodes = (node: CategoryNode): number[] => {
+  if (!node.children.length) return [node.code]
+  return node.children.flatMap(child => collectLeafCodes(child))
+}
+
+const battleCategoryCodes = computed<readonly number[]>(() => {
+  if (!categoryTree.value.length) return defaultBattleCategoryCodes
+  const battleNode = findCategoryNode(categoryTree.value, 60000)
+  if (!battleNode) return defaultBattleCategoryCodes
+  const codes = collectLeafCodes(battleNode)
+  return codes.length ? codes : defaultBattleCategoryCodes
+})
+
+const filteredCategoryCodes = computed<readonly number[] | null>(() => {
+  if (marketSubMenu.value === 'reforge-materials') return reforgeCategoryCodes
+  if (marketSubMenu.value === 'life-materials') return lifeCategoryCodes
+  if (marketSubMenu.value === 'engravings') return engravingCategoryCodes
+  if (marketSubMenu.value === 'battle-items') return battleCategoryCodes.value
+  return null
+})
+
+const mainCategoryTabs = computed(() => {
+  const roots = categoryTree.value
+  if (!roots.length) return []
+  const baseCodes = filteredCategoryCodes.value
+  return roots
+    .map(root => ({
+      code: root.code,
+      label: root.codeName,
+      leafCodes: collectLeafCodes(root)
+    }))
+    .filter(tab => !baseCodes || tab.leafCodes.some(code => baseCodes.includes(code)))
+})
+
+const selectedMainCategoryCodes = computed<readonly number[] | null>(() => {
+  if (selectedMainCategory.value === 'all') return null
+  const tab = mainCategoryTabs.value.find(item => item.code === selectedMainCategory.value)
+  return tab?.leafCodes ?? null
+})
+
+const effectiveCategoryCodes = computed<readonly number[] | null>(() => {
+  const baseCodes = filteredCategoryCodes.value
+  const mainCodes = selectedMainCategoryCodes.value
+  if (baseCodes && mainCodes) {
+    return baseCodes.filter(code => mainCodes.includes(code))
+  }
+  return mainCodes ?? baseCodes
+})
+
+const marketLeafCategories = computed(() => {
+  const codes = effectiveCategoryCodes.value
+  if (codes) {
+    return leafCategories.value.filter(cat => codes.includes(cat.code))
+  }
+  return leafCategories.value
+})
+const searchCategoryCodes = computed<readonly number[]>(() =>
+  marketLeafCategories.value.map(category => category.code)
+)
+const searchCategoryKey = computed(() => {
+  if (selectedCategory.value !== null) {
+    return `single:${selectedCategory.value}`
+  }
+  return `multi:${searchCategoryCodes.value.join(',')}`
+})
+const fallbackCategoryCode = computed(() => marketLeafCategories.value[0]?.code ?? null)
+const activeCategoryCode = computed(() => selectedCategory.value ?? fallbackCategoryCode.value)
+const sortIcon = computed(() => (sortCondition.value === 'ASC' ? '▲' : '▼'))
 const selectedCategoryName = computed(() => {
-  const code = selectedCategory.value
+  const code = activeCategoryCode.value
   if (code === null) return ''
   return categories.value.find(cat => cat.code === code)?.codeName?.trim() || ''
 })
+const categoryParentMap = computed(() => {
+  const map = new Map<number, number | null>()
+  categories.value.forEach(category => {
+    map.set(category.code, category.parentCode ?? null)
+  })
+  return map
+})
+
+const resolveRootCategoryCode = (code: number) => {
+  const parents = categoryParentMap.value
+  let current = code
+  const visited = new Set<number>()
+  while (parents.has(current)) {
+    const parent = parents.get(current)
+    if (parent === null || parent === undefined) break
+    if (visited.has(parent)) break
+    visited.add(parent)
+    current = parent
+  }
+  return current
+}
+
+const menuContextCode = computed<number | null>(() => {
+  if (marketSubMenu.value === 'engravings') return categoryRootCodes.engravings
+  if (marketSubMenu.value === 'reforge-materials') return categoryRootCodes.reforge
+  if (marketSubMenu.value === 'life-materials') return categoryRootCodes.life
+  if (marketSubMenu.value === 'battle-items') return categoryRootCodes.battle
+  return null
+})
+
+const selectedCategoryRootCode = computed<number | null>(() => {
+  if (selectedCategory.value === null) return null
+  return resolveRootCategoryCode(selectedCategory.value)
+})
+
+const selectedMainCategoryRootCode = computed<number | null>(() => {
+  if (selectedMainCategory.value === 'all') return null
+  return selectedMainCategory.value
+})
+
+const categoryContextCode = computed<number | null>(() => {
+  if (menuContextCode.value !== null) return menuContextCode.value
+  if (selectedCategoryRootCode.value !== null) return selectedCategoryRootCode.value
+  if (selectedMainCategoryRootCode.value !== null) return selectedMainCategoryRootCode.value
+  return null
+})
+
+const filterAvailableGrades = (grades: readonly string[]) => {
+  if (!itemGrades.value.length) return [...grades]
+  return grades.filter(grade => itemGrades.value.includes(grade))
+}
+
+const gradeRule = computed<GradeRule>(() => {
+  const contextCode = categoryContextCode.value
+  const rule = contextCode !== null ? gradeRulesByRootCode.get(contextCode) : undefined
+  if (rule) {
+    return {
+      grades: filterAvailableGrades(rule.grades),
+      allowAll: rule.allowAll,
+      defaultValue: rule.defaultValue
+    }
+  }
+  return {
+    grades: itemGrades.value,
+    allowAll: true,
+    defaultValue: null
+  }
+})
+
+const tierContextKey = computed(() =>
+  categoryContextCode.value === categoryRootCodes.reforge ? 'reforge' : 'default'
+)
+
+const buildCategoryOptions = (
+  nodes: CategoryNode[],
+  depth: number,
+  codes: readonly number[] | null
+): SelectOption[] => {
+  const options: SelectOption[] = []
+  nodes.forEach(node => {
+    const childOptions = buildCategoryOptions(node.children, depth + 1, codes)
+    const isIncluded = codes ? codes.includes(node.code) : true
+    const hasChildren = node.children.length > 0
+    const hasIncludedChildren = childOptions.length > 0
+    if (hasChildren) {
+      if (codes && !hasIncludedChildren) return
+      options.push({
+        label: node.codeName,
+        value: `__group__${node.code}`,
+        disabled: true,
+        kind: 'group',
+        depth
+      })
+      options.push(...childOptions)
+      return
+    }
+    if (!isIncluded) return
+    options.push({
+      label: node.codeName,
+      value: node.code,
+      depth
+    })
+  })
+  return options
+}
+
+const categoryOptions = computed<SelectOption[]>(() => {
+  const options: SelectOption[] = []
+  if (showAllCategoryOption.value) {
+    options.push({ label: '전체 보기', value: null })
+  }
+  const codes = effectiveCategoryCodes.value
+  options.push(...buildCategoryOptions(categoryTree.value, 0, codes))
+  return options
+})
+
+const classOptions = computed<SelectOption[]>(() => [
+  { label: '전체', value: null },
+  ...classes.value.map(cls => ({ label: cls, value: cls }))
+])
+
+const tierOptions = computed<SelectOption[]>(() => [
+  { label: '전체', value: null },
+  ...itemTiers.value.map(tier => ({ label: `${tier} 티어`, value: tier }))
+])
+
+const gradeOptions = computed<SelectOption[]>(() => {
+  const options: SelectOption[] = []
+  const rule = gradeRule.value
+  if (rule.allowAll) {
+    options.push({ label: '전체', value: null })
+  }
+  rule.grades.forEach(grade => {
+    options.push({ label: grade, value: grade })
+  })
+  return options
+})
+
+const pageSizeOptions = computed<SelectOption[]>(() => [
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '30', value: 30 },
+  { label: '50', value: 50 }
+])
 
 const currentItems = computed(() => pageCache.value[String(page.value)] ?? [])
 
 const filteredItems = computed(() => {
-  return currentItems.value
+  if (sort.value !== 'CHANGE_RATE') return currentItems.value
+  const items = [...currentItems.value]
+  const direction = sortCondition.value === 'ASC' ? 1 : -1
+  items.sort((a, b) => {
+    const aRate = calcChangeRate(a.currentMinPrice, a.yDayAvgPrice)
+    const bRate = calcChangeRate(b.currentMinPrice, b.yDayAvgPrice)
+    if (aRate === null && bRate === null) return 0
+    if (aRate === null) return 1
+    if (bRate === null) return -1
+    return (aRate - bRate) * direction
+  })
+  return items
 })
+
+const isSortActive = (key: MarketSortKey) => sort.value === key
+
+const setSort = (key: MarketSortKey) => {
+  if (sort.value === key) return
+  sort.value = key
+}
+
+const toggleSortCondition = (key: MarketSortKey) => {
+  if (sort.value !== key) {
+    sort.value = key
+  }
+  sortCondition.value = sortCondition.value === 'ASC' ? 'DESC' : 'ASC'
+}
+
+const sortDirectionAriaLabel = (label: string) => {
+  const nextDirection = sortCondition.value === 'ASC' ? '내림차순' : '오름차순'
+  return `${label} ${nextDirection} 정렬로 변경`
+}
 
 const lastFetchedLabel = computed(() => {
   if (!lastFetchedAt.value) return ''
@@ -884,6 +1231,7 @@ const normalizeItem = (item: unknown): MarketItemSummary => {
   return {
     id: Number(record.id ?? record.Id ?? 0),
     name: String(record.name ?? record.Name ?? ''),
+    categoryCode: pickNumber(['categoryCode', 'CategoryCode']),
     grade:
       typeof record.grade === 'string'
         ? record.grade
@@ -921,6 +1269,28 @@ const formatCompactNumber = (value?: number | null) => {
 const formatGold = (value?: number | null) => {
   if (value === null || value === undefined) return '-'
   return `${formatNumber(value)}`
+}
+
+const calcChangeRate = (current?: number | null, previous?: number | null) => {
+  if (current === null || current === undefined) return null
+  if (previous === null || previous === undefined || previous === 0) return null
+  const rate = ((current - previous) / previous) * 100
+  return Number.isFinite(rate) ? rate : null
+}
+
+const formatChangeRateValue = (rate: number | null) => {
+  if (rate === null) return '-'
+  const sign = rate > 0 ? '+' : ''
+  return `${sign}${rate.toFixed(1)}%`
+}
+
+const getChangeRateLabel = (item: MarketItemSummary) =>
+  formatChangeRateValue(calcChangeRate(item.currentMinPrice, item.yDayAvgPrice))
+
+const getChangeRateClass = (item: MarketItemSummary) => {
+  const rate = calcChangeRate(item.currentMinPrice, item.yDayAvgPrice)
+  if (rate === null || rate === 0) return 'rate-neutral'
+  return rate > 0 ? 'rate-up' : 'rate-down'
 }
 
 const formatDateTime = (value?: string) => {
@@ -998,12 +1368,6 @@ const loadCategories = async () => {
       walk(options.Categories || [], null)
       categories.value = flattened
     }
-    if (!selectedCategory.value && leafCategories.value.length) {
-      const firstLeaf = leafCategories.value[0]
-      if (firstLeaf) {
-        selectedCategory.value = firstLeaf.code ?? null
-      }
-    }
   } catch (error: unknown) {
     console.error(error)
     errorMessage.value = getHttpErrorMessage(error) || '카테고리를 불러오지 못했습니다. 백엔드 동기화 상태를 확인해 주세요.'
@@ -1013,7 +1377,11 @@ const loadCategories = async () => {
 }
 
 const loadItems = async () => {
-  if (!selectedCategory.value) {
+  const codes = searchCategoryCodes.value
+  const resolvedCategoryCode = selectedCategory.value ?? (codes.length === 1 ? codes[0] : null)
+  const resolvedCategoryCodes =
+    selectedCategory.value === null && codes.length > 1 ? [...codes] : undefined
+  if (resolvedCategoryCode === null && (!resolvedCategoryCodes || !resolvedCategoryCodes.length)) {
     errorMessage.value = '카테고리를 먼저 선택하세요.'
     return
   }
@@ -1046,14 +1414,17 @@ const loadItems = async () => {
 
       return query
     })()
+    const sortValue = sort.value === 'CHANGE_RATE' ? undefined : sort.value
+    const sortConditionValue = sort.value === 'CHANGE_RATE' ? undefined : sortCondition.value
     const data = await lostarkApi.searchMarketItems({
-      categoryCode: selectedCategory.value,
+      categoryCode: resolvedCategoryCode ?? undefined,
+      categoryCodes: resolvedCategoryCodes,
       characterClass: characterClass.value || undefined,
       itemTier: itemTier.value || undefined,
       itemGrade: itemGrade.value || undefined,
       itemName: normalizedSearchText || undefined,
-      sort: sort.value,
-      sortCondition: sortCondition.value,
+      sort: sortValue,
+      sortCondition: sortConditionValue,
       page: page.value,
       size: pageSize.value,
       prefetchRange
@@ -1067,7 +1438,6 @@ const loadItems = async () => {
     })
     pageCache.value = normalized
     totalPages.value = data.totalPages ?? 1
-    totalItems.value = data.totalCount ?? 0
     page.value = data.page ?? page.value
     lastFetchedAt.value = data.fetchedAt ?? Date.now()
     lastCenterPage.value = data.page ?? page.value
@@ -1087,14 +1457,20 @@ const openDetail = async (item: MarketItemSummary) => {
   detailError.value = ''
   clearTooltip()
   try {
+    const detailSortValue = sort.value === 'CHANGE_RATE' ? undefined : sort.value
+    const detailSortConditionValue = sort.value === 'CHANGE_RATE' ? undefined : sortCondition.value
+    const refreshCategoryCode = item.categoryCode ?? activeCategoryCode.value
+    if (refreshCategoryCode === null) {
+      throw new Error('카테고리가 선택되지 않았습니다.')
+    }
     const refreshed = await lostarkApi.refreshMarketItem(item.id, {
-      categoryCode: selectedCategory.value as number,
+      categoryCode: refreshCategoryCode,
       itemName: item.name,
       characterClass: characterClass.value || undefined,
       itemTier: itemTier.value || undefined,
       itemGrade: itemGrade.value || undefined,
-      sort: sort.value,
-      sortCondition: sortCondition.value,
+      sort: detailSortValue,
+      sortCondition: detailSortConditionValue,
       pageSize: pageSize.value
     })
     const normalizedRefreshed = normalizeItem(refreshed)
@@ -1122,15 +1498,98 @@ const closeDetail = () => {
   clearTooltip()
 }
 
+const ensureFilteredCategorySelection = () => {
+  if (!effectiveCategoryCodes.value) return
+  if (selectedCategory.value === null) return
+  const available = marketLeafCategories.value
+  if (!available.length) return
+  const isAvailable = available.some(cat => cat.code === selectedCategory.value)
+  if (!isAvailable) {
+    selectedCategory.value = null
+  }
+}
+
+const selectMainCategory = (value: MainCategoryKey) => {
+  selectedMainCategory.value = value
+}
+
+const ensureMainCategorySelection = () => {
+  if (selectedMainCategory.value === 'all') return
+  const exists = mainCategoryTabs.value.some(tab => tab.code === selectedMainCategory.value)
+  if (!exists) {
+    selectedMainCategory.value = 'all'
+  }
+}
+
+const syncItemGradeForContext = (forceDefault: boolean) => {
+  const { grades, allowAll, defaultValue } = gradeRule.value
+  const resolvedDefault = defaultValue ?? grades[0] ?? null
+  if (forceDefault) {
+    itemGrade.value = allowAll ? null : resolvedDefault
+  }
+  if (itemGrade.value === null) {
+    if (!allowAll) {
+      itemGrade.value = resolvedDefault
+    }
+    return
+  }
+  if (!grades.includes(itemGrade.value)) {
+    itemGrade.value = allowAll ? null : resolvedDefault
+  }
+}
+
+const syncItemTierForContext = (forceDefault: boolean) => {
+  if (tierContextKey.value === 'reforge') {
+    if (forceDefault) {
+      itemTier.value = defaultTier
+    }
+    return
+  }
+  if (forceDefault) {
+    itemTier.value = null
+  }
+}
+
 watch(marketSubMenu, value => {
   if (value !== 'all') closeDetail()
+  ensureMainCategorySelection()
+  ensureFilteredCategorySelection()
 })
 
-watch([selectedCategory, sort, sortCondition, characterClass, itemTier, itemGrade, pageSize], () => resetAndLoad())
+watch(
+  categoryContextCode,
+  () => {
+    syncItemGradeForContext(true)
+    syncItemTierForContext(true)
+  },
+  { immediate: true }
+)
+
+watch(itemGrades, () => {
+  syncItemGradeForContext(false)
+})
+
+watch(categories, () => {
+  ensureMainCategorySelection()
+  ensureFilteredCategorySelection()
+})
+
+watch(mainCategoryTabs, () => {
+  ensureMainCategorySelection()
+  ensureFilteredCategorySelection()
+})
+
+watch(selectedMainCategory, () => {
+  ensureFilteredCategorySelection()
+})
+
+watch([searchCategoryKey, sort, sortCondition, characterClass, itemTier, itemGrade, pageSize], () => resetAndLoad())
 
 onMounted(async () => {
   await loadCategories()
-  await loadItems()
+  if (activeCategoryCode.value !== null) {
+    await loadItems()
+  }
 })
 </script>
 
@@ -1141,86 +1600,9 @@ onMounted(async () => {
   gap: 18px;
 }
 
-.auction-hero {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  width: 100%;
-  height: 100%;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  overflow-y:visible;
-}
-
-.auction-hero h2,
-.auction-hero h3 {
-  margin: 0;
-  font-size: 1.35rem;
-  color: var(--text-primary);
-}
-
-.auction-hero__center {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 0;
-  overflow-x: auto;
-}
-
-.market-submenu-tabs {
-  display: inline-flex;
-  gap: 8px;
-  flex-wrap: nowrap;
-  justify-content: center;
-  white-space: nowrap;
-}
-
 .market-submenu-placeholder {
   display: grid;
   gap: 8px;
-}
-
-.hero-desc {
-  margin: 0;
-  color: var(--text-secondary);
-  max-width: 720px;
-}
-
-.hero-meta {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.meta-chip {
-  display: flex;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 8px 10px;
-  gap: 4px;
-  min-width: 120px;
-  align-items: center;
-}
-
-.meta-chip strong {
-  font-size: 1.05rem;
-}
-
-.meta-chip.accent {
-  background: var(--primary-soft-bg);
-  border-color: rgba(99, 102, 241, 0.35);
-}
-
-.meta-chip.muted {
-  color: var(--text-secondary);
-}
-
-.meta-label {
-  font-size: 0.82rem;
-  color: var(--text-muted);
 }
 
 .control-panel {
@@ -1237,6 +1619,13 @@ onMounted(async () => {
   align-items: end;
 }
 
+.category-main-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .field {
   display: grid;
   gap: 6px;
@@ -1248,7 +1637,8 @@ onMounted(async () => {
   text-align: center;
 }
 
-.input {
+.input,
+:deep(.input) {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
@@ -1259,7 +1649,8 @@ onMounted(async () => {
   text-align: center;
 }
 
-.input:focus {
+.input:focus,
+:deep(.input:focus) {
   border-color: var(--primary-color, #2563eb);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
   outline: none;
@@ -1346,6 +1737,23 @@ onMounted(async () => {
   align-items: center;
 }
 
+.pager-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #4b5563);
+}
+
+.pager-label {
+  white-space: nowrap;
+}
+
+.pager-select,
+:deep(.pager-select) {
+  min-width: 70px;
+}
+
 .pager-btn {
   padding: 8px 12px;
   border-radius: 10px;
@@ -1372,7 +1780,7 @@ onMounted(async () => {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: 1.8fr repeat(6, 1fr);
+  grid-template-columns: 1.8fr repeat(7, 1fr);
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
@@ -1382,6 +1790,71 @@ onMounted(async () => {
   background: var(--bg-secondary, #f3f4f6);
   color: var(--text-secondary, #4b5563);
   font-size: 0.9rem;
+}
+
+.table-head__cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-head__cell.align-right {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.table-head__cell.active {
+  color: var(--text-primary, #111827);
+}
+
+.sort-label {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sort-label.active {
+  font-weight: 700;
+}
+
+.sort-direction {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 999px;
+  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.4;
+}
+
+.sort-direction.active {
+  opacity: 1;
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+.sort-icon {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.rate-up {
+  color: #dc2626;
+}
+
+.rate-down {
+  color: #2563eb;
+}
+
+.rate-neutral {
+  color: var(--text-secondary, #6b7280);
 }
 
 .table-row:nth-child(odd) {
@@ -1819,17 +2292,13 @@ onMounted(async () => {
     grid-template-columns: 1.6fr repeat(3, 1fr);
   }
 
-  .table-head span:nth-child(n+5),
-  .table-row span:nth-child(n+5) {
+  .table-head > :nth-child(n+5),
+  .table-row > :nth-child(n+5) {
     display: none;
   }
 }
 
 @media (max-width: 640px) {
-  .auction-hero {
-    padding: 16px;
-  }
-
   .control-row {
     grid-template-columns: 1fr;
   }

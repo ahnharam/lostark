@@ -74,19 +74,11 @@
         <div class="form-grid form-grid-compact">
           <label class="input-field">
             <span>혼돈의 해: 재빠른 공격</span>
-            <select v-model.number="seaFastAttack">
-              <option v-for="option in seaOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="seaFastAttack" :options="seaOptions" />
           </label>
           <label class="input-field">
             <span>혼돈의 별: 속도</span>
-            <select v-model="starSpeedKey">
-              <option v-for="option in starOptions" :key="option.key" :value="option.key">
-                {{ option.label }}
-              </option>
-            </select>
+            <CustomSelect v-model="starSpeedKey" :options="starSpeedOptions" />
           </label>
         </div>
       </section>
@@ -162,6 +154,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import CustomSelect, { type SelectOption } from '../common/CustomSelect.vue'
 
 const swiftPerStat = 0.0172
 
@@ -208,6 +201,10 @@ const starOptions: Array<{ key: StarSpeedKey; label: string; attack: number; mov
   { key: 'ancient-19', label: '고대 19P: 공이속 +3.30%', attack: 3.3, move: 3.3 },
   { key: 'ancient-20', label: '고대 20P: 공이속 +3.60%', attack: 3.6, move: 3.6 }
 ]
+
+const starSpeedOptions = computed<SelectOption[]>(() =>
+  starOptions.map(option => ({ label: option.label, value: option.key }))
+)
 
 const seaOptions = [
   { label: '없음', value: 0 },
@@ -552,7 +549,8 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 }
 
 .input-field input,
-.input-field select {
+.input-field select,
+:deep(.input-field .custom-select__trigger) {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px 12px;
@@ -562,7 +560,8 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 }
 
 .input-field input:focus,
-.input-field select:focus {
+.input-field select:focus,
+:deep(.input-field .custom-select__trigger:focus) {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
