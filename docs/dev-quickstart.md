@@ -54,16 +54,113 @@ cd backend
 | `POST /api/markets/options/sync` | 거래소 카테고리 동기화 | 카테고리 테이블 초기화/갱신 |
 
 ## 6. 프론트 구성 요약
-- 진입: `frontend/src/main.ts` → `App.vue` → `components/MainLayout.vue` (메뉴/컨텐츠 스위치).
-- 주요 화면:  
-  - 경매: `components/AuctionMenu.vue` (검색/정렬/상세 그래프)  
-  - 관리자: `components/AdminStats.vue` (통계 검색/페이징/수동 캡처/수집 중 오버레이)  
-  - 검색: `CharacterSearch.vue`, 기타 `ReforgeMenu.vue` / 공통은 `components/common/`
-- 라우팅: `frontend/src/router/index.ts` (`/:menu?` 단일 라우트).
-- API 래퍼: `frontend/src/api/lostark.ts` + 타입 `frontend/src/api/types/`  
-  - 서버 상태: `checkServerStatus()`  
-  - 통계: `getMarketDailyStatsRecent`, `triggerMarketStatsCapture`, `getMarketStatsStatus`.
-- 빌드/테스트: `npm run dev`, `npm run build`, `npm run lint`.
+
+### 6.1 프로젝트 아키텍처
+- **진입점**: `frontend/src/main.ts` → `App.vue` → `router/index.ts` → `components/MainLayout.vue`
+- **라우팅**: Vue Router 중첩 라우트 구조 (2025-01 리팩토링 완료)
+  - 루트 레이아웃: `MainLayout.vue` (헤더/메뉴/상태 배지)
+  - 자식 라우트: 각 메뉴별 nested routes (딥링킹, 브라우저 히스토리 지원)
+  - 레거시 URL 자동 리다이렉트 (`/:menu` → `/:menu/:submenu`)
+
+### 6.2 라우트 구조 (`frontend/src/router/index.ts`)
+```
+/                          → MainLayout.vue
+  ├─ ''                    → CharacterSearch.vue (기본)
+  ├─ auction/              → AuctionMenu.vue (wrapper)
+  │   ├─ market            → auction/MarketView.vue
+  │   └─ auction-house     → auction/AuctionHouseView.vue
+  ├─ reforge/              → ReforgeMenu.vue (integrated)
+  │   ├─ normal            → ReforgeMenu.vue (submenu: normal)
+  │   ├─ advanced          → ReforgeMenu.vue (submenu: advanced)
+  │   ├─ blunt-thorn       → reforge/BluntThornCalculator.vue
+  │   └─ supersonic        → reforge/SupersonicCalculator.vue
+  ├─ raid/                 → RaidMenu.vue (wrapper)
+  │   └─ party             → RaidPartyManager.vue
+  ├─ admin/                → AdminMenu.vue (wrapper)
+  │   ├─ market-records    → AdminStats.vue
+  │   └─ raid-catalog      → AdminRaidCatalog.vue
+  ├─ friends               → FriendManager.vue
+  ├─ characters            → CharacterManager.vue
+  └─ life                  → LifeMenu.vue
+```
+
+### 6.3 주요 컴포넌트 구조
+
+#### 메뉴 래퍼 (Router-view 사용)
+- `MainLayout.vue`: 메인 레이아웃, `<router-view>` 사용
+- `AuctionMenu.vue`: 경매장 래퍼 (market, auction-house)
+- `RaidMenu.vue`: 레이드 래퍼 (party)
+- `AdminMenu.vue`: 관리자 래퍼 (market-records, raid-catalog)
+
+#### 실제 컨텐츠 컴포넌트
+- **경매/거래소**:
+  - `auction/MarketView.vue`: 거래소 검색/정렬/상세 그래프 (1,500줄)
+  - `auction/AuctionHouseView.vue`: 경매장 (준비중)
+
+- **캐릭터/검색**:
+  - `CharacterSearch.vue`: 캐릭터 검색 메인 화면
+  - Composables: `useCharacterData.ts`, `useEquipmentData.ts`, `useSkillData.ts` 등
+
+- **재련**:
+  - `ReforgeMenu.vue`: 일반/상급 제련 계산기 (통합)
+  - `reforge/BluntThornCalculator.vue`: 뭉가 계산기
+  - `reforge/SupersonicCalculator.vue`: 음돌 계산기
+
+- **레이드**:
+  - `RaidPartyManager.vue`: 레이드 멤버 구성/DM 초대
+
+- **관리자**:
+  - `AdminStats.vue`: 거래소 일별 통계 (검색/페이징/수동 캡처)
+  - `AdminRaidCatalog.vue`: 레이드 카탈로그 관리
+
+#### 공통 컴포넌트 (`components/common/`)
+- `ThemeToggle.vue`: 다크모드 토글
+- `MyInfoModal.vue`: 사용자 정보 모달
+- `LoadingSpinner.vue`: 로딩 스피너
+- `LazyImage.vue`: 지연 로딩 이미지
+- `CustomSelect.vue`: 커스텀 셀렉트
+
+### 6.4 Composables (비즈니스 로직 분리)
+위치: `frontend/src/composables/character/`
+
+| Composable | 역할 | 주요 Export |
+|-----------|------|------------|
+| `useCharacterData.ts` | 캐릭터 기본 정보 | `characterProfile`, `isExpeditionLeader` |
+| `useEquipmentData.ts` | 장비/아이템 관리 | `equipmentItems`, `accessoryItems`, `braceletItem` |
+| `useEngravingData.ts` | 각인 정보 | `classEngravingNames`, `activeEngravings` |
+| `useGemData.ts` | 보석 정보 | `gemColorMap`, `gemTypeLabels` |
+| `useSkillData.ts` | 스킬/보석 슬롯 | `combatSkillCatalog`, `skillGemSlotsBySkill` |
+
+### 6.5 API 레이어
+- **API 클라이언트**: `frontend/src/api/lostark.ts`
+  - 서버 상태: `checkServerStatus()`
+  - 캐릭터: `getCharacterProfile()`, `getCharacterArmory()`
+  - 거래소: `searchMarketItems()`, `getMarketCategories()`, `getMarketItemDetail()`
+  - 통계: `getMarketDailyStatsRecent()`, `triggerMarketStatsCapture()`, `getMarketStatsStatus()`
+  - 스킬: `getSkillCodes()`, `getSkillRecommendations()`
+
+- **타입 정의**: `frontend/src/api/types/`
+  - `armory.ts`: 아모리 관련 타입
+  - `skills.ts`: 스킬 관련 타입
+  - `index.ts`: 거래소/통계 타입
+
+### 6.6 빌드 및 개발 명령어
+```bash
+# 개발 서버
+npm run dev                 # localhost:5173
+npm run dev:host            # 0.0.0.0:5173 (외부 접근)
+
+# 타입 체크
+npm run type-check          # Vue TypeScript 타입 검증
+
+# 린트/포맷
+npm run lint                # ESLint 검사
+npm run format              # Prettier 포맷팅
+
+# 빌드
+npm run build               # 프로덕션 빌드
+npm run preview             # 빌드 결과 프리뷰
+```
 
 ## 7. 백엔드 구성 요약 (Spring Boot)
 - 패키지 루트: `backend/src/main/java/com/lostark/backend`
@@ -120,17 +217,389 @@ cd backend
 - 관리자 통계 화면: `frontend/src/components/AdminStats.vue`
 - 통계 스케줄/저장: `backend/src/main/java/.../market/scheduler/`, `.../service/MarketSyncService.java`
 
-## 11. 추가 참고 문서 목록
+## 11. 개발 스킬 및 주요 패턴
+
+### 11.1 컴포넌트 개발 패턴
+
+#### 새 페이지/메뉴 추가하기
+1. **컴포넌트 생성**: `frontend/src/components/` 하위에 컴포넌트 생성
+2. **라우트 등록**: `router/index.ts`에 라우트 추가
+   ```typescript
+   {
+     path: 'new-menu',
+     name: 'new-menu',
+     component: () => import('@/components/NewMenu.vue'),
+     meta: { menu: 'new-menu' }
+   }
+   ```
+3. **메뉴 추가**: `MainLayout.vue`의 `mainMenuItems` 배열에 추가
+   ```typescript
+   { key: 'new-menu', label: '새 메뉴', badge: '' }
+   ```
+
+#### 서브메뉴가 있는 메뉴 추가하기
+1. **래퍼 컴포넌트 생성**: 예) `NewMenuWrapper.vue`
+   ```vue
+   <template>
+     <router-view v-slot="{ Component }">
+       <component :is="Component" />
+     </router-view>
+   </template>
+   ```
+
+2. **중첩 라우트 설정**: `router/index.ts`
+   ```typescript
+   {
+     path: 'new-menu',
+     name: 'new-menu',
+     component: () => import('@/components/NewMenuWrapper.vue'),
+     redirect: { name: 'new-menu-sub1' },
+     meta: { menu: 'new-menu' },
+     children: [
+       {
+         path: 'sub1',
+         name: 'new-menu-sub1',
+         component: () => import('@/components/newmenu/Sub1View.vue'),
+         meta: { menu: 'new-menu', submenu: 'sub1' }
+       }
+     ]
+   }
+   ```
+
+3. **서브메뉴 정의**: `MainLayout.vue`의 `subMenus` 객체에 추가
+   ```typescript
+   'new-menu': [
+     { key: 'sub1', label: '서브메뉴1' },
+     { key: 'sub2', label: '서브메뉴2' }
+   ]
+   ```
+
+### 11.2 Composable 작성 패턴
+
+#### 비즈니스 로직을 Composable로 분리하기
+```typescript
+// composables/useExample.ts
+import { computed, ref } from 'vue'
+import type { SomeType } from '@/api/types'
+
+export function useExample(props: { data: SomeType }) {
+  // State
+  const localState = ref<string>('')
+
+  // Computed
+  const derivedValue = computed(() => {
+    return someTransformation(props.data)
+  })
+
+  // Methods
+  const doSomething = () => {
+    // business logic
+  }
+
+  // Return public API
+  return {
+    localState,
+    derivedValue,
+    doSomething
+  }
+}
+```
+
+#### Composable 사용하기
+```vue
+<script setup lang="ts">
+import { useExample } from '@/composables/useExample'
+
+const props = defineProps<{ data: SomeType }>()
+
+const { derivedValue, doSomething } = useExample(props)
+</script>
+```
+
+### 11.3 API 호출 패턴
+
+#### 새 API 엔드포인트 추가하기
+1. **타입 정의**: `frontend/src/api/types/index.ts`
+   ```typescript
+   export interface NewDataType {
+     id: number
+     name: string
+   }
+   ```
+
+2. **API 함수 추가**: `frontend/src/api/lostark.ts`
+   ```typescript
+   export async function getNewData(): Promise<NewDataType[]> {
+     const response = await fetch(`${API_BASE_URL}/api/new-data`)
+     if (!response.ok) throw new Error('Failed to fetch')
+     return response.json()
+   }
+   ```
+
+3. **컴포넌트에서 사용**:
+   ```vue
+   <script setup lang="ts">
+   import { ref, onMounted } from 'vue'
+   import { lostarkApi } from '@/api/lostark'
+
+   const data = ref<NewDataType[]>([])
+   const loading = ref(false)
+
+   onMounted(async () => {
+     loading.value = true
+     try {
+       data.value = await lostarkApi.getNewData()
+     } catch (error) {
+       console.error(error)
+     } finally {
+       loading.value = false
+     }
+   })
+   </script>
+   ```
+
+### 11.4 스타일링 패턴
+
+#### CSS 변수 사용 (다크모드 대응)
+```css
+.my-component {
+  /* 색상은 항상 CSS 변수 사용 */
+  background: var(--card-bg, #ffffff);
+  color: var(--text-primary, #111827);
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+```
+
+#### 주요 CSS 변수 목록
+- `--card-bg`: 카드 배경색
+- `--bg-secondary`: 보조 배경색
+- `--text-primary`: 주요 텍스트 색상
+- `--text-secondary`: 보조 텍스트 색상
+- `--text-muted`: 희미한 텍스트 색상
+- `--border-color`: 테두리 색상
+- `--primary-color`: 기본 강조 색상
+- `--shadow-sm`, `--shadow-lg`: 그림자
+
+### 11.5 타입 안전성 보장
+
+#### Props 타입 정의
+```vue
+<script setup lang="ts">
+// Generic 타입 사용
+interface Props {
+  items: string[]
+  count?: number  // optional
+}
+
+const props = defineProps<Props>()
+
+// 또는 withDefaults 사용
+const props = withDefaults(defineProps<Props>(), {
+  count: 0
+})
+</script>
+```
+
+#### Emits 타입 정의
+```vue
+<script setup lang="ts">
+// Typed emits
+const emit = defineEmits<{
+  update: [value: string]
+  delete: [id: number]
+}>()
+
+// 사용
+emit('update', 'new value')
+emit('delete', 123)
+</script>
+```
+
+### 11.6 성능 최적화 팁
+
+#### KeepAlive 사용
+```vue
+<!-- 탭 전환 시 상태 유지 -->
+<router-view v-slot="{ Component }">
+  <KeepAlive>
+    <component :is="Component" />
+  </KeepAlive>
+</router-view>
+```
+
+#### Lazy Loading
+```typescript
+// 라우트에서 컴포넌트 지연 로딩
+component: () => import('@/components/HeavyComponent.vue')
+```
+
+#### Computed vs Watch
+```typescript
+// ✅ Good: Computed 사용 (선언적, 캐싱)
+const fullName = computed(() => `${firstName.value} ${lastName.value}`)
+
+// ❌ Bad: Watch로 동일 기능 구현
+watch([firstName, lastName], () => {
+  fullName.value = `${firstName.value} ${lastName.value}`
+})
+```
+
+### 11.7 자주 사용하는 Git 워크플로우
+
+#### 기능 개발 워크플로우
+```bash
+# 1. 최신 코드 pull
+git pull origin master
+
+# 2. 기능 브랜치 생성 (선택사항)
+git checkout -b feature/new-feature
+
+# 3. 개발 및 테스트
+npm run type-check
+npm run lint
+
+# 4. 커밋
+git add .
+git commit -m "Add new feature
+
+🤖 Generated with Claude Code
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+
+# 5. Push
+git push origin feature/new-feature
+```
+
+#### 빠른 핫픽스
+```bash
+git add .
+git commit -m "Fix critical bug in market search"
+git push origin master
+```
+
+### 11.8 디버깅 팁
+
+#### Vue DevTools 활용
+- 브라우저 확장 프로그램 설치
+- 컴포넌트 트리 검사
+- Pinia 스토어 상태 확인
+- 라우터 히스토리 추적
+
+#### console.log 대신 개발자 도구 사용
+```typescript
+// ❌ Bad
+console.log('data:', data)
+
+// ✅ Good: Debugger 사용
+debugger  // 브라우저에서 자동 중단점
+```
+
+#### 타입 에러 해결
+```bash
+# 타입 체크로 에러 확인
+npm run type-check
+
+# 캐시 문제 시
+rm -rf node_modules/.vite
+npm run dev
+```
+
+### 11.9 코드 리뷰 체크리스트
+
+개발 완료 후 다음 항목들을 확인하세요:
+
+- [ ] `npm run type-check` 통과
+- [ ] `npm run lint` 통과 (또는 자동 수정됨)
+- [ ] 불필요한 console.log 제거
+- [ ] Props/Emits 타입 정의 완료
+- [ ] CSS 변수 사용 (하드코딩된 색상 없음)
+- [ ] 에러 처리 구현 (try-catch, loading state)
+- [ ] 반응형 대응 (모바일/태블릿)
+- [ ] 다크모드에서 정상 작동 확인
+- [ ] 브라우저 뒤로가기 정상 작동 (라우팅)
+
+## 12. 주요 변경 이력
+
+### 2025-01: Phase 4 라우팅 구조 개선 (완료)
+**목표**: URL 기반 네비게이션, 딥링킹, 브라우저 히스토리 지원
+
+**주요 변경사항**:
+1. **라우터 재설계** (`router/index.ts`)
+   - 단일 라우트 (`/:menu?`) → 중첩 라우트 구조
+   - 15+ 라우트 정의 (각 메뉴별 독립 URL)
+   - route.meta를 통한 메뉴/서브메뉴 추적
+   - 레거시 URL 자동 리다이렉트 구현
+
+2. **MainLayout 업데이트**
+   - Dynamic component (`<component :is="activeComponent">`) → `<router-view>`
+   - componentMap 제거
+   - activeMenu: ref → computed (route.meta 기반)
+   - 네비게이션: 직접 상태 변경 → router.push
+
+3. **메뉴 컴포넌트 분리**
+   - **AuctionMenu**: 거래소 로직을 `auction/MarketView.vue`로 분리 (1,500줄)
+   - **RaidMenu**: router-view wrapper로 간소화
+   - **AdminMenu**: route.meta 기반 헤더 동적 변경
+   - **ReforgeMenu**: activeSubMenuTab을 computed로 변경
+
+**성과**:
+- ✅ 딥링킹 지원 (`/auction/market`, `/reforge/blunt-thorn` 등)
+- ✅ 브라우저 뒤로/앞으로 버튼 정상 작동
+- ✅ URL 공유 가능 (북마크, 외부 링크)
+- ✅ 레거시 URL 호환성 (쿼리 파라미터 보존)
+- ✅ 타입 안전성 보장 (type-check 통과)
+
+**관련 문서**:
+- `docs/phase4-routing-guide.md`: 상세 구현 가이드
+- `docs/phase2-3-completion-report.md`: Phase 2-3 완료 보고서
+- `docs/refactoring-code-snippets.md`: 재사용 가능한 코드 스니펫
+
+### 2024-12: Phase 2-3 컴포넌트 리팩토링 (완료)
+**목표**: CharacterSearch.vue 크기 축소 및 재사용성 향상
+
+**주요 변경사항**:
+1. **Composables 추출** (총 5개, 1,781+ 줄 분리)
+   - `useCharacterData.ts`: 캐릭터 기본 정보
+   - `useEquipmentData.ts`: 장비/아이템 관리
+   - `useEngravingData.ts`: 각인 정보
+   - `useGemData.ts`: 보석 정보
+   - `useSkillData.ts`: 스킬/보석 슬롯
+
+2. **UI 컴포넌트 추출** (총 4개)
+   - `EquipmentGrid.vue`: 장비 그리드 레이아웃
+   - `StatPanel.vue`: 스탯 패널
+   - `SkillPanel.vue`: 스킬 패널
+   - `GemPanel.vue`: 보석 패널
+
+**성과**:
+- ✅ CharacterSearch.vue 크기 ~50% 감소
+- ✅ 비즈니스 로직 재사용 가능
+- ✅ 타입 안전성 향상
+- ✅ 유지보수성 개선
+
+## 13. 추가 참고 문서 목록
 - 루트
-  - `README.md`: 전체 프로젝트 개요.
-  - `COMPONENT_UPDATE_SUMMARY.md`: 컴포넌트 변경 요약.
+  - `README.md`: 전체 프로젝트 개요
+  - `COMPONENT_UPDATE_SUMMARY.md`: 컴포넌트 변경 요약
 - docs/
-  - `documentation-guidelines.md`: 문서 작성 규칙.
-  - `mcp-usage.md`: MCP 사용 안내.
-  - `lostark-armory.md`: 로아 아모리 API 참고.
-  - `deployment/README.md`, `deployment/oracle-vm.md`, `deployment/vercel.md`, `deployment/railway.md`, `deployment/freedb.md`: 배포/인프라 가이드.
+  - `dev-quickstart.md`: **본 문서** (개발 빠른 시작 가이드)
+  - `documentation-guidelines.md`: 문서 작성 규칙
+  - `mcp-usage.md`: MCP 사용 안내
+  - `lostark-armory.md`: 로아 아모리 API 참고
+  - `phase4-routing-guide.md`: Phase 4 라우팅 가이드 ⭐
+  - `phase2-3-completion-report.md`: Phase 2-3 완료 보고서
+  - `refactoring-code-snippets.md`: 코드 스니펫 모음
+  - `deployment/`: 배포/인프라 가이드
+    - `README.md`, `oracle-vm.md`, `vercel.md`, `railway.md`, `freedb.md`
 - frontend/
-  - `frontend/README.md`: 프론트 전용 안내.
-  - `frontend/docs/UX_OVERVIEW.md`: UX 방향/컨셉.
-  - `frontend/docs/CHARACTER_RANKING_GUIDE.md`: 캐릭터 랭킹 화면 가이드.
-  - `frontend/docs/ARK_GRID_GUIDE.md`: 아크 그리드 관련 설명.
+  - `frontend/README.md`: 프론트 전용 안내
+  - `frontend/docs/UX_OVERVIEW.md`: UX 방향/컨셉
+  - `frontend/docs/CHARACTER_RANKING_GUIDE.md`: 캐릭터 랭킹 화면 가이드
+  - `frontend/docs/ARK_GRID_GUIDE.md`: 아크 그리드 관련 설명
+
+---
+
+**📌 이 문서 하나로 프로젝트 전체를 빠르게 파악할 수 있습니다!**
+- 환경 설정, 실행 방법, API 엔드포인트
+- 프론트/백엔드 구조 및 주요 컴포넌트
+- 개발 패턴, 스킬, 트러블슈팅
+- 최신 변경 이력 및 참고 문서
