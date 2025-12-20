@@ -516,6 +516,196 @@ npm run dev
 - [ ] 반응형 대응 (모바일/태블릿)
 - [ ] 다크모드에서 정상 작동 확인
 - [ ] 브라우저 뒤로가기 정상 작동 (라우팅)
+- [ ] **변경사항 문서화 완료** (아래 11.10 참고)
+
+### 11.10 변경사항 문서화 규칙 ⭐
+
+**중요**: 모든 작업 완료 시 반드시 이 문서(dev-quickstart.md)를 업데이트하세요!
+
+#### 문서화가 필요한 경우
+다음 작업을 완료했을 때는 **반드시** 문서를 업데이트해야 합니다:
+
+1. **새로운 기능 추가**
+   - 새 메뉴/페이지 추가
+   - 새 API 엔드포인트 추가
+   - 새 Composable 생성
+
+2. **구조 변경**
+   - 라우트 구조 변경
+   - 컴포넌트 리팩토링
+   - 폴더 구조 변경
+
+3. **주요 패턴 변경**
+   - 새로운 개발 패턴 도입
+   - 기존 패턴 개선
+
+4. **설정 변경**
+   - 환경 변수 추가
+   - 빌드 설정 변경
+   - 의존성 추가/변경
+
+#### 문서 업데이트 위치
+
+**1. 섹션 6 (프론트 구성 요약)** - 구조 변경 시
+```markdown
+### 6.2 라우트 구조
+- 새 라우트 추가 시 트리 구조 업데이트
+
+### 6.3 주요 컴포넌트 구조
+- 새 컴포넌트 추가 시 목록에 추가
+
+### 6.4 Composables
+- 새 composable 추가 시 표에 추가
+
+### 6.5 API 레이어
+- 새 API 함수 추가 시 목록에 추가
+```
+
+**2. 섹션 11 (개발 스킬 및 주요 패턴)** - 새 패턴 추가 시
+```markdown
+### 11.X 새로운 패턴명
+- 패턴 설명
+- 코드 예시
+- 사용 시나리오
+```
+
+**3. 섹션 12 (주요 변경 이력)** - 중요 작업 완료 시
+```markdown
+### YYYY-MM: Phase X 작업명 (완료/진행중)
+**목표**: 작업의 목적과 목표
+
+**주요 변경사항**:
+1. **카테고리1**: 변경 내용
+2. **카테고리2**: 변경 내용
+
+**성과**:
+- ✅ 달성한 목표1
+- ✅ 달성한 목표2
+
+**관련 문서**: (있는 경우)
+- `docs/xxx.md`: 설명
+```
+
+#### 문서화 템플릿
+
+##### 기능 추가 시
+```markdown
+## [섹션 번호] 업데이트
+
+### 추가된 기능: [기능명]
+**위치**: `경로/파일명`
+**목적**: 이 기능이 하는 일
+**사용법**:
+```typescript
+// 코드 예시
+```
+
+**관련 항목**:
+- API: `functionName()`
+- 컴포넌트: `ComponentName.vue`
+- 라우트: `/path/to/route`
+```
+
+##### 리팩토링 시
+```markdown
+## 섹션 12 업데이트
+
+### YYYY-MM: [작업명] (완료)
+**목표**: 리팩토링 목적
+
+**Before**:
+- 기존 구조/방식
+
+**After**:
+- 새로운 구조/방식
+
+**마이그레이션 가이드**: (필요 시)
+1. 단계1
+2. 단계2
+
+**영향받는 파일**:
+- `파일1`: 변경 내용
+- `파일2`: 변경 내용
+```
+
+#### 실제 예시
+
+<details>
+<summary>예시 1: 새 API 엔드포인트 추가</summary>
+
+```markdown
+### 6.5 API 레이어 업데이트
+
+- **API 클라이언트**: `frontend/src/api/lostark.ts`
+  - 캐릭터: `getCharacterProfile()`, `getCharacterArmory()`
+  - 거래소: `searchMarketItems()`, `getMarketCategories()`
+  - **친구 관리**: `getFriendsList()`, `addFriend()`, `removeFriend()` ⭐ 신규
+```
+</details>
+
+<details>
+<summary>예시 2: 새 Composable 추가</summary>
+
+```markdown
+### 6.4 Composables 업데이트
+
+| Composable | 역할 | 주요 Export |
+|-----------|------|------------|
+| `useCharacterData.ts` | 캐릭터 기본 정보 | `characterProfile` |
+| `useFriendData.ts` ⭐ | 친구 목록 관리 | `friends`, `addFriend` |
+```
+</details>
+
+<details>
+<summary>예시 3: 라우트 추가</summary>
+
+```markdown
+### 6.2 라우트 구조 업데이트
+
+```
+/                          → MainLayout.vue
+  ├─ ''                    → CharacterSearch.vue
+  ├─ auction/              → AuctionMenu.vue
+  ├─ friends/              → FriendsMenu.vue ⭐ 신규
+  │   ├─ list              → friends/FriendsList.vue
+  │   └─ requests          → friends/FriendRequests.vue
+```
+```
+</details>
+
+#### 커밋 시 체크리스트
+
+작업 완료 후 커밋 전에 확인:
+
+1. [ ] 코드 변경사항이 dev-quickstart.md에 반영됨
+2. [ ] 새로운 패턴이 있다면 섹션 11에 추가됨
+3. [ ] 중요한 작업이라면 섹션 12(변경 이력)에 추가됨
+4. [ ] 관련 참고 문서가 있다면 섹션 13에 링크 추가됨
+5. [ ] 문서의 날짜/버전 정보가 최신임
+
+#### 자동화 팁
+
+다음 명령어로 문서 업데이트를 잊지 않도록 알림 설정:
+
+```bash
+# .git/hooks/pre-commit (예시)
+#!/bin/bash
+if git diff --cached --name-only | grep -q "frontend/src/"; then
+  echo "⚠️  프론트엔드 코드가 변경되었습니다."
+  echo "📝 dev-quickstart.md 업데이트를 잊지 마세요!"
+  echo ""
+  read -p "문서를 업데이트했나요? (y/n) " -n 1 -r
+  echo
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "❌ 커밋이 취소되었습니다. 문서를 업데이트한 후 다시 시도하세요."
+    exit 1
+  fi
+fi
+```
+
+---
+
+**🎯 핵심 원칙: 코드를 수정하면 문서도 함께 수정한다!**
 
 ## 12. 주요 변경 이력
 
