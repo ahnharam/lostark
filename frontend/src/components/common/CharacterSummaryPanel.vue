@@ -436,8 +436,8 @@
             <div v-if="hasArkPassiveEffects" class="ark-passive-summary">
               <div class="ark-passive-grid">
                 <div class="ark-passive-grid-header">
-                  <span v-for="(point, pointIndex) in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
-                    <template v-if="hasEffectsForPoint(pointIndex)">
+                  <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
+                    <template v-if="hasEffectsForPoint(point.label)">
                       <span class="ark-passive-header-desc" v-if="isShortDescription(point.description)">{{ point.description }}</span>
                       <div class="ark-passive-header-title">
                         <span class="ark-passive-header-label">{{ point.label }}</span>
@@ -1802,14 +1802,26 @@ const isShortDescription = (description?: string) => {
 }
 
 /**
- * 특정 포인트(섹션)에 실제 개방된 효과가 있는지 확인
- * @param pointIndex - appliedPoints 배열의 인덱스 (0: 진화, 1: 깨달음, 2: 도약)
+ * 섹션 키 매핑 (label -> section key)
  */
-const hasEffectsForPoint = (pointIndex: number): boolean => {
+const SECTION_KEY_MAP: Record<string, string> = {
+  '진화': 'evolution',
+  '깨달음': 'realization',
+  '도약': 'leap'
+}
+
+/**
+ * 특정 포인트(섹션)에 실제 개방된 효과가 있는지 확인
+ * @param pointLabel - appliedPoints의 label (진화, 깨달음, 도약)
+ */
+const hasEffectsForPoint = (pointLabel: string): boolean => {
   const matrix = props.arkSummary?.passiveMatrix ?? []
-  // 각 row의 해당 섹션에 effects가 있는지 확인
+  const sectionKey = SECTION_KEY_MAP[pointLabel]
+  if (!sectionKey) return false
+
+  // 각 row에서 해당 섹션 키와 일치하는 섹션에 effects가 있는지 확인
   return matrix.some(row => {
-    const section = row.sections?.[pointIndex]
+    const section = row.sections?.find(s => s.key === sectionKey)
     return section?.effects?.length > 0
   })
 }
