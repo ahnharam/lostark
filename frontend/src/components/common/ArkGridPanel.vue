@@ -118,7 +118,7 @@
                   <span v-if="slot.point !== undefined" class="slot-card-point">{{ slot.point }}P</span>
                 </div>
                 <strong class="slot-card-name" :style="{ color: slot.nameColor || slot.gradeColor || undefined }">
-                  {{ slot.name }}
+                  {{ formatCoreName(slot.name) }}
                 </strong>
               </div>
             </header>
@@ -804,6 +804,14 @@ const hasRenderableContent = computed(() => {
 const formatPointValue = (value?: number | null) => {
   if (typeof value !== 'number') return '0P'
   return `${value}P`
+}
+
+/**
+ * 코어 이름에서 "의 코어 :" 또는 "의 코어:" 접두사 제거
+ */
+const formatCoreName = (name?: string | null) => {
+  if (!name) return ''
+  return name.replace(/^의\s*코어\s*:\s*/i, '').trim()
 }
 
 const emptyStateDescription = computed(() => {

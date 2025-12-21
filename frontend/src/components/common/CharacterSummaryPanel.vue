@@ -433,17 +433,24 @@
               <p class="summary-eyebrow">아크 패시브</p>
               <h4>{{ arkSummary.passiveTitle || '아크 루트 정보' }}</h4>
             </div>
-            <div v-if="(arkSummary.passiveMatrix?.length || 0) > 0 || (arkSummary.appliedPoints?.length || 0) > 0"
-              class="ark-passive-summary">
+            <div v-if="hasArkPassiveEffects" class="ark-passive-summary">
               <div class="ark-passive-grid">
                 <div class="ark-passive-grid-header">
-                  <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
-                    <span class="ark-passive-header-desc" v-if="point.description">{{ point.description }}</span>
-                    <div class="ark-passive-header-title">
-                      <span class="ark-passive-header-label">{{ point.label }}</span>
-                      <span v-if="point.value"> · </span>
-                      <span class="ark-passive-header-value" v-if="point.value">{{ point.value }}</span>
-                    </div>
+                  <span v-for="(point, pointIndex) in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
+                    <template v-if="hasEffectsForPoint(pointIndex)">
+                      <span class="ark-passive-header-desc" v-if="isShortDescription(point.description)">{{ point.description }}</span>
+                      <div class="ark-passive-header-title">
+                        <span class="ark-passive-header-label">{{ point.label }}</span>
+                        <span v-if="point.value"> · </span>
+                        <span class="ark-passive-header-value" v-if="point.value">{{ point.value }}</span>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div class="ark-passive-header-title">
+                        <span class="ark-passive-header-label">{{ point.label }}</span>
+                      </div>
+                      <span class="ark-passive-header-empty">개방 필요</span>
+                    </template>
                   </span>
                 </div>
                 <div v-for="(row, rowIndex) in (arkSummary.passiveMatrix ?? [])" :key="row.id"
@@ -471,6 +478,18 @@
                 </div>
               </div>
             </div>
+            <div v-else-if="(arkSummary.appliedPoints?.length ?? 0) > 0" class="ark-passive-summary ark-passive-summary--empty">
+              <div class="ark-passive-grid">
+                <div class="ark-passive-grid-header">
+                  <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
+                    <div class="ark-passive-header-title">
+                      <span class="ark-passive-header-label">{{ point.label }}</span>
+                    </div>
+                    <span class="ark-passive-header-empty">개방 필요</span>
+                  </span>
+                </div>
+              </div>
+            </div>
             <div v-else class="summary-note">패시브 정보가 없습니다.</div>
           </div>
 
@@ -495,7 +514,7 @@
                           </div>
                         </div>
                         <div class="ark-core-card__body">
-                          <p class="ark-core-card__name" :style="coreNameStyle(slot)">{{ slot.name }}</p>
+                          <p class="ark-core-card__name" :style="coreNameStyle(slot)">{{ formatCoreName(slot.name) }}</p>
                           <p v-if="slot.pointLabel" class="ark-core-card__meta">{{ slot.pointLabel }}</p>
                         </div>
                       </article>
@@ -1755,6 +1774,46 @@ const coreNameStyle = (slot: ArkCoreSlot) => {
   return color ? { color } : undefined
 }
 
+/**
+ * 코어 이름에서 "의 코어 :" 또는 "의 코어:" 접두사 제거
+ */
+const formatCoreName = (name?: string | null) => {
+  if (!name) return ''
+  return name.replace(/^의\s*코어\s*:\s*/i, '').trim()
+}
+
+/**
+ * 아크 패시브 효과가 있는지 확인 (실제 개방된 패시브가 있는 경우)
+ */
+const hasArkPassiveEffects = computed(() => {
+  const matrix = props.arkSummary?.passiveMatrix ?? []
+  // passiveMatrix가 있고, 그 안에 실제 효과(effects)가 있는 섹션이 있는지 확인
+  return matrix.some(row => row.sections?.some(section => section.effects?.length > 0))
+})
+
+/**
+ * 짧은 설명인지 확인 (긴 설명 텍스트 필터링용)
+ * 랭크/레벨 정보는 짧고, 긴 설명 텍스트는 제외
+ */
+const isShortDescription = (description?: string) => {
+  if (!description) return false
+  // 15자 이하이고 "포인트" 같은 긴 설명 키워드가 없으면 짧은 설명으로 간주
+  return description.length <= 15 && !description.includes('포인트를')
+}
+
+/**
+ * 특정 포인트(섹션)에 실제 개방된 효과가 있는지 확인
+ * @param pointIndex - appliedPoints 배열의 인덱스 (0: 진화, 1: 깨달음, 2: 도약)
+ */
+const hasEffectsForPoint = (pointIndex: number): boolean => {
+  const matrix = props.arkSummary?.passiveMatrix ?? []
+  // 각 row의 해당 섹션에 effects가 있는지 확인
+  return matrix.some(row => {
+    const section = row.sections?.[pointIndex]
+    return section?.effects?.length > 0
+  })
+}
+
 </script>
 
 <style scoped>
@@ -1887,6 +1946,14 @@ const coreNameStyle = (slot: ArkCoreSlot) => {
   color: var(--text-primary);
   font-size: var(--font-xs);
   margin-bottom: 4px;
+  text-align: center;
+}
+
+.ark-passive-header-empty {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  margin-top: 8px;
   text-align: center;
 }
 

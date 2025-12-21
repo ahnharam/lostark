@@ -162,8 +162,8 @@
                 <ExpeditionCharacterList
                   v-else-if="activeResultTab === 'expedition'"
                   :groups="expeditionGroups"
-                  :selected-character-name="selectedCharacterProfile?.characterName"
-                  :total-count="(character ? 1 : 0) + siblings.length"
+                  :selected-character-name="activeCharacter?.characterName"
+                  :total-count="expeditionTotalCount"
                   v-model:sort-key="expeditionSortKey"
                   :sort-options="expeditionSortOptions"
                   @select="viewCharacterDetail"
@@ -380,7 +380,6 @@ const {
   siblings,
   favorites,
   history,
-  selectedCharacterProfile,
   detailEquipment,
   detailAvatars,
   detailEngravings,
@@ -407,7 +406,7 @@ const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
 const expeditionSortKey = ref<ExpeditionSortKey>('itemLevel')
 
 // Composables
-const { expeditionGroups } = useExpeditionData(character, siblings, expeditionSortKey)
+const { expeditionGroups, expeditionTotalCount } = useExpeditionData(character, siblings, expeditionSortKey)
 const { collectionSummary } = useCollectibleData(collectibles)
 const { arkSummary } = useArkGridData(arkGridResponse)
 const { equipmentSummary, avatarSummary, engravingSummary } = useEquipmentData(

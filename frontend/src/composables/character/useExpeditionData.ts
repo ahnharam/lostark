@@ -67,8 +67,11 @@ export const useExpeditionData = (
       })
     }
 
-    // 원정대 캐릭터 추가
-    siblings.value.forEach(addToGroup)
+    // 원정대 캐릭터 추가 (현재 캐릭터는 제외하여 중복 방지)
+    const currentName = character.value?.characterName
+    siblings.value
+      .filter((s) => s.characterName !== currentName)
+      .forEach(addToGroup)
 
     /**
      * 정렬 기준에 따라 캐릭터 비교
@@ -98,7 +101,15 @@ export const useExpeditionData = (
     }))
   })
 
+  /**
+   * 전체 원정대 캐릭터 수 (중복 제거된 실제 개수)
+   */
+  const expeditionTotalCount = computed(() => {
+    return expeditionGroups.value.reduce((sum, group) => sum + group.members.length, 0)
+  })
+
   return {
-    expeditionGroups
+    expeditionGroups,
+    expeditionTotalCount
   }
 }

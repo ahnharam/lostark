@@ -215,15 +215,19 @@ const formatItemLevel = (value?: string): string => {
   transition: all 0.2s;
 }
 
-.expedition-card:hover {
+.expedition-card:hover:not(.active) {
   border-color: #4a90e2;
   box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
   transform: translateY(-2px);
 }
 
-.expedition-card.active {
-  border-color: #4a90e2;
-  background: #f0f7ff;
+.expedition-card.active,
+.expedition-card.active:hover {
+  border-color: #3b82f6;
+  border-width: 2px;
+  background: #eff6ff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  transform: none;
 }
 
 .member-top {
@@ -270,5 +274,42 @@ const formatItemLevel = (value?: string): string => {
   padding: 3rem 1rem;
   color: #999;
   font-size: 0.875rem;
+}
+
+/* 다크 모드 */
+:global(.dark) .expedition-card {
+  background: var(--card-bg, #1f2937);
+  border-color: var(--border-color, #374151);
+}
+
+:global(.dark) .expedition-card:hover:not(.active) {
+  border-color: #60a5fa;
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.2);
+}
+
+:global(.dark) .expedition-card.active,
+:global(.dark) .expedition-card.active:hover {
+  border-color: #3b82f6;
+  background: #1e3a5f;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transform: none;
+}
+
+:global(.dark) .member-name {
+  color: var(--text-primary, #f3f4f6);
+}
+
+:global(.dark) .member-detail {
+  border-top-color: var(--border-color, #374151);
+}
+
+:global(.dark) .count-pill {
+  background: var(--bg-secondary, #374151);
+  color: var(--text-primary, #f3f4f6);
+}
+
+:global(.dark) .expedition-group h4 {
+  color: var(--text-secondary, #9ca3af);
+  border-bottom-color: var(--border-color, #374151);
 }
 </style>
