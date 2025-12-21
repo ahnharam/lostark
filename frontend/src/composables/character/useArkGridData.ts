@@ -295,7 +295,8 @@ const buildArkPassiveMatrix = (effects: ArkPassiveEffect[] = []): PassiveSummary
       if (numericMatch) return Number(numericMatch[1])
       return Number.POSITIVE_INFINITY
     }
-    return tierValue(b.label) - tierValue(a.label)
+    // 오름차순 정렬 (티어 1, 2, 3, 4 순서)
+    return tierValue(a.label) - tierValue(b.label)
   })
 
   return rows

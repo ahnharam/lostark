@@ -24,10 +24,10 @@ public class ImageProxyController {
     public ImageProxyController(@Autowired(required = false) RestTemplate restTemplate) {
         if (restTemplate != null) {
             this.restTemplate = restTemplate;
-            log.info("ImageProxyController initialized with injected RestTemplate");
+            // log.info("ImageProxyController initialized with injected RestTemplate");
         } else {
             this.restTemplate = createRestTemplate();
-            log.info("ImageProxyController initialized with custom RestTemplate");
+            // log.info("ImageProxyController initialized with custom RestTemplate");
         }
     }
 
@@ -69,7 +69,7 @@ public class ImageProxyController {
 
     @GetMapping("/test")
     public ResponseEntity<String> test() {
-        log.info("Test endpoint called");
+        // log.info("Test endpoint called");
         return ResponseEntity.ok("Proxy controller is working!");
     }
 
@@ -84,7 +84,7 @@ public class ImageProxyController {
 
             // https로 정규화
             String normalizedUrl = normalizeUrl(url);
-            log.info("Proxy image request url={} normalized={}", url, normalizedUrl);
+            // log.info("Proxy image request url={} normalized={}", url, normalizedUrl);
             
             // 헤더 설정
             HttpHeaders headers = new HttpHeaders();
@@ -94,8 +94,9 @@ public class ImageProxyController {
             headers.set("Referer", "https://lostark.game.onstove.com");
             
             HttpEntity<String> entity = new HttpEntity<>(headers);
-            
+
             // 이미지 요청
+            log.debug("Proxy API call: GET {}", normalizedUrl);
             ResponseEntity<byte[]> response = restTemplate.exchange(
                 URI.create(normalizedUrl),
                 HttpMethod.GET,
@@ -104,7 +105,7 @@ public class ImageProxyController {
             );
 
             if (response.getBody() == null || response.getBody().length == 0) {
-                log.warn("Empty image response url={} status={}", normalizedUrl, response.getStatusCode());
+                // log.warn("Empty image response url={} status={}", normalizedUrl, response.getStatusCode());
                 return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
             }
 
@@ -124,13 +125,13 @@ public class ImageProxyController {
             // 캐시 설정
             responseHeaders.setCacheControl(CacheControl.maxAge(3600, java.util.concurrent.TimeUnit.SECONDS));
 
-            log.info(
-                "Proxy image success url={} status={} size={} contentType={}",
-                normalizedUrl,
-                response.getStatusCode(),
-                response.getBody().length,
-                contentType
-            );
+            // log.info(
+            //     "Proxy image success url={} status={} size={} contentType={}",
+            //     normalizedUrl,
+            //     response.getStatusCode(),
+            //     response.getBody().length,
+            //     contentType
+            // );
             return new ResponseEntity<>(response.getBody(), responseHeaders, HttpStatus.OK);
             
         } catch (RestClientException e) {

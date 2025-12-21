@@ -28,7 +28,7 @@
       <!-- 우: Clear 버튼 (W=Hug) -->
       <button
         v-if="localValue"
-        @click="clearInput"
+        @click.stop="clearInput"
         class="icon-right clear-button"
         type="button"
         aria-label="Clear"
@@ -203,6 +203,8 @@ const clearInput = () => {
   showSuggestions.value = false
   emit('clear')
   inputRef.value?.focus()
+  // focus 이벤트 emit하여 검색 패널 표시
+  emit('focus')
 }
 
 // 추천어 선택

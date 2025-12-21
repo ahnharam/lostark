@@ -26,6 +26,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Slf4j
 @Service
@@ -41,6 +44,7 @@ public class CharacterService {
     private static final Duration CACHE_DURATION = Duration.ofHours(1);
     private static final ZoneId ZONE_SEOUL = ZoneId.of("Asia/Seoul");
     private static final LocalTime RESET_CUTOFF_TIME = LocalTime.of(6, 0);
+    private static final ExecutorService asyncExecutor = Executors.newFixedThreadPool(10);
     
     @Transactional
     public CharacterProfileDto getCharacterProfile(String characterName, String userId, boolean forceRefresh) {
@@ -79,20 +83,41 @@ public class CharacterService {
             }
         }
         
-        // 2. API 호출
-        log.info("로스트아크 API 호출: {}", characterName);
+        // 2. API 호출 (병렬 처리)
+        log.info("로스트아크 API 호출 (병렬): {}", characterName);
         try {
-            CharacterProfileDto profile = lostArkProfileDomainService.fetchCharacterProfile(characterName);
-            List<CollectibleDto> collectibles = lostArkProfileDomainService.fetchCollectibles(characterName);
+            // 병렬로 API 호출
+            CompletableFuture<CharacterProfileDto> profileFuture = CompletableFuture.supplyAsync(
+                () -> lostArkProfileDomainService.fetchCharacterProfile(characterName),
+                asyncExecutor
+            );
+            CompletableFuture<List<CollectibleDto>> collectiblesFuture = CompletableFuture.supplyAsync(
+                () -> lostArkProfileDomainService.fetchCollectibles(characterName),
+                asyncExecutor
+            );
+
+            // 두 API 호출이 모두 완료될 때까지 대기
+            CharacterProfileDto profile = profileFuture.join();
+            List<CollectibleDto> collectibles = collectiblesFuture.join();
             Double collectionScore = calculateCollectionScore(collectibles);
 
-            log.info("API 호출 성공: {}", profile.getCharacterName());
+            log.info("API 호출 성공 (병렬): {}", profile.getCharacterName());
 
-            // 3. DB에 저장 또는 업데이트
+            // 3. DB에 저장 또는 업데이트 (비동기)
             Character character = cachedCharacter.orElse(new Character());
             updateCharacterFromDto(character, profile, collectionScore);
-            Character savedCharacter = characterRepository.save(character);
-            captureSnapshot(savedCharacter, profile, collectionScore, currentResetDate);
+
+            // DB 저장을 비동기로 처리
+            LocalDate finalResetDate = currentResetDate;
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Character savedCharacter = characterRepository.save(character);
+                    captureSnapshot(savedCharacter, profile, collectionScore, finalResetDate);
+                    log.debug("DB 저장 완료 (비동기): {}", characterName);
+                } catch (Exception e) {
+                    log.error("DB 저장 실패 (비동기): {} - {}", characterName, e.getMessage(), e);
+                }
+            }, asyncExecutor);
 
             return profile;
         } catch (CharacterNotFoundException e) {
@@ -203,6 +228,20 @@ public class CharacterService {
             return;
         }
 
+        try {
+            saveOrUpdateSnapshot(character, dto, collectionScore, resetDate);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 중복 키 예외 발생 시 기존 스냅샷 조회 후 업데이트
+            log.debug("스냅샷 중복 감지, 기존 스냅샷 업데이트 시도: {} - {}", character.getCharacterName(), resetDate);
+            try {
+                saveOrUpdateSnapshot(character, dto, collectionScore, resetDate);
+            } catch (Exception retryException) {
+                log.warn("스냅샷 업데이트 재시도 실패: {} - {}", character.getCharacterName(), retryException.getMessage());
+            }
+        }
+    }
+
+    private void saveOrUpdateSnapshot(Character character, CharacterProfileDto dto, Double collectionScore, LocalDate resetDate) {
         CharacterSnapshot snapshot = characterSnapshotRepository
                 .findByCharacterAndResetDate(character, resetDate)
                 .orElseGet(CharacterSnapshot::new);

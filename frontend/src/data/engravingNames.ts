@@ -37,9 +37,7 @@ export const ENGRAVING_NAME_ENTRIES: EngravingNameEntry[] = [
   { full: '위기 모면', short: '위모' },
   { full: '정밀 단도', short: '정단' },
   { full: '실드 관통', short: '실관' },
-  // 배틀 아이템/각종 유틸
   { full: '마나 효율 증가', short: '마효증' },
-  { full: '구슬수급', short: '구슬' },
   // 클래스 각인 (대표)
   { full: '잔재된 기운', short: '잔재' },
   { full: '멈출 수 없는 충동', short: '충동' },

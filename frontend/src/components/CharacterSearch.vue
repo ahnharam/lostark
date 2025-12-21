@@ -9,14 +9,14 @@
               :suggestions="[]"
               :show-panel="shouldShowSearchPanel"
               v-model:active-panel-tab="activeSearchPanelTab"
-              :history-items="history"
+              :history-items="historyItems"
               :favorite-items="favorites"
               :filtered-history-items="panelHistoryItems"
               :filtered-favorite-items="panelFavoriteItems"
               @select="handleSuggestionSelect"
               @search="searchCharacterByInput"
               @focus="handleSearchFocus"
-              @clear-history="clearHistory"
+              @clear-history="store.clearHistory"
               @select-history="handleSearchPanelSelect"
               @select-favorite="handleSearchPanelSelect"
             />
@@ -124,7 +124,7 @@
                     :loading="skillLoading"
                     :error-message="skillError"
                     :character-name="character?.characterName || ''"
-                    @retry="ensureSkillData"
+                    @retry="retrySkillData"
                   />
                 </section>
 
@@ -150,7 +150,7 @@
                     :loading="collectiblesLoading"
                     :error-message="collectiblesError"
                     :character-name="character?.characterName || ''"
-                    @retry="ensureCollectiblesData"
+                    @retry="retryCollectiblesData"
                   />
                 </section>
 
@@ -178,7 +178,7 @@
                     :loading="arkGridLoading"
                     :error-message="arkGridError"
                     :character-name="character?.characterName || ''"
-                    @retry="ensureArkGridData"
+                    @retry="retryArkGridData"
                   />
                 </section>
 
@@ -218,8 +218,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, toRefs } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import type {
   CharacterProfile,
   SiblingCharacter,
@@ -256,7 +257,7 @@ import { cleanTooltipLine, flattenTooltipLines, sanitizeInline } from '@/utils/t
 import { applyEffectAbbreviations, hasAbbreviationMatch } from '@/data/effectAbbreviations'
 import { getEngravingDisplayName } from '@/data/engravingNames'
 import { formatItemLevel, formatNumberLocalized, formatCombatPower, formatInteger } from '@/utils/format'
-import { useCharacterSearchData } from '@/composables/useCharacterSearchData'
+import { useCharacterStore } from '@/stores/characterStore'
 import { useExpeditionData } from '@/composables/character/useExpeditionData'
 import type { ExpeditionSortKey } from '@/composables/character/useExpeditionData'
 import { useCollectibleData } from '@/composables/character/useCollectibleData'
@@ -367,6 +368,10 @@ const expeditionSortOptions: SelectOption[] = [
 const router = useRouter()
 const route = useRoute()
 
+// Pinia Store
+const store = useCharacterStore()
+
+// Extract reactive refs from store using storeToRefs
 const {
   characterName,
   character,
@@ -395,17 +400,8 @@ const {
   collectiblesLoading,
   collectiblesError,
   lastRefreshedAt,
-  activeCharacter,
-  loadFavorites,
-  toggleFavorite: toggleFavoriteBase,
-  loadHistory,
-  clearHistory,
-	  ensureSkillData,
-	  ensureCollectiblesData,
-	  ensureArkGridData,
-	  ensureCardData,
-	  searchCharacter: searchCharacterData
-	} = useCharacterSearchData()
+  activeCharacter
+} = storeToRefs(store)
 
 const activeResultTab = ref<ResultTabKey>(DEFAULT_RESULT_TAB)
 const expeditionSortKey = ref<ExpeditionSortKey>('itemLevel')
@@ -428,14 +424,19 @@ const isHeroImageLarge = ref(false)
 const isHeroImagePopupOpen = ref(false)
 const characterImageSrc = computed(() => activeCharacter.value?.characterImage || '')
 const hasCharacterImage = computed(() => Boolean(characterImageSrc.value))
-const isCharacterFavorite = computed(() => {
-  if (!activeCharacter.value) return false
-  return favorites.value.some(
-    fav =>
-      fav.characterName === activeCharacter.value?.characterName &&
-      fav.serverName === activeCharacter.value?.serverName
-  )
-})
+const isCharacterFavorite = computed(() => store.isCharacterFavorite)
+
+// Convert LocalSearchHistory to HistoryItem for template
+const historyItems = computed<HistoryItem[]>(() =>
+  history.value.map((item) => ({
+    id: item.timestamp,
+    characterName: item.characterName,
+    itemAvgLevel: item.itemAvgLevel,
+    characterClassName: item.characterClassName,
+    characterImage: item.characterImage,
+    timestamp: item.timestamp
+  } as HistoryItem))
+)
 
 const shouldShowSearchPanel = computed(() => searchPanelOpen.value)
 const lastRefreshedLabel = computed(() => {
@@ -448,7 +449,7 @@ const lastRefreshedLabel = computed(() => {
 })
 
 const toggleFavorite = () => {
-  toggleFavoriteBase(activeCharacter.value)
+  store.toggleFavorite()
 }
 // Equipment constants and functions imported from equipmentDataTransform:
 // - SPECIAL_EQUIPMENT_KEYWORDS, SPECIAL_EQUIPMENT_DISPLAY_ORDER, SPECIAL_EQUIPMENT_FALLBACK_ICON
@@ -1124,9 +1125,14 @@ const displayStats = computed<CharacterStat[]>(() => {
 const panelFilterQuery = computed(() => characterName.value.trim().toLowerCase())
 
 const panelHistoryItems = computed(() => {
-  if (activeSearchPanelTab.value !== 'recent') return history.value
-  if (!panelFilterQuery.value) return history.value
-  return history.value.filter(item => item.characterName.toLowerCase().includes(panelFilterQuery.value))
+  const items = activeSearchPanelTab.value !== 'recent'
+    ? historyItems.value
+    : !panelFilterQuery.value
+      ? historyItems.value
+      : historyItems.value.filter(item => item.characterName.toLowerCase().includes(panelFilterQuery.value))
+
+  // 최대 5개만 표시
+  return items.slice(0, 5)
 })
 
 const panelFavoriteItems = computed(() => favorites.value)
@@ -1154,8 +1160,8 @@ const handleOutsideSearchClick = (event: MouseEvent) => {
 // expeditionGroups는 이제 useExpeditionData composable에서 제공됩니다
 
 onMounted(() => {
-  loadFavorites()
-  loadHistory()
+  store.loadFavorites()
+  store.loadHistory()
   if (typeof document !== 'undefined') {
     document.addEventListener('click', handleOutsideSearchClick)
   }
@@ -1188,15 +1194,18 @@ watch(
 
 watch(activeResultTab, async newTab => {
   await nextTick()
+  const name = activeCharacter.value?.characterName
+  if (!name) return
+
+  // 탭별 데이터 로드 (store.searchCharacter에서 이미 로드 중이면 중복 호출 방지됨)
   if (newTab === 'arkGrid') {
-    await ensureArkGridData()
+    await store.ensureArkGridData(name)
   } else if (newTab === 'skills') {
-    await ensureSkillData()
+    await store.ensureSkillData(name)
   } else if (newTab === 'collection') {
-    await ensureCollectiblesData()
-  } else if (newTab === 'summary') {
-    await Promise.all([ensureSkillData(), ensureCollectiblesData(), ensureArkGridData(), ensureCardData()])
+    await store.ensureCollectiblesData(name)
   }
+  // summary 탭은 store.searchCharacter에서 이미 모든 데이터를 병렬 로드하므로 추가 호출 불필요
 })
 
 const searchCharacterByInput = () => {
@@ -1216,8 +1225,8 @@ const searchCharacter = async (
   name: string,
   options: { forceRefresh?: boolean; updateUrl?: boolean } = {}
 ) => {
-  const success = await searchCharacterData(name, { forceRefresh: options.forceRefresh })
-  if (!success) return
+  await store.searchCharacter(name, options.forceRefresh ?? false)
+  if (error.value) return
   activeResultTab.value = DEFAULT_RESULT_TAB
   if (options.updateUrl !== false) {
     router.push({ query: { character: name } })
@@ -1237,7 +1246,23 @@ const handleRefreshClick = () => {
 }
 
 const dismissError = () => {
-  error.value = null
+  store.clearError()
+}
+
+// Retry handlers for template
+const retrySkillData = async () => {
+  const name = activeCharacter.value?.characterName
+  if (name) await store.ensureSkillData(name)
+}
+
+const retryCollectiblesData = async () => {
+  const name = activeCharacter.value?.characterName
+  if (name) await store.ensureCollectiblesData(name)
+}
+
+const retryArkGridData = async () => {
+  const name = activeCharacter.value?.characterName
+  if (name) await store.ensureArkGridData(name)
 }
 
 const executeSearch = (name: string) => {
