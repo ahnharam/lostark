@@ -314,7 +314,7 @@ const formatItemLevel = (value?: string): string => {
   justify-content: space-between;
   width: 100%;
   padding: 0.75rem 1rem;
-  background: none;
+  background: var(--bg-secondary);
   border: none;
   text-align: left;
   cursor: pointer;

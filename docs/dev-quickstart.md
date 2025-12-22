@@ -131,6 +131,8 @@ cd backend
 | `useEngravingData.ts` | 각인 정보 | `classEngravingNames`, `activeEngravings` |
 | `useGemData.ts` | 보석 정보 | `gemColorMap`, `gemTypeLabels` |
 | `useSkillData.ts` | 스킬/보석 슬롯 | `combatSkillCatalog`, `skillGemSlotsBySkill` |
+| `useExpeditionData.ts` | 원정대 캐릭터 관리 | `expeditionGroups`, `expeditionTotalCount` |
+| `useWeeklyGoldData.ts` ⭐ | 주간 골드 획득 계산 | `weeklyGoldData`, `toggleRaidCompletion`, `toggleCharacter` |
 
 ### 6.5 API 레이어
 - **API 클라이언트**: `frontend/src/api/lostark.ts`
@@ -144,6 +146,7 @@ cd backend
   - `armory.ts`: 아모리 관련 타입
   - `skills.ts`: 스킬 관련 타입
   - `index.ts`: 거래소/통계 타입
+  - `weekly-gold.ts`: 주간 골드 획득 관련 타입 ⭐
 
 ### 6.6 빌드 및 개발 명령어
 ```bash

@@ -438,7 +438,8 @@
                 <div class="ark-passive-grid-header">
                   <span v-for="point in arkSummary.appliedPoints" :key="point.key" class="ark-passive-header-cell">
                     <template v-if="hasEffectsForPoint(point.label)">
-                      <span class="ark-passive-header-desc" v-if="isShortDescription(point.description)">{{ point.description }}</span>
+                      <span class="ark-passive-header-desc" v-if="point.description && isShortDescription(point.description)">{{ point.description }}</span>
+                      <span class="ark-passive-header-desc" v-else>미개방</span>
                       <div class="ark-passive-header-title">
                         <span class="ark-passive-header-label">{{ point.label }}</span>
                         <span v-if="point.value"> · </span>

@@ -21,7 +21,7 @@
       <template v-else>
         <div class="panel-head">
           <div>
-            <p class="eyebrow">레이드 카탈로그</p>
+            <p class="eyebrow">레이드 관리</p>
             <h4>총 {{ rows.length }}건</h4>
           </div>
           <span v-if="message" class="muted">{{ message }}</span>
@@ -35,6 +35,42 @@
           <label class="field field--wide">
             <span class="field-label">raidName</span>
             <input v-model.trim="draft.raidName" class="input" type="text" placeholder="예: 5막: ..." required />
+          </label>
+          <label class="field field--compact">
+            <span class="field-label">약어</span>
+            <input v-model.trim="draft.abbreviation" class="input" type="text" placeholder="예: 5막" />
+          </label>
+          <label class="field field--wide">
+            <span class="field-label">난이도/입장/골드</span>
+            <div class="checkbox-group">
+              <label v-for="option in difficultyOptions" :key="option.id" class="checkbox checkbox--gold">
+                <input v-model="draft.difficulties" type="checkbox" :value="option.id" />
+                <span>{{ option.label }}</span>
+                <input
+                  v-model="draft.difficultyLevels[option.id]"
+                  class="input input--xs"
+                  type="number"
+                  min="0"
+                  placeholder="레벨"
+                  :disabled="!draft.difficulties.includes(option.id)"
+                />
+                <input
+                  v-model="draft.difficultyGolds[option.id]"
+                  class="input input--xs"
+                  type="number"
+                  min="0"
+                  placeholder="골드"
+                  :disabled="!draft.difficulties.includes(option.id)"
+                />
+              </label>
+            </div>
+          </label>
+          <label class="field field--compact">
+            <span class="field-label">인원</span>
+            <select v-model="draft.partySize" class="select">
+              <option value="">미설정</option>
+              <option v-for="size in partySizeOptions" :key="size" :value="String(size)">{{ size }}명</option>
+            </select>
           </label>
           <label class="checkbox">
             <input v-model="draft.active" type="checkbox" />
@@ -50,21 +86,114 @@
           <div class="table-head">
             <span>raidKey</span>
             <span>raidName</span>
+            <span>약어</span>
+            <span>난이도/입장/골드</span>
+            <span>인원</span>
             <span>상태</span>
             <span>생성일</span>
             <span class="align-right">관리</span>
           </div>
           <div v-for="row in rows" :key="row.raidKey" class="table-row">
             <span class="mono">{{ row.raidKey }}</span>
-            <span>{{ row.raidName }}</span>
-            <span>
+            <span v-if="!isEditing(row)">{{ row.raidName }}</span>
+            <input
+              v-else
+              v-model.trim="editDraft.raidName"
+              class="input input--inline"
+              type="text"
+              placeholder="레이드 이름"
+            />
+            <span v-if="!isEditing(row)">{{ row.abbreviation || '-' }}</span>
+            <input
+              v-else
+              v-model.trim="editDraft.abbreviation"
+              class="input input--inline"
+              type="text"
+              placeholder="약어"
+            />
+            <span v-if="!isEditing(row)">{{ formatDifficultyDetails(row) }}</span>
+            <div v-else class="checkbox-group">
+              <label v-for="option in difficultyOptions" :key="option.id" class="checkbox checkbox--gold">
+                <input v-model="editDraft.difficulties" type="checkbox" :value="option.id" />
+                <span>{{ option.label }}</span>
+                <input
+                  v-model="editDraft.difficultyLevels[option.id]"
+                  class="input input--xs"
+                  type="number"
+                  min="0"
+                  placeholder="레벨"
+                  :disabled="!editDraft.difficulties.includes(option.id)"
+                />
+                <input
+                  v-model="editDraft.difficultyGolds[option.id]"
+                  class="input input--xs"
+                  type="number"
+                  min="0"
+                  placeholder="골드"
+                  :disabled="!editDraft.difficulties.includes(option.id)"
+                />
+              </label>
+            </div>
+            <span v-if="!isEditing(row)">{{ formatPartySize(row.partySize) }}</span>
+            <select v-else v-model="editDraft.partySize" class="select select--inline">
+              <option value="">미설정</option>
+              <option v-for="size in partySizeOptions" :key="size" :value="String(size)">{{ size }}명</option>
+            </select>
+            <span v-if="!isEditing(row)">
               <span class="pill" :class="{ off: !row.active }">{{ row.active ? '활성' : '비활성' }}</span>
             </span>
+            <label v-else class="checkbox inline">
+              <input v-model="editDraft.active" type="checkbox" />
+              활성
+            </label>
             <span class="muted">{{ formatDate(row.createdAt) }}</span>
             <span class="align-right">
-              <button class="btn ghost btn-sm" type="button" :disabled="loading" @click="toggleActive(row)">
-                {{ row.active ? '비활성화' : '활성화' }}
-              </button>
+              <div class="btn-group">
+                <template v-if="isEditing(row)">
+                  <button
+                    class="btn btn-sm"
+                    type="button"
+                    :disabled="loading"
+                    @click="saveEdit"
+                  >
+                    저장
+                  </button>
+                  <button
+                    class="btn ghost btn-sm"
+                    type="button"
+                    :disabled="loading"
+                    @click="cancelEdit"
+                  >
+                    취소
+                  </button>
+                </template>
+                <template v-else>
+                  <button
+                    class="btn ghost btn-sm"
+                    type="button"
+                    :disabled="loading"
+                    @click="startEdit(row)"
+                  >
+                    수정
+                  </button>
+                  <button
+                    class="btn ghost btn-sm"
+                    type="button"
+                    :disabled="loading"
+                    @click="toggleActive(row)"
+                  >
+                    {{ row.active ? '비활성화' : '활성화' }}
+                  </button>
+                  <button
+                    class="btn ghost btn-sm"
+                    type="button"
+                    :disabled="loading"
+                    @click="deleteRaid(row)"
+                  >
+                    삭제
+                  </button>
+                </template>
+              </div>
             </span>
           </div>
         </div>
@@ -75,26 +204,78 @@
 
 <script setup lang="ts">
 import { onActivated, onDeactivated, onMounted, ref } from 'vue'
-import { lostarkApi } from '@/api/lostark'
+import { lostarkApi, type RaidCatalogEntry } from '@/api/lostark'
 import { getHttpErrorMessage } from '@/utils/httpError'
 import LoadingSpinner from './common/LoadingSpinner.vue'
-
-type RaidCatalogEntry = {
-  raidKey: string
-  raidName: string
-  active: boolean
-  createdAt?: string | null
-}
 
 const rows = ref<RaidCatalogEntry[]>([])
 const loading = ref(false)
 const error = ref('')
 const message = ref('')
+const editingKey = ref<string | null>(null)
 
-const draft = ref({
+const difficultyOptions = [
+  { id: 'single', label: '싱글' },
+  { id: 'normal', label: '노말' },
+  { id: 'hard', label: '하드' },
+  { id: 'nightmare', label: '나이트메어' }
+] as const
+
+const partySizeOptions = [4, 8, 16] as const
+
+type DifficultyId = (typeof difficultyOptions)[number]['id']
+
+const difficultyIdSet = new Set<DifficultyId>(difficultyOptions.map(option => option.id))
+const difficultyLabelMap = new Map<DifficultyId, string>(difficultyOptions.map(option => [option.id, option.label]))
+
+type DifficultyGolds = Record<DifficultyId, string>
+type DifficultyLevels = Record<DifficultyId, string>
+
+type RaidDraft = {
+  raidKey: string
+  raidName: string
+  abbreviation: string
+  active: boolean
+  difficulties: DifficultyId[]
+  partySize: string
+  difficultyLevels: DifficultyLevels
+  difficultyGolds: DifficultyGolds
+}
+
+const createEmptyDifficultyGolds = (): DifficultyGolds => ({
+  single: '',
+  normal: '',
+  hard: '',
+  nightmare: ''
+})
+
+const createEmptyDifficultyLevels = (): DifficultyLevels => ({
+  single: '',
+  normal: '',
+  hard: '',
+  nightmare: ''
+})
+
+const editDraft = ref<RaidDraft>({
   raidKey: '',
   raidName: '',
-  active: true
+  abbreviation: '',
+  active: true,
+  difficulties: [],
+  partySize: '',
+  difficultyLevels: createEmptyDifficultyLevels(),
+  difficultyGolds: createEmptyDifficultyGolds()
+})
+
+const draft = ref<RaidDraft>({
+  raidKey: '',
+  raidName: '',
+  abbreviation: '',
+  active: true,
+  difficulties: [],
+  partySize: '',
+  difficultyLevels: createEmptyDifficultyLevels(),
+  difficultyGolds: createEmptyDifficultyGolds()
 })
 
 const passwordInput = ref('')
@@ -119,6 +300,182 @@ const formatDate = (value?: string | null) => {
   }).format(date)
 }
 
+const formatNumber = (value?: number | null) => {
+  if (value === null || value === undefined) return '-'
+  return new Intl.NumberFormat('ko-KR').format(value)
+}
+
+const formatPartySize = (value?: number | null) => {
+  if (!value) return '-'
+  return `${value}명`
+}
+
+const formatDifficultyDetails = (entry: RaidCatalogEntry) => {
+  const difficulties = normalizeDifficultyIds(entry.difficulties ?? [])
+  if (difficulties.length === 0) {
+    const baseParts = []
+    if (entry.itemLevel != null && entry.itemLevel > 0) {
+      baseParts.push(`Lv.${formatNumber(entry.itemLevel)}`)
+    }
+    if (entry.goldReward != null && entry.goldReward > 0) {
+      baseParts.push(`${formatNumber(entry.goldReward)}G`)
+    }
+    return baseParts.length > 0 ? baseParts.join(' / ') : '-'
+  }
+  const parts = difficulties.map(difficulty => {
+    const label = difficultyLabelMap.get(difficulty) ?? difficulty
+    const itemLevel = resolveDifficultyItemLevel(entry, difficulty)
+    const gold = resolveDifficultyGold(entry, difficulty)
+    const detailParts = []
+    if (itemLevel) {
+      detailParts.push(`Lv.${formatNumber(itemLevel)}`)
+    }
+    if (gold) {
+      detailParts.push(`${formatNumber(gold)}G`)
+    }
+    return detailParts.length > 0 ? `${label} ${detailParts.join(' / ')}` : label
+  })
+  return parts.join(', ')
+}
+
+const normalizeText = (value: unknown) => {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+const parseOptionalNumber = (value: unknown) => {
+  const trimmed = normalizeText(value)
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const normalizeDifficultyIds = (values: string[]) => {
+  const selected = new Set<DifficultyId>()
+  values.forEach(value => {
+    if (typeof value !== 'string') return
+    const normalized = value.trim().toLowerCase() as DifficultyId
+    if (difficultyIdSet.has(normalized)) {
+      selected.add(normalized)
+    }
+  })
+  return difficultyOptions.map(option => option.id).filter(id => selected.has(id))
+}
+
+const resolveDifficultyGold = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
+  const goldMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingle,
+    normal: entry.goldNormal,
+    hard: entry.goldHard,
+    nightmare: entry.goldNightmare
+  }
+  const goldValue = goldMap[difficulty]
+  if (typeof goldValue === 'number' && Number.isFinite(goldValue) && goldValue > 0) {
+    return goldValue
+  }
+  if (typeof entry.goldReward === 'number' && Number.isFinite(entry.goldReward) && entry.goldReward > 0) {
+    return entry.goldReward
+  }
+  return null
+}
+
+const resolveDifficultyItemLevel = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
+  const levelMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.itemLevelSingle,
+    normal: entry.itemLevelNormal,
+    hard: entry.itemLevelHard,
+    nightmare: entry.itemLevelNightmare
+  }
+  const levelValue = levelMap[difficulty]
+  if (typeof levelValue === 'number' && Number.isFinite(levelValue) && levelValue > 0) {
+    return levelValue
+  }
+  if (typeof entry.itemLevel === 'number' && Number.isFinite(entry.itemLevel) && entry.itemLevel > 0) {
+    return entry.itemLevel
+  }
+  return null
+}
+
+const buildDifficultyGolds = (entry: RaidCatalogEntry): DifficultyGolds => ({
+  single: entry.goldSingle != null ? String(entry.goldSingle) : '',
+  normal: entry.goldNormal != null ? String(entry.goldNormal) : '',
+  hard: entry.goldHard != null ? String(entry.goldHard) : '',
+  nightmare: entry.goldNightmare != null ? String(entry.goldNightmare) : ''
+})
+
+const buildDifficultyLevels = (entry: RaidCatalogEntry): DifficultyLevels => ({
+  single: entry.itemLevelSingle != null ? String(entry.itemLevelSingle) : '',
+  normal: entry.itemLevelNormal != null ? String(entry.itemLevelNormal) : '',
+  hard: entry.itemLevelHard != null ? String(entry.itemLevelHard) : '',
+  nightmare: entry.itemLevelNightmare != null ? String(entry.itemLevelNightmare) : ''
+})
+
+const parseGoldValue = (value: unknown) => parseOptionalNumber(value)
+const parseLevelValue = (value: unknown) => parseOptionalNumber(value)
+
+const buildDifficultyGoldPayload = (difficulties: DifficultyId[], golds: DifficultyGolds) => {
+  const selected = new Set(difficulties)
+  const payload: {
+    goldSingle?: number | null
+    goldNormal?: number | null
+    goldHard?: number | null
+    goldNightmare?: number | null
+  } = {}
+
+  const singleValue = parseGoldValue(golds.single)
+  if (selected.has('single') && singleValue !== null) payload.goldSingle = singleValue
+  const normalValue = parseGoldValue(golds.normal)
+  if (selected.has('normal') && normalValue !== null) payload.goldNormal = normalValue
+  const hardValue = parseGoldValue(golds.hard)
+  if (selected.has('hard') && hardValue !== null) payload.goldHard = hardValue
+  const nightmareValue = parseGoldValue(golds.nightmare)
+  if (selected.has('nightmare') && nightmareValue !== null) payload.goldNightmare = nightmareValue
+
+  return payload
+}
+
+const buildDifficultyLevelPayload = (difficulties: DifficultyId[], levels: DifficultyLevels) => {
+  const selected = new Set(difficulties)
+  const payload: {
+    itemLevelSingle?: number | null
+    itemLevelNormal?: number | null
+    itemLevelHard?: number | null
+    itemLevelNightmare?: number | null
+  } = {}
+
+  const singleLevel = parseLevelValue(levels.single)
+  if (selected.has('single') && singleLevel !== null) payload.itemLevelSingle = singleLevel
+  const normalLevel = parseLevelValue(levels.normal)
+  if (selected.has('normal') && normalLevel !== null) payload.itemLevelNormal = normalLevel
+  const hardLevel = parseLevelValue(levels.hard)
+  if (selected.has('hard') && hardLevel !== null) payload.itemLevelHard = hardLevel
+  const nightmareLevel = parseLevelValue(levels.nightmare)
+  if (selected.has('nightmare') && nightmareLevel !== null) payload.itemLevelNightmare = nightmareLevel
+
+  return payload
+}
+
+const isEditing = (row: RaidCatalogEntry) => editingKey.value === row.raidKey
+
+const startEdit = (row: RaidCatalogEntry) => {
+  editingKey.value = row.raidKey
+  const difficulties = Array.isArray(row.difficulties) ? row.difficulties : []
+  editDraft.value = {
+    raidKey: row.raidKey,
+    raidName: row.raidName,
+    abbreviation: row.abbreviation ?? '',
+    active: row.active,
+    difficulties: normalizeDifficultyIds(difficulties),
+    partySize: row.partySize != null ? String(row.partySize) : '',
+    difficultyLevels: buildDifficultyLevels(row),
+    difficultyGolds: buildDifficultyGolds(row)
+  }
+}
+
+const cancelEdit = () => {
+  editingKey.value = null
+}
+
 const loadCatalog = async () => {
   if (gateEnabled && !unlocked.value) return
   loading.value = true
@@ -136,19 +493,33 @@ const loadCatalog = async () => {
 
 const createRaid = async () => {
   if (gateEnabled && !unlocked.value) return
-  if (!draft.value.raidKey.trim() || !draft.value.raidName.trim()) return
+  const raidKey = normalizeText(draft.value.raidKey)
+  const raidName = normalizeText(draft.value.raidName)
+  const abbreviation = normalizeText(draft.value.abbreviation)
+  if (!raidKey || !raidName) return
   loading.value = true
   error.value = ''
   message.value = ''
   try {
+    const normalizedDifficulties = normalizeDifficultyIds(draft.value.difficulties)
     await lostarkApi.createRaidCatalog({
-      raidKey: draft.value.raidKey.trim(),
-      raidName: draft.value.raidName.trim(),
-      active: draft.value.active
+      raidKey,
+      raidName,
+      abbreviation: abbreviation || null,
+      active: draft.value.active,
+      difficulties: normalizedDifficulties,
+      partySize: parseOptionalNumber(draft.value.partySize),
+      ...buildDifficultyLevelPayload(normalizedDifficulties, draft.value.difficultyLevels),
+      ...buildDifficultyGoldPayload(normalizedDifficulties, draft.value.difficultyGolds)
     })
     draft.value.raidKey = ''
     draft.value.raidName = ''
+    draft.value.abbreviation = ''
     draft.value.active = true
+    draft.value.difficulties = []
+    draft.value.partySize = ''
+    draft.value.difficultyLevels = createEmptyDifficultyLevels()
+    draft.value.difficultyGolds = createEmptyDifficultyGolds()
     message.value = '추가했어요.'
     await loadCatalog()
   } catch (err: unknown) {
@@ -169,6 +540,61 @@ const toggleActive = async (row: RaidCatalogEntry) => {
     message.value = '변경했어요.'
   } catch (err: unknown) {
     error.value = resolveErrorMessage(err, '상태 변경에 실패했습니다.')
+  } finally {
+    loading.value = false
+  }
+}
+
+const deleteRaid = async (row: RaidCatalogEntry) => {
+  if (gateEnabled && !unlocked.value) return
+  const label = normalizeText(row.raidName || row.raidKey)
+  const confirmed = window.confirm(`"${label}" 레이드를 삭제할까요?`)
+  if (!confirmed) return
+  loading.value = true
+  error.value = ''
+  message.value = ''
+  try {
+    await lostarkApi.deleteRaidCatalog(row.raidKey)
+    rows.value = rows.value.filter(item => item.raidKey !== row.raidKey)
+    if (editingKey.value === row.raidKey) {
+      editingKey.value = null
+    }
+    message.value = '삭제했어요.'
+  } catch (err: unknown) {
+    error.value = resolveErrorMessage(err, '레이드 삭제에 실패했습니다.')
+  } finally {
+    loading.value = false
+  }
+}
+
+const saveEdit = async () => {
+  if (gateEnabled && !unlocked.value) return
+  if (!editingKey.value) return
+  const trimmedName = normalizeText(editDraft.value.raidName)
+  const abbreviation = normalizeText(editDraft.value.abbreviation)
+  if (!trimmedName) {
+    error.value = 'raidName이 필요합니다.'
+    return
+  }
+  loading.value = true
+  error.value = ''
+  message.value = ''
+  try {
+    const normalizedDifficulties = normalizeDifficultyIds(editDraft.value.difficulties)
+    const updated = await lostarkApi.updateRaidCatalog(editingKey.value, {
+      raidName: trimmedName,
+      abbreviation: abbreviation || null,
+      active: editDraft.value.active,
+      difficulties: normalizedDifficulties,
+      partySize: parseOptionalNumber(editDraft.value.partySize),
+      ...buildDifficultyLevelPayload(normalizedDifficulties, editDraft.value.difficultyLevels),
+      ...buildDifficultyGoldPayload(normalizedDifficulties, editDraft.value.difficultyGolds)
+    })
+    rows.value = rows.value.map(item => (item.raidKey === updated.raidKey ? updated : item))
+    editingKey.value = null
+    message.value = '수정했어요.'
+  } catch (err: unknown) {
+    error.value = resolveErrorMessage(err, '레이드 수정에 실패했습니다.')
   } finally {
     loading.value = false
   }
@@ -243,7 +669,7 @@ onDeactivated(() => {
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 2fr auto auto;
+  grid-template-columns: 1fr 1.6fr 0.8fr 2fr 0.6fr auto auto;
   gap: 10px;
   align-items: end;
 }
@@ -257,6 +683,9 @@ onDeactivated(() => {
   min-width: 220px;
 }
 
+.field--compact {
+  min-width: 120px;
+}
 .field-label {
   font-size: 0.85rem;
   color: var(--text-secondary, #4b5563);
@@ -268,6 +697,21 @@ onDeactivated(() => {
   align-items: center;
   user-select: none;
   color: var(--text-secondary, #4b5563);
+}
+
+.checkbox.inline {
+  margin: 0;
+}
+
+.checkbox--gold {
+  gap: 6px;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .gate {
@@ -288,7 +732,7 @@ onDeactivated(() => {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: 1.2fr 1.5fr 0.7fr 1fr 0.8fr;
+  grid-template-columns: 1.1fr 1.2fr 0.7fr 1.8fr 0.6fr 0.6fr 1fr 0.8fr;
   gap: 8px;
   padding: 10px 12px;
   align-items: center;
@@ -344,6 +788,13 @@ onDeactivated(() => {
   font-size: 0.85rem;
 }
 
+.btn-group {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .btn-primary {
   border-color: var(--primary-color, #2563eb);
 }
@@ -352,6 +803,30 @@ onDeactivated(() => {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.input--inline {
+  width: 100%;
+  min-width: 0;
+}
+
+.input--xs {
+  width: 80px;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+}
+
+.select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--card-bg, #ffffff);
+}
+
+.select--inline {
+  width: 100%;
+  min-width: 0;
 }
 
 .empty {
@@ -399,4 +874,3 @@ onDeactivated(() => {
   }
 }
 </style>
-

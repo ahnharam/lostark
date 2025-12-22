@@ -3,7 +3,7 @@
     <div class="section-header-bar">
       <div>
         <h3>원정대 보유 캐릭터</h3>
-        <p class="section-subtitle">클릭하면 해당 캐릭터의 통합 화면이 열립니다.</p>
+        <p class="section-subtitle">클릭하면 해당 캐릭터의 통합 메뉴 화면으로 이동합니다.</p>
       </div>
       <div class="section-actions">
         <div class="expedition-sort">

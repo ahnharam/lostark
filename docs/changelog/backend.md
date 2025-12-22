@@ -7,6 +7,41 @@
 
 ## 2025-12
 
+### 2025-12-22: 레이드 카탈로그 관리 확장
+
+**변경 유형**: Feature
+
+**변경 내용**:
+- 레이드 카탈로그에 약어/난이도/인원/난이도별 입장 레벨 및 골드 컬럼 추가
+- 관리자 레이드 카탈로그 API에서 난이도/인원/약어/레벨/골드 저장 및 검증
+- 레이드 삭제 API 추가 (`DELETE /api/admin/raid-catalog/{raidKey}`)
+
+**영향받은 파일**:
+- `backend/src/main/java/com/lostark/backend/raid/entity/RaidCatalog.java`
+- `backend/src/main/java/com/lostark/backend/raid/controller/RaidCatalogAdminController.java`
+
+---
+
+### 2025-12-22: 로스트아크 API 요청 제한 대응 및 거래소 검색 확장
+
+**변경 유형**: Fix / Performance
+
+**변경 내용**:
+- RateLimit 헤더 기반 요청 지연 및 429/503 백오프 처리
+- DiscordMarketService 포함 WebClient에 동일 필터 적용
+- 거래소 검색에 다중 카테고리 코드 지원
+- MarketItemDto에 categoryCode 포함
+
+**영향받은 파일**:
+- `backend/src/main/java/com/lostark/backend/lostark/client/LostArkRateLimitManager.java`
+- `backend/src/main/java/com/lostark/backend/lostark/client/LostArkApiClient.java`
+- `backend/src/main/java/com/lostark/backend/discord/DiscordMarketService.java`
+- `backend/src/main/java/com/lostark/backend/market/controller/MarketController.java`
+- `backend/src/main/java/com/lostark/backend/market/service/MarketSyncService.java`
+- `backend/src/main/java/com/lostark/backend/dto/market/MarketItemDto.java`
+
+---
+
 ### 2025-12-21: Phase 5 백엔드 성능 최적화
 
 **변경 유형**: Performance / Fix

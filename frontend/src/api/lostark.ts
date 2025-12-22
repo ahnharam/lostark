@@ -407,14 +407,54 @@ export const lostarkApi = {
     return response.data
   },
 
-  async createRaidCatalog(body: { raidKey: string; raidName: string; active?: boolean }) {
+  async createRaidCatalog(body: {
+    raidKey: string
+    raidName: string
+    abbreviation?: string | null
+    active?: boolean
+    itemLevel?: number | null
+    goldReward?: number | null
+    difficulties?: string[] | null
+    partySize?: number | null
+    itemLevelSingle?: number | null
+    itemLevelNormal?: number | null
+    itemLevelHard?: number | null
+    itemLevelNightmare?: number | null
+    goldSingle?: number | null
+    goldNormal?: number | null
+    goldHard?: number | null
+    goldNightmare?: number | null
+  }) {
     const response = await apiClient.post<RaidCatalogEntry>('/admin/raid-catalog', body)
     return response.data
   },
 
-  async updateRaidCatalog(raidKey: string, body: { raidName?: string; active?: boolean }) {
+  async updateRaidCatalog(
+    raidKey: string,
+    body: {
+      raidName?: string
+      abbreviation?: string | null
+      active?: boolean
+      itemLevel?: number | null
+      goldReward?: number | null
+      difficulties?: string[] | null
+      partySize?: number | null
+      itemLevelSingle?: number | null
+      itemLevelNormal?: number | null
+      itemLevelHard?: number | null
+      itemLevelNightmare?: number | null
+      goldSingle?: number | null
+      goldNormal?: number | null
+      goldHard?: number | null
+      goldNightmare?: number | null
+    }
+  ) {
     const response = await apiClient.patch<RaidCatalogEntry>(`/admin/raid-catalog/${encodeURIComponent(raidKey)}`, body)
     return response.data
+  },
+
+  async deleteRaidCatalog(raidKey: string) {
+    await apiClient.delete(`/admin/raid-catalog/${encodeURIComponent(raidKey)}`)
   },
 
   async checkServerStatus() {
@@ -478,10 +518,23 @@ export const lostarkApi = {
   }
 }
 
-type RaidCatalogEntry = {
+export type RaidCatalogEntry = {
   raidKey: string
   raidName: string
+  abbreviation?: string | null
   active: boolean
+  itemLevel?: number | null
+  goldReward?: number | null
+  difficulties?: string[] | null
+  partySize?: number | null
+  itemLevelSingle?: number | null
+  itemLevelNormal?: number | null
+  itemLevelHard?: number | null
+  itemLevelNightmare?: number | null
+  goldSingle?: number | null
+  goldNormal?: number | null
+  goldHard?: number | null
+  goldNightmare?: number | null
   createdAt?: string | null
 }
 

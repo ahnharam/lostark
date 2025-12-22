@@ -7,6 +7,20 @@
 
 ## 2025-12
 
+### 2025-12-22: 관리자 서브메뉴 레이블 정리
+
+**변경 유형**: Refactor
+
+**변경 내용**:
+- 관리자 메뉴 "레이드 추가"를 "레이드 관리"로 명칭 통일
+- 관리자 헤더 문구를 레이드 관리 기준으로 재정의
+
+**영향받은 파일**:
+- `frontend/src/components/MainLayout.vue`
+- `frontend/src/components/AdminMenu.vue`
+
+---
+
 ### 2025-12-21: 문서 정리 규칙 수립
 
 **변경 유형**: Documentation

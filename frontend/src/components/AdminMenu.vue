@@ -26,17 +26,19 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 
 const headerEyebrow = computed(() => {
-  if (route.meta.submenu === 'raid-catalog') return '레이드 추가'
+  if (route.meta.submenu === 'raid-catalog') return '레이드 관리'
   return '거래소 기록'
 })
 
 const headerTitle = computed(() => {
-  if (route.meta.submenu === 'raid-catalog') return 'raid_catalog 관리'
+  if (route.meta.submenu === 'raid-catalog') return '레이드 관리'
   return '거래소 일별 기록 모니터'
 })
 
 const headerLead = computed(() => {
-  if (route.meta.submenu === 'raid-catalog') return 'DB에 레이드(raidKey/raidName)를 추가해 신규 레이드를 확장할 수 있어요.'
+  if (route.meta.submenu === 'raid-catalog') {
+    return '레이드 약어/난이도/입장 레벨/골드를 관리할 수 있어요.'
+  }
   return '거래소 기록을 확인하거나, 필요한 경우 수동 캡처를 실행하세요.'
 })
 </script>

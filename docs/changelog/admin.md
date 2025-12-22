@@ -5,6 +5,23 @@
 
 ---
 
+## 2025-12
+
+### 2025-12-22: 레이드 관리 기능 확장
+
+**변경 유형**: Feature
+
+**변경 내용**:
+- 관리자 메뉴 명칭을 "레이드 관리"로 변경
+- 레이드 약어, 난이도별 입장 레벨/골드, 인원 설정 UI 추가
+- 등록된 레이드 목록에서 수정/삭제 지원
+
+**영향받은 파일**:
+- `frontend/src/components/AdminMenu.vue`
+- `frontend/src/components/MainLayout.vue`
+- `frontend/src/components/AdminRaidCatalog.vue`
+- `frontend/src/api/lostark.ts`
+
 ## 2025-01
 
 ### 2025-01: Phase 4 라우팅 개선

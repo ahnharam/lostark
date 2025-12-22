@@ -1,6 +1,6 @@
 # 변경 이력 (Changelog)
 
-> **최종 수정**: 2025-12-21
+> **최종 수정**: 2025-12-22
 > **관련 문서**: [dev-quickstart.md](../dev-quickstart.md)
 
 ## 개요

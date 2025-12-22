@@ -159,15 +159,25 @@
                   :character-name="activeCharacter?.characterName"
                 />
 
-                <ExpeditionCharacterList
-                  v-else-if="activeResultTab === 'expedition'"
-                  :groups="expeditionGroups"
-                  :selected-character-name="activeCharacter?.characterName"
-                  :total-count="expeditionTotalCount"
-                  v-model:sort-key="expeditionSortKey"
-                  :sort-options="expeditionSortOptions"
-                  @select="viewCharacterDetail"
-                />
+                <template v-if="activeResultTab === 'expedition'">
+                  <WeeklyGoldPanel
+                    :raid-difficulties="weeklyGoldData.raidDifficulties"
+                    :characters="weeklyGoldData.characters"
+                    :selected-total-gold="weeklyGoldData.selectedTotalGold"
+                    @toggle-raid="toggleRaidCompletion"
+                    @toggle-character="toggleCharacter"
+                    @toggle-all="toggleAllCharacters"
+                  />
+
+                  <ExpeditionCharacterList
+                    :groups="expeditionGroups"
+                    :selected-character-name="activeCharacter?.characterName"
+                    :total-count="expeditionTotalCount"
+                    v-model:sort-key="expeditionSortKey"
+                    :sort-options="expeditionSortOptions"
+                    @select="viewCharacterDetail"
+                  />
+                </template>
 
                 <section
                   v-else-if="activeResultTab === 'arkGrid'"
@@ -249,6 +259,7 @@ import type { Suggestion } from './common/AutocompleteInput.vue'
 import TopPageHeader from './common/TopPageHeader.vue'
 import ExpeditionCharacterList from './character/ExpeditionCharacterList.vue'
 import type { ExpeditionGroup } from './character/ExpeditionCharacterList.vue'
+import WeeklyGoldPanel from './character/WeeklyGoldPanel.vue'
 import CharacterResultTabs from './character/CharacterResultTabs.vue'
 import type { TabItem } from './character/CharacterResultTabs.vue'
 import CharacterSearchPanel from './character/CharacterSearchPanel.vue'
@@ -260,6 +271,7 @@ import { formatItemLevel, formatNumberLocalized, formatCombatPower, formatIntege
 import { useCharacterStore } from '@/stores/characterStore'
 import { useExpeditionData } from '@/composables/character/useExpeditionData'
 import type { ExpeditionSortKey } from '@/composables/character/useExpeditionData'
+import { useWeeklyGoldData } from '@/composables/character/useWeeklyGoldData'
 import { useCollectibleData } from '@/composables/character/useCollectibleData'
 import { useArkGridData } from '@/composables/character/useArkGridData'
 import { useEquipmentData } from '@/composables/character/useEquipmentData'
@@ -407,6 +419,12 @@ const expeditionSortKey = ref<ExpeditionSortKey>('itemLevel')
 
 // Composables
 const { expeditionGroups, expeditionTotalCount } = useExpeditionData(character, siblings, expeditionSortKey)
+const {
+  weeklyGoldData,
+  toggleRaidCompletion,
+  toggleCharacter,
+  toggleAllCharacters
+} = useWeeklyGoldData(character, siblings)
 const { collectionSummary } = useCollectibleData(collectibles)
 const { arkSummary } = useArkGridData(arkGridResponse)
 const { equipmentSummary, avatarSummary, engravingSummary } = useEquipmentData(
@@ -1668,6 +1686,8 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
+  width: calc(100% - 380px);
+  min-width: 460px;
 }
 
 .view-tabs {
@@ -3597,7 +3617,6 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 
 .search-panel-tab {
   padding: 8px 18px;
-  border-radius: 999px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-secondary);

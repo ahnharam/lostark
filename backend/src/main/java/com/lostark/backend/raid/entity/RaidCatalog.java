@@ -25,8 +25,47 @@ public class RaidCatalog {
     @Column(name = "raid_name", nullable = false, unique = true, length = 128)
     private String raidName;
 
+    @Column(name = "abbreviation", length = 64)
+    private String abbreviation;
+
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "item_level")
+    private Integer itemLevel;
+
+    @Column(name = "item_level_single")
+    private Integer itemLevelSingle;
+
+    @Column(name = "item_level_normal")
+    private Integer itemLevelNormal;
+
+    @Column(name = "item_level_hard")
+    private Integer itemLevelHard;
+
+    @Column(name = "item_level_nightmare")
+    private Integer itemLevelNightmare;
+
+    @Column(name = "gold_reward")
+    private Integer goldReward;
+
+    @Column(name = "gold_single")
+    private Integer goldSingle;
+
+    @Column(name = "gold_normal")
+    private Integer goldNormal;
+
+    @Column(name = "gold_hard")
+    private Integer goldHard;
+
+    @Column(name = "gold_nightmare")
+    private Integer goldNightmare;
+
+    @Column(name = "difficulty_codes", length = 128)
+    private String difficultyCodes;
+
+    @Column(name = "party_size")
+    private Integer partySize;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -36,4 +75,3 @@ public class RaidCatalog {
         createdAt = LocalDateTime.now();
     }
 }
-

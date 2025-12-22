@@ -5,6 +5,7 @@ import com.lostark.backend.raid.repository.RaidCatalogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,8 +14,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/admin/raid-catalog")
@@ -22,6 +27,8 @@ import java.util.Objects;
 public class RaidCatalogAdminController {
 
     private final RaidCatalogRepository raidCatalogRepository;
+    private static final List<String> DIFFICULTY_ORDER = List.of("single", "normal", "hard", "nightmare");
+    private static final Set<Integer> ALLOWED_PARTY_SIZES = Set.of(4, 8, 16);
 
     @GetMapping
     public ResponseEntity<List<RaidCatalogResponse>> list() {
@@ -50,7 +57,23 @@ public class RaidCatalogAdminController {
         RaidCatalog catalog = new RaidCatalog();
         catalog.setRaidKey(raidKey);
         catalog.setRaidName(raidName);
+        catalog.setAbbreviation(normalize(request.abbreviation()));
         catalog.setActive(request.active() == null || Boolean.TRUE.equals(request.active()));
+        catalog.setItemLevel(request.itemLevel());
+        catalog.setGoldReward(request.goldReward());
+        List<String> normalizedDifficulties = normalizeDifficulties(request.difficulties());
+        catalog.setDifficultyCodes(joinDifficulties(normalizedDifficulties));
+        catalog.setItemLevelSingle(normalizeItemLevel(request.itemLevelSingle()));
+        catalog.setItemLevelNormal(normalizeItemLevel(request.itemLevelNormal()));
+        catalog.setItemLevelHard(normalizeItemLevel(request.itemLevelHard()));
+        catalog.setItemLevelNightmare(normalizeItemLevel(request.itemLevelNightmare()));
+        catalog.setGoldSingle(normalizeGold(request.goldSingle()));
+        catalog.setGoldNormal(normalizeGold(request.goldNormal()));
+        catalog.setGoldHard(normalizeGold(request.goldHard()));
+        catalog.setGoldNightmare(normalizeGold(request.goldNightmare()));
+        clearMissingDifficultyLevels(catalog, normalizedDifficulties);
+        clearMissingDifficultyGolds(catalog, normalizedDifficulties);
+        catalog.setPartySize(normalizePartySize(request.partySize()));
         RaidCatalog saved = raidCatalogRepository.save(catalog);
         return ResponseEntity.ok(RaidCatalogResponse.of(saved));
     }
@@ -74,12 +97,68 @@ public class RaidCatalogAdminController {
             catalog.setRaidName(nextName);
         }
 
+        if (request.abbreviation() != null) {
+            catalog.setAbbreviation(normalize(request.abbreviation()));
+        }
         if (request.active() != null) {
             catalog.setActive(Boolean.TRUE.equals(request.active()));
+        }
+        if (request.itemLevel() != null) {
+            catalog.setItemLevel(request.itemLevel());
+        }
+        if (request.goldReward() != null) {
+            catalog.setGoldReward(request.goldReward());
+        }
+        List<String> normalizedDifficulties = null;
+        if (request.difficulties() != null) {
+            normalizedDifficulties = normalizeDifficulties(request.difficulties());
+            catalog.setDifficultyCodes(joinDifficulties(normalizedDifficulties));
+        }
+        if (request.partySize() != null) {
+            catalog.setPartySize(normalizePartySize(request.partySize()));
+        }
+        if (request.itemLevelSingle() != null) {
+            catalog.setItemLevelSingle(normalizeItemLevel(request.itemLevelSingle()));
+        }
+        if (request.itemLevelNormal() != null) {
+            catalog.setItemLevelNormal(normalizeItemLevel(request.itemLevelNormal()));
+        }
+        if (request.itemLevelHard() != null) {
+            catalog.setItemLevelHard(normalizeItemLevel(request.itemLevelHard()));
+        }
+        if (request.itemLevelNightmare() != null) {
+            catalog.setItemLevelNightmare(normalizeItemLevel(request.itemLevelNightmare()));
+        }
+        if (request.goldSingle() != null) {
+            catalog.setGoldSingle(normalizeGold(request.goldSingle()));
+        }
+        if (request.goldNormal() != null) {
+            catalog.setGoldNormal(normalizeGold(request.goldNormal()));
+        }
+        if (request.goldHard() != null) {
+            catalog.setGoldHard(normalizeGold(request.goldHard()));
+        }
+        if (request.goldNightmare() != null) {
+            catalog.setGoldNightmare(normalizeGold(request.goldNightmare()));
+        }
+        if (normalizedDifficulties != null) {
+            clearMissingDifficultyLevels(catalog, normalizedDifficulties);
+            clearMissingDifficultyGolds(catalog, normalizedDifficulties);
         }
 
         RaidCatalog saved = raidCatalogRepository.save(catalog);
         return ResponseEntity.ok(RaidCatalogResponse.of(saved));
+    }
+
+    @DeleteMapping("/{raidKey}")
+    public ResponseEntity<Void> delete(@PathVariable String raidKey) {
+        String normalizedKey = normalize(raidKey);
+        if (normalizedKey == null) throw new IllegalArgumentException("raidKey가 필요합니다.");
+        if (!raidCatalogRepository.existsById(normalizedKey)) {
+            throw new IllegalArgumentException("raidKey에 해당하는 레이드를 찾을 수 없습니다.");
+        }
+        raidCatalogRepository.deleteById(normalizedKey);
+        return ResponseEntity.noContent().build();
     }
 
     private static String normalize(String value) {
@@ -88,19 +167,177 @@ public class RaidCatalogAdminController {
         return trimmed.isBlank() ? null : trimmed;
     }
 
-    public record RaidCatalogCreateRequest(String raidKey, String raidName, Boolean active) {}
+    private static List<String> normalizeDifficulties(List<String> values) {
+        if (values == null) return List.of();
+        Set<String> selected = new HashSet<>();
+        for (String value : values) {
+            if (value == null) continue;
+            String normalized = value.trim().toLowerCase();
+            if (normalized.isBlank()) continue;
+            if (DIFFICULTY_ORDER.contains(normalized)) {
+                selected.add(normalized);
+            }
+        }
+        List<String> ordered = new ArrayList<>();
+        for (String difficulty : DIFFICULTY_ORDER) {
+            if (selected.contains(difficulty)) {
+                ordered.add(difficulty);
+            }
+        }
+        return ordered;
+    }
 
-    public record RaidCatalogUpdateRequest(String raidName, Boolean active) {}
+    private static String joinDifficulties(List<String> values) {
+        if (values == null || values.isEmpty()) return null;
+        return String.join(",", values);
+    }
 
-    public record RaidCatalogResponse(String raidKey, String raidName, boolean active, String createdAt) {
+    private static List<String> splitDifficulties(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(entry -> !entry.isBlank())
+                .toList();
+    }
+
+    private static Integer normalizePartySize(Integer value) {
+        if (value == null) return null;
+        if (!ALLOWED_PARTY_SIZES.contains(value)) {
+            throw new IllegalArgumentException("인원은 4, 8, 16만 입력 가능합니다.");
+        }
+        return value;
+    }
+
+    private static Integer normalizeGold(Integer value) {
+        if (value == null || value <= 0) return null;
+        return value;
+    }
+
+    private static Integer normalizeItemLevel(Integer value) {
+        if (value == null || value <= 0) return null;
+        return value;
+    }
+
+    private static void clearMissingDifficultyLevels(RaidCatalog catalog, List<String> difficulties) {
+        if (difficulties == null || difficulties.isEmpty()) {
+            catalog.setItemLevelSingle(null);
+            catalog.setItemLevelNormal(null);
+            catalog.setItemLevelHard(null);
+            catalog.setItemLevelNightmare(null);
+            return;
+        }
+        if (!difficulties.contains("single")) {
+            catalog.setItemLevelSingle(null);
+        }
+        if (!difficulties.contains("normal")) {
+            catalog.setItemLevelNormal(null);
+        }
+        if (!difficulties.contains("hard")) {
+            catalog.setItemLevelHard(null);
+        }
+        if (!difficulties.contains("nightmare")) {
+            catalog.setItemLevelNightmare(null);
+        }
+    }
+
+    private static void clearMissingDifficultyGolds(RaidCatalog catalog, List<String> difficulties) {
+        if (difficulties == null || difficulties.isEmpty()) {
+            catalog.setGoldSingle(null);
+            catalog.setGoldNormal(null);
+            catalog.setGoldHard(null);
+            catalog.setGoldNightmare(null);
+            return;
+        }
+        if (!difficulties.contains("single")) {
+            catalog.setGoldSingle(null);
+        }
+        if (!difficulties.contains("normal")) {
+            catalog.setGoldNormal(null);
+        }
+        if (!difficulties.contains("hard")) {
+            catalog.setGoldHard(null);
+        }
+        if (!difficulties.contains("nightmare")) {
+            catalog.setGoldNightmare(null);
+        }
+    }
+
+    public record RaidCatalogCreateRequest(
+            String raidKey,
+            String raidName,
+            String abbreviation,
+            Boolean active,
+            Integer itemLevel,
+            Integer goldReward,
+            List<String> difficulties,
+            Integer partySize,
+            Integer itemLevelSingle,
+            Integer itemLevelNormal,
+            Integer itemLevelHard,
+            Integer itemLevelNightmare,
+            Integer goldSingle,
+            Integer goldNormal,
+            Integer goldHard,
+            Integer goldNightmare
+    ) {}
+
+    public record RaidCatalogUpdateRequest(
+            String raidName,
+            String abbreviation,
+            Boolean active,
+            Integer itemLevel,
+            Integer goldReward,
+            List<String> difficulties,
+            Integer partySize,
+            Integer itemLevelSingle,
+            Integer itemLevelNormal,
+            Integer itemLevelHard,
+            Integer itemLevelNightmare,
+            Integer goldSingle,
+            Integer goldNormal,
+            Integer goldHard,
+            Integer goldNightmare
+    ) {}
+
+    public record RaidCatalogResponse(
+            String raidKey,
+            String raidName,
+            String abbreviation,
+            boolean active,
+            Integer itemLevel,
+            Integer goldReward,
+            List<String> difficulties,
+            Integer partySize,
+            Integer itemLevelSingle,
+            Integer itemLevelNormal,
+            Integer itemLevelHard,
+            Integer itemLevelNightmare,
+            Integer goldSingle,
+            Integer goldNormal,
+            Integer goldHard,
+            Integer goldNightmare,
+            String createdAt
+    ) {
         static RaidCatalogResponse of(RaidCatalog catalog) {
             return new RaidCatalogResponse(
                     catalog.getRaidKey(),
                     catalog.getRaidName(),
+                    catalog.getAbbreviation(),
                     catalog.isActive(),
+                    catalog.getItemLevel(),
+                    catalog.getGoldReward(),
+                    splitDifficulties(catalog.getDifficultyCodes()),
+                    catalog.getPartySize(),
+                    catalog.getItemLevelSingle(),
+                    catalog.getItemLevelNormal(),
+                    catalog.getItemLevelHard(),
+                    catalog.getItemLevelNightmare(),
+                    catalog.getGoldSingle(),
+                    catalog.getGoldNormal(),
+                    catalog.getGoldHard(),
+                    catalog.getGoldNightmare(),
                     catalog.getCreatedAt() != null ? catalog.getCreatedAt().toString() : null
             );
         }
     }
 }
-

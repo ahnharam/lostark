@@ -25,7 +25,7 @@
                 :disabled="!item.available"
                 @click="selectMenu(item.key)"
               >
-                <span class="menu-center__icon" aria-hidden="true">{{ item.icon }}</span>
+                <!-- <span class="menu-center__icon" aria-hidden="true">{{ item.icon }}</span> -->
                 <span class="menu-center__label">{{ item.label }}</span>
                 <span v-if="item.badge" class="menu-center__badge">{{ item.badge }}</span>
               </button>
@@ -213,7 +213,7 @@ const activeSubMenuItems = computed<SubMenuItem[]>(() => {
   if (activeMenu.value === 'admin') {
     return [
       { key: 'market-records', label: '거래소 기록' },
-      { key: 'raid-catalog', label: '레이드 추가' },
+      { key: 'raid-catalog', label: '레이드 관리' },
     ]
   }
   return []
@@ -556,7 +556,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid var(--border-color, #e5e7eb);
   background: transparent;
   color: var(--text-primary, #111827);
