@@ -30,6 +30,16 @@ export interface RaidDifficulty {
    * 난이도별 골드 획득량 (예: 4단계: 52000, 3단계: 42000 등)
    */
   goldReward: number
+
+  /**
+   * 거래 가능 골드 (없으면 undefined)
+   */
+  goldTrade?: number | null
+
+  /**
+   * 귀속 골드 (없으면 undefined)
+   */
+  goldBound?: number | null
 }
 
 /**
@@ -67,6 +77,16 @@ export interface CharacterWeeklyGold {
   totalGold: number
 
   /**
+   * 해당 캐릭터의 거래 가능 골드 합계
+   */
+  totalGoldTrade: number
+
+  /**
+   * 해당 캐릭터의 귀속 골드 합계
+   */
+  totalGoldBound: number
+
+  /**
    * 선택 여부 (체크박스)
    */
   selected: boolean
@@ -90,4 +110,14 @@ export interface WeeklyGoldData {
    * 선택된 캐릭터들의 총 골드 합계
    */
   selectedTotalGold: number
+
+  /**
+   * 선택된 캐릭터들의 거래 가능 골드 합계
+   */
+  selectedTotalGoldTrade: number
+
+  /**
+   * 선택된 캐릭터들의 귀속 골드 합계
+   */
+  selectedTotalGoldBound: number
 }

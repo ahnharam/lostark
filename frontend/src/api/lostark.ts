@@ -421,9 +421,17 @@ export const lostarkApi = {
     itemLevelHard?: number | null
     itemLevelNightmare?: number | null
     goldSingle?: number | null
+    goldSingleTrade?: number | null
+    goldSingleBound?: number | null
     goldNormal?: number | null
+    goldNormalTrade?: number | null
+    goldNormalBound?: number | null
     goldHard?: number | null
+    goldHardTrade?: number | null
+    goldHardBound?: number | null
     goldNightmare?: number | null
+    goldNightmareTrade?: number | null
+    goldNightmareBound?: number | null
   }) {
     const response = await apiClient.post<RaidCatalogEntry>('/admin/raid-catalog', body)
     return response.data
@@ -444,9 +452,17 @@ export const lostarkApi = {
       itemLevelHard?: number | null
       itemLevelNightmare?: number | null
       goldSingle?: number | null
+      goldSingleTrade?: number | null
+      goldSingleBound?: number | null
       goldNormal?: number | null
+      goldNormalTrade?: number | null
+      goldNormalBound?: number | null
       goldHard?: number | null
+      goldHardTrade?: number | null
+      goldHardBound?: number | null
       goldNightmare?: number | null
+      goldNightmareTrade?: number | null
+      goldNightmareBound?: number | null
     }
   ) {
     const response = await apiClient.patch<RaidCatalogEntry>(`/admin/raid-catalog/${encodeURIComponent(raidKey)}`, body)
@@ -532,9 +548,17 @@ export type RaidCatalogEntry = {
   itemLevelHard?: number | null
   itemLevelNightmare?: number | null
   goldSingle?: number | null
+  goldSingleTrade?: number | null
+  goldSingleBound?: number | null
   goldNormal?: number | null
+  goldNormalTrade?: number | null
+  goldNormalBound?: number | null
   goldHard?: number | null
+  goldHardTrade?: number | null
+  goldHardBound?: number | null
   goldNightmare?: number | null
+  goldNightmareTrade?: number | null
+  goldNightmareBound?: number | null
   createdAt?: string | null
 }
 

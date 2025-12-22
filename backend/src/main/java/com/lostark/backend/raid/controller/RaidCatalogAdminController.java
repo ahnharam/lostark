@@ -68,9 +68,17 @@ public class RaidCatalogAdminController {
         catalog.setItemLevelHard(normalizeItemLevel(request.itemLevelHard()));
         catalog.setItemLevelNightmare(normalizeItemLevel(request.itemLevelNightmare()));
         catalog.setGoldSingle(normalizeGold(request.goldSingle()));
+        catalog.setGoldSingleTrade(normalizeGold(request.goldSingleTrade()));
+        catalog.setGoldSingleBound(normalizeGold(request.goldSingleBound()));
         catalog.setGoldNormal(normalizeGold(request.goldNormal()));
+        catalog.setGoldNormalTrade(normalizeGold(request.goldNormalTrade()));
+        catalog.setGoldNormalBound(normalizeGold(request.goldNormalBound()));
         catalog.setGoldHard(normalizeGold(request.goldHard()));
+        catalog.setGoldHardTrade(normalizeGold(request.goldHardTrade()));
+        catalog.setGoldHardBound(normalizeGold(request.goldHardBound()));
         catalog.setGoldNightmare(normalizeGold(request.goldNightmare()));
+        catalog.setGoldNightmareTrade(normalizeGold(request.goldNightmareTrade()));
+        catalog.setGoldNightmareBound(normalizeGold(request.goldNightmareBound()));
         clearMissingDifficultyLevels(catalog, normalizedDifficulties);
         clearMissingDifficultyGolds(catalog, normalizedDifficulties);
         catalog.setPartySize(normalizePartySize(request.partySize()));
@@ -132,14 +140,38 @@ public class RaidCatalogAdminController {
         if (request.goldSingle() != null) {
             catalog.setGoldSingle(normalizeGold(request.goldSingle()));
         }
+        if (request.goldSingleTrade() != null) {
+            catalog.setGoldSingleTrade(normalizeGold(request.goldSingleTrade()));
+        }
+        if (request.goldSingleBound() != null) {
+            catalog.setGoldSingleBound(normalizeGold(request.goldSingleBound()));
+        }
         if (request.goldNormal() != null) {
             catalog.setGoldNormal(normalizeGold(request.goldNormal()));
+        }
+        if (request.goldNormalTrade() != null) {
+            catalog.setGoldNormalTrade(normalizeGold(request.goldNormalTrade()));
+        }
+        if (request.goldNormalBound() != null) {
+            catalog.setGoldNormalBound(normalizeGold(request.goldNormalBound()));
         }
         if (request.goldHard() != null) {
             catalog.setGoldHard(normalizeGold(request.goldHard()));
         }
+        if (request.goldHardTrade() != null) {
+            catalog.setGoldHardTrade(normalizeGold(request.goldHardTrade()));
+        }
+        if (request.goldHardBound() != null) {
+            catalog.setGoldHardBound(normalizeGold(request.goldHardBound()));
+        }
         if (request.goldNightmare() != null) {
             catalog.setGoldNightmare(normalizeGold(request.goldNightmare()));
+        }
+        if (request.goldNightmareTrade() != null) {
+            catalog.setGoldNightmareTrade(normalizeGold(request.goldNightmareTrade()));
+        }
+        if (request.goldNightmareBound() != null) {
+            catalog.setGoldNightmareBound(normalizeGold(request.goldNightmareBound()));
         }
         if (normalizedDifficulties != null) {
             clearMissingDifficultyLevels(catalog, normalizedDifficulties);
@@ -243,22 +275,38 @@ public class RaidCatalogAdminController {
     private static void clearMissingDifficultyGolds(RaidCatalog catalog, List<String> difficulties) {
         if (difficulties == null || difficulties.isEmpty()) {
             catalog.setGoldSingle(null);
+            catalog.setGoldSingleTrade(null);
+            catalog.setGoldSingleBound(null);
             catalog.setGoldNormal(null);
+            catalog.setGoldNormalTrade(null);
+            catalog.setGoldNormalBound(null);
             catalog.setGoldHard(null);
+            catalog.setGoldHardTrade(null);
+            catalog.setGoldHardBound(null);
             catalog.setGoldNightmare(null);
+            catalog.setGoldNightmareTrade(null);
+            catalog.setGoldNightmareBound(null);
             return;
         }
         if (!difficulties.contains("single")) {
             catalog.setGoldSingle(null);
+            catalog.setGoldSingleTrade(null);
+            catalog.setGoldSingleBound(null);
         }
         if (!difficulties.contains("normal")) {
             catalog.setGoldNormal(null);
+            catalog.setGoldNormalTrade(null);
+            catalog.setGoldNormalBound(null);
         }
         if (!difficulties.contains("hard")) {
             catalog.setGoldHard(null);
+            catalog.setGoldHardTrade(null);
+            catalog.setGoldHardBound(null);
         }
         if (!difficulties.contains("nightmare")) {
             catalog.setGoldNightmare(null);
+            catalog.setGoldNightmareTrade(null);
+            catalog.setGoldNightmareBound(null);
         }
     }
 
@@ -276,9 +324,17 @@ public class RaidCatalogAdminController {
             Integer itemLevelHard,
             Integer itemLevelNightmare,
             Integer goldSingle,
+            Integer goldSingleTrade,
+            Integer goldSingleBound,
             Integer goldNormal,
+            Integer goldNormalTrade,
+            Integer goldNormalBound,
             Integer goldHard,
-            Integer goldNightmare
+            Integer goldHardTrade,
+            Integer goldHardBound,
+            Integer goldNightmare,
+            Integer goldNightmareTrade,
+            Integer goldNightmareBound
     ) {}
 
     public record RaidCatalogUpdateRequest(
@@ -294,9 +350,17 @@ public class RaidCatalogAdminController {
             Integer itemLevelHard,
             Integer itemLevelNightmare,
             Integer goldSingle,
+            Integer goldSingleTrade,
+            Integer goldSingleBound,
             Integer goldNormal,
+            Integer goldNormalTrade,
+            Integer goldNormalBound,
             Integer goldHard,
-            Integer goldNightmare
+            Integer goldHardTrade,
+            Integer goldHardBound,
+            Integer goldNightmare,
+            Integer goldNightmareTrade,
+            Integer goldNightmareBound
     ) {}
 
     public record RaidCatalogResponse(
@@ -313,9 +377,17 @@ public class RaidCatalogAdminController {
             Integer itemLevelHard,
             Integer itemLevelNightmare,
             Integer goldSingle,
+            Integer goldSingleTrade,
+            Integer goldSingleBound,
             Integer goldNormal,
+            Integer goldNormalTrade,
+            Integer goldNormalBound,
             Integer goldHard,
+            Integer goldHardTrade,
+            Integer goldHardBound,
             Integer goldNightmare,
+            Integer goldNightmareTrade,
+            Integer goldNightmareBound,
             String createdAt
     ) {
         static RaidCatalogResponse of(RaidCatalog catalog) {
@@ -333,9 +405,17 @@ public class RaidCatalogAdminController {
                     catalog.getItemLevelHard(),
                     catalog.getItemLevelNightmare(),
                     catalog.getGoldSingle(),
+                    catalog.getGoldSingleTrade(),
+                    catalog.getGoldSingleBound(),
                     catalog.getGoldNormal(),
+                    catalog.getGoldNormalTrade(),
+                    catalog.getGoldNormalBound(),
                     catalog.getGoldHard(),
+                    catalog.getGoldHardTrade(),
+                    catalog.getGoldHardBound(),
                     catalog.getGoldNightmare(),
+                    catalog.getGoldNightmareTrade(),
+                    catalog.getGoldNightmareBound(),
                     catalog.getCreatedAt() != null ? catalog.getCreatedAt().toString() : null
             );
         }

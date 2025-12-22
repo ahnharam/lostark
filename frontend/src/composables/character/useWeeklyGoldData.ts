@@ -82,17 +82,44 @@ const selectAutoRaids = (itemLevel: number, raids: RaidDifficulty[]) => {
   return selected
 }
 
-const resolveDifficultyGold = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
-  const goldMap: Record<DifficultyId, number | null | undefined> = {
+const resolveDifficultyGoldParts = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
+  const tradeMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleTrade,
+    normal: entry.goldNormalTrade,
+    hard: entry.goldHardTrade,
+    nightmare: entry.goldNightmareTrade
+  }
+  const boundMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleBound,
+    normal: entry.goldNormalBound,
+    hard: entry.goldHardBound,
+    nightmare: entry.goldNightmareBound
+  }
+  const trade = tradeMap[difficulty]
+  const bound = boundMap[difficulty]
+  const tradeValue = isNumber(trade) && trade > 0 ? trade : null
+  const boundValue = isNumber(bound) && bound > 0 ? bound : null
+  if (tradeValue !== null || boundValue !== null) {
+    return {
+      total: (tradeValue ?? 0) + (boundValue ?? 0),
+      trade: tradeValue,
+      bound: boundValue
+    }
+  }
+  const legacyMap: Record<DifficultyId, number | null | undefined> = {
     single: entry.goldSingle,
     normal: entry.goldNormal,
     hard: entry.goldHard,
     nightmare: entry.goldNightmare
   }
-  const difficultyGold = goldMap[difficulty]
-  if (isNumber(difficultyGold) && difficultyGold > 0) return difficultyGold
-  if (isNumber(entry.goldReward) && entry.goldReward > 0) return entry.goldReward
-  return null
+  const legacyGold = legacyMap[difficulty]
+  if (isNumber(legacyGold) && legacyGold > 0) {
+    return { total: legacyGold, trade: null, bound: null }
+  }
+  if (isNumber(entry.goldReward) && entry.goldReward > 0) {
+    return { total: entry.goldReward, trade: null, bound: null }
+  }
+  return { total: null, trade: null, bound: null }
 }
 
 const resolveDifficultyItemLevel = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
@@ -123,23 +150,27 @@ const toRaidDifficulties = (entry: RaidCatalogEntry): RaidDifficulty[] => {
         name: displayName,
         abbreviation,
         itemLevel: entry.itemLevel,
-        goldReward: entry.goldReward
+        goldReward: entry.goldReward,
+        goldTrade: null,
+        goldBound: null
       }
     ]
   }
 
   return difficulties
     .map((difficulty) => {
-      const gold = resolveDifficultyGold(entry, difficulty)
+      const goldParts = resolveDifficultyGoldParts(entry, difficulty)
       const itemLevel = resolveDifficultyItemLevel(entry, difficulty)
-      if (!isNumber(gold) || gold <= 0) return null
+      if (!isNumber(goldParts.total) || goldParts.total <= 0) return null
       if (!isNumber(itemLevel) || itemLevel <= 0) return null
       return {
         raidKey: `${entry.raidKey}:${difficulty}`,
         name: `${displayName} (${difficultyLabelMap[difficulty]})`,
         abbreviation,
         itemLevel,
-        goldReward: gold
+        goldReward: goldParts.total,
+        goldTrade: goldParts.trade,
+        goldBound: goldParts.bound
       }
     })
     .filter((value): value is RaidDifficulty => value !== null)
@@ -278,12 +309,22 @@ export const useWeeklyGoldData = (
       return levelB - levelA
     })
 
+    const selectedCountByServer = new Map<string, number>()
+
     charactersGoldData.value = sortedChars.map((char, index) => {
       const itemLevel = parseItemLevel(char.itemMaxLevel || char.itemAvgLevel)
+      const serverName = char.serverName?.trim() || '알 수 없음'
+      const selectedCount = selectedCountByServer.get(serverName) ?? 0
+      const selected = selectedCount < 6
+      if (selected) {
+        selectedCountByServer.set(serverName, selectedCount + 1)
+      }
 
       const selectedRaids = selectAutoRaids(itemLevel, raidDifficulties.value)
       const completedRaids = selectedRaids.map(raid => raid.raidKey)
       const totalGold = selectedRaids.reduce((sum, raid) => sum + raid.goldReward, 0)
+      const totalGoldTrade = selectedRaids.reduce((sum, raid) => sum + (raid.goldTrade ?? 0), 0)
+      const totalGoldBound = selectedRaids.reduce((sum, raid) => sum + (raid.goldBound ?? 0), 0)
 
       return {
         characterName: char.characterName,
@@ -292,7 +333,9 @@ export const useWeeklyGoldData = (
         characterClassName: char.characterClassName,
         completedRaids,
         totalGold,
-        selected: index < 6 // 상위 6캐릭터만 선택 (주간 골드 획득 가능 캐릭터 수)
+        totalGoldTrade,
+        totalGoldBound,
+        selected
       }
     })
   }
@@ -316,10 +359,14 @@ export const useWeeklyGoldData = (
       // 이미 완료된 레이드 -> 제거
       charData.completedRaids.splice(raidIndex, 1)
       charData.totalGold -= raid.goldReward
+      charData.totalGoldTrade -= raid.goldTrade ?? 0
+      charData.totalGoldBound -= raid.goldBound ?? 0
     } else {
       // 완료되지 않은 레이드 -> 추가
       charData.completedRaids.push(raidKey)
       charData.totalGold += raid.goldReward
+      charData.totalGoldTrade += raid.goldTrade ?? 0
+      charData.totalGoldBound += raid.goldBound ?? 0
     }
   }
 
@@ -354,13 +401,27 @@ export const useWeeklyGoldData = (
       .reduce((sum, c) => sum + c.totalGold, 0)
   })
 
+  const selectedTotalGoldTrade = computed(() => {
+    return charactersGoldData.value
+      .filter((c) => c.selected)
+      .reduce((sum, c) => sum + c.totalGoldTrade, 0)
+  })
+
+  const selectedTotalGoldBound = computed(() => {
+    return charactersGoldData.value
+      .filter((c) => c.selected)
+      .reduce((sum, c) => sum + c.totalGoldBound, 0)
+  })
+
   /**
    * 주간 골드 획득 전체 데이터
    */
   const weeklyGoldData = computed<WeeklyGoldData>(() => ({
     raidDifficulties: raidDifficulties.value,
     characters: charactersGoldData.value, // 이미 아이템 레벨 내림차순으로 정렬됨
-    selectedTotalGold: selectedTotalGold.value
+    selectedTotalGold: selectedTotalGold.value,
+    selectedTotalGoldTrade: selectedTotalGoldTrade.value,
+    selectedTotalGoldBound: selectedTotalGoldBound.value
   }))
 
   watch([allCharacters, raidDifficulties], () => {

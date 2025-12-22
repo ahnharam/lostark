@@ -22,6 +22,19 @@
 - `frontend/src/components/AdminRaidCatalog.vue`
 - `frontend/src/api/lostark.ts`
 
+---
+
+### 2025-12-22: 레이드 관리 일괄 수정 모드 개선
+
+**변경 유형**: Feature / Fix
+
+**변경 내용**:
+- 등록된 레이드 목록 편집을 상단 일괄 수정/저장/취소로 전환
+- 수정 모드 진입 시 골드 입력값이 비어 보이던 문제 수정
+
+**영향받은 파일**:
+- `frontend/src/components/AdminRaidCatalog.vue`
+
 ## 2025-01
 
 ### 2025-01: Phase 4 라우팅 개선

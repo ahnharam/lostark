@@ -6,7 +6,16 @@
         <p class="section-subtitle">캐릭터별 레이드 완료 현황을 체크하여 주간 골드를 계산합니다.</p>
       </div>
       <div class="gold-total">
-        골드 <span class="total-amount">{{ formatGold(selectedTotalGold) }}</span>
+        <span>골드</span>
+        <div class="gold-total-values">
+          <span class="total-amount">{{ formatGold(selectedTotalGold) }}</span>
+          <span
+            v-if="hasSplitGold(selectedTotalGoldTrade, selectedTotalGoldBound)"
+            class="gold-breakdown"
+          >
+            거래 {{ formatGold(selectedTotalGoldTrade) }} / 귀속 {{ formatGold(selectedTotalGoldBound) }}
+          </span>
+        </div>
         <!-- <button
           type="button"
           class="toggle-expand-btn"
@@ -30,7 +39,15 @@
             @click="toggleServer(group.serverName)"
           >
             <span class="server-name">{{ group.serverName }}</span>
-            <span class="server-total">{{ formatGold(group.totalGold) }}</span>
+            <div class="server-total-group">
+              <span class="server-total">{{ formatGold(group.totalGold) }}</span>
+              <span
+                v-if="hasSplitGold(group.totalGoldTrade, group.totalGoldBound)"
+                class="server-total-breakdown"
+              >
+                거래 {{ formatGold(group.totalGoldTrade) }} / 귀속 {{ formatGold(group.totalGoldBound) }}
+              </span>
+            </div>
             <span class="server-arrow">{{ isServerExpanded(group.serverName) ? '▴' : '▾' }}</span>
           </button>
           <div v-if="isServerExpanded(group.serverName)" class="table-wrapper">
@@ -45,14 +62,22 @@
                     :key="raid.raidKey"
                     class="col-raid"
                   >
-                    <div class="raid-header">
-                      <div class="raid-name">{{ raid.name }}</div>
-                      <div class="raid-level">{{ raid.itemLevel }}</div>
-                      <div class="raid-gold">{{ formatGold(raid.goldReward) }}</div>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
+                      <div class="raid-header">
+                        <div class="raid-name">{{ raid.name }}</div>
+                        <div class="raid-level">{{ raid.itemLevel }}</div>
+                        <div class="raid-gold">
+                          <template v-if="hasSplitGold(raid.goldTrade, raid.goldBound)">
+                            <span class="raid-gold-part">거래 {{ formatGold(raid.goldTrade ?? 0) }}</span>
+                            <span class="raid-gold-part">귀속 {{ formatGold(raid.goldBound ?? 0) }}</span>
+                          </template>
+                          <template v-else>
+                            <span class="raid-gold-total">{{ formatGold(raid.goldReward) }}</span>
+                          </template>
+                        </div>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
               <tbody>
                 <tr
                   v-for="char in group.characters"
@@ -73,7 +98,15 @@
                     </div>
                   </td>
                   <td class="col-gold">
-                    <span class="gold-amount">{{ formatGold(char.totalGold) }}</span>
+                    <div class="gold-stack">
+                      <span class="gold-amount">{{ formatGold(char.totalGold) }}</span>
+                      <span
+                        v-if="hasSplitGold(char.totalGoldTrade, char.totalGoldBound)"
+                        class="gold-breakdown"
+                      >
+                        거래 {{ formatGold(char.totalGoldTrade) }} / 귀속 {{ formatGold(char.totalGoldBound) }}
+                      </span>
+                    </div>
                   </td>
                   <td
                     v-for="raid in raidDifficulties"
@@ -116,6 +149,16 @@ const props = defineProps<{
    * 선택된 캐릭터들의 총 골드 합계
    */
   selectedTotalGold: number
+
+  /**
+   * 선택된 캐릭터들의 거래 가능 골드 합계
+   */
+  selectedTotalGoldTrade: number
+
+  /**
+   * 선택된 캐릭터들의 귀속 골드 합계
+   */
+  selectedTotalGoldBound: number
 }>()
 
 defineEmits<{
@@ -152,7 +195,9 @@ const groupedServers = computed(() => {
   return Array.from(map.entries()).map(([serverName, characters]) => ({
     serverName,
     characters,
-    totalGold: characters.filter(c => c.selected).reduce((sum, c) => sum + c.totalGold, 0)
+    totalGold: characters.filter(c => c.selected).reduce((sum, c) => sum + c.totalGold, 0),
+    totalGoldTrade: characters.filter(c => c.selected).reduce((sum, c) => sum + c.totalGoldTrade, 0),
+    totalGoldBound: characters.filter(c => c.selected).reduce((sum, c) => sum + c.totalGoldBound, 0)
   }))
 })
 
@@ -182,6 +227,10 @@ watch(groupedServers, (groups) => {
  */
 const formatGold = (value: number): string => {
   return `${value.toLocaleString()}G`
+}
+
+const hasSplitGold = (trade?: number | null, bound?: number | null) => {
+  return (trade ?? 0) > 0 || (bound ?? 0) > 0
 }
 
 /**
@@ -231,6 +280,13 @@ const formatItemLevel = (value: number): string => {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary, #111827);
+}
+
+.gold-total-values {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: flex-end;
 }
 
 .total-amount {
@@ -335,6 +391,18 @@ const formatItemLevel = (value: number): string => {
   color: #f59e0b;
 }
 
+.server-total-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.server-total-breakdown {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #6b7280);
+}
+
 .server-arrow {
   color: var(--text-secondary, #6b7280);
 }
@@ -376,8 +444,16 @@ const formatItemLevel = (value: number): string => {
 }
 
 .raid-gold {
-  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.7rem;
   color: #f59e0b;
+}
+
+.raid-gold-part,
+.raid-gold-total {
+  white-space: nowrap;
 }
 
 .character-info {
@@ -400,6 +476,18 @@ const formatItemLevel = (value: number): string => {
 
 .gold-amount {
   font-weight: 600;
+}
+
+.gold-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.gold-breakdown {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #6b7280);
 }
 
 .weekly-gold-table tbody tr {

@@ -2,7 +2,7 @@
   <div class="admin-raid-catalog">
     <Teleport to="#admin-submenu-actions" v-if="isActive">
       <div class="actions">
-        <button class="btn ghost" type="button" :disabled="loading" @click="loadCatalog">
+        <button class="btn ghost" type="button" :disabled="loading || isEditMode" @click="loadCatalog">
           새로고침
         </button>
       </div>
@@ -24,7 +24,38 @@
             <p class="eyebrow">레이드 관리</p>
             <h4>총 {{ rows.length }}건</h4>
           </div>
-          <span v-if="message" class="muted">{{ message }}</span>
+          <div class="panel-actions">
+            <span v-if="message" class="muted">{{ message }}</span>
+            <div class="btn-group">
+              <button
+                v-if="!isEditMode"
+                class="btn ghost"
+                type="button"
+                :disabled="loading || !rows.length"
+                @click="startEditAll"
+              >
+                수정
+              </button>
+              <template v-else>
+                <button
+                  class="btn"
+                  type="button"
+                  :disabled="loading"
+                  @click="saveAllEdits"
+                >
+                  저장
+                </button>
+                <button
+                  class="btn ghost"
+                  type="button"
+                  :disabled="loading"
+                  @click="cancelEditAll"
+                >
+                  취소
+                </button>
+              </template>
+            </div>
+          </div>
         </div>
 
         <form class="form-row" @submit.prevent="createRaid">
@@ -41,7 +72,7 @@
             <input v-model.trim="draft.abbreviation" class="input" type="text" placeholder="예: 5막" />
           </label>
           <label class="field field--wide">
-            <span class="field-label">난이도/입장/골드</span>
+            <span class="field-label">난이도/입장/골드(거래/귀속)</span>
             <div class="checkbox-group">
               <label v-for="option in difficultyOptions" :key="option.id" class="checkbox checkbox--gold">
                 <input v-model="draft.difficulties" type="checkbox" :value="option.id" />
@@ -55,11 +86,19 @@
                   :disabled="!draft.difficulties.includes(option.id)"
                 />
                 <input
-                  v-model="draft.difficultyGolds[option.id]"
+                  v-model="draft.difficultyGoldsTrade[option.id]"
                   class="input input--xs"
                   type="number"
                   min="0"
-                  placeholder="골드"
+                  placeholder="거래"
+                  :disabled="!draft.difficulties.includes(option.id)"
+                />
+                <input
+                  v-model="draft.difficultyGoldsBound[option.id]"
+                  class="input input--xs"
+                  type="number"
+                  min="0"
+                  placeholder="귀속"
                   :disabled="!draft.difficulties.includes(option.id)"
                 />
               </label>
@@ -76,7 +115,7 @@
             <input v-model="draft.active" type="checkbox" />
             활성
           </label>
-          <button class="btn btn-primary" type="submit" :disabled="loading">추가</button>
+          <button class="btn btn-primary" type="submit" :disabled="loading || isEditMode">추가</button>
         </form>
 
         <LoadingSpinner v-if="loading" message="불러오는 중..." />
@@ -87,7 +126,7 @@
             <span>raidKey</span>
             <span>raidName</span>
             <span>약어</span>
-            <span>난이도/입장/골드</span>
+            <span>난이도/입장/골드(거래/귀속)</span>
             <span>인원</span>
             <span>상태</span>
             <span>생성일</span>
@@ -95,105 +134,78 @@
           </div>
           <div v-for="row in rows" :key="row.raidKey" class="table-row">
             <span class="mono">{{ row.raidKey }}</span>
-            <span v-if="!isEditing(row)">{{ row.raidName }}</span>
+            <span v-if="!isEditMode">{{ row.raidName }}</span>
             <input
               v-else
-              v-model.trim="editDraft.raidName"
+              v-model.trim="editDrafts[row.raidKey].raidName"
               class="input input--inline"
               type="text"
               placeholder="레이드 이름"
             />
-            <span v-if="!isEditing(row)">{{ row.abbreviation || '-' }}</span>
+            <span v-if="!isEditMode">{{ row.abbreviation || '-' }}</span>
             <input
               v-else
-              v-model.trim="editDraft.abbreviation"
+              v-model.trim="editDrafts[row.raidKey].abbreviation"
               class="input input--inline"
               type="text"
               placeholder="약어"
             />
-            <span v-if="!isEditing(row)">{{ formatDifficultyDetails(row) }}</span>
+            <span v-if="!isEditMode">{{ formatDifficultyDetails(row) }}</span>
             <div v-else class="checkbox-group">
               <label v-for="option in difficultyOptions" :key="option.id" class="checkbox checkbox--gold">
-                <input v-model="editDraft.difficulties" type="checkbox" :value="option.id" />
+                <input v-model="editDrafts[row.raidKey].difficulties" type="checkbox" :value="option.id" />
                 <span>{{ option.label }}</span>
                 <input
-                  v-model="editDraft.difficultyLevels[option.id]"
+                  v-model="editDrafts[row.raidKey].difficultyLevels[option.id]"
                   class="input input--xs"
                   type="number"
                   min="0"
                   placeholder="레벨"
-                  :disabled="!editDraft.difficulties.includes(option.id)"
+                  :disabled="!editDrafts[row.raidKey].difficulties.includes(option.id)"
                 />
                 <input
-                  v-model="editDraft.difficultyGolds[option.id]"
+                  v-model="editDrafts[row.raidKey].difficultyGoldsTrade[option.id]"
                   class="input input--xs"
                   type="number"
                   min="0"
-                  placeholder="골드"
-                  :disabled="!editDraft.difficulties.includes(option.id)"
+                  placeholder="거래"
+                  :disabled="!editDrafts[row.raidKey].difficulties.includes(option.id)"
+                />
+                <input
+                  v-model="editDrafts[row.raidKey].difficultyGoldsBound[option.id]"
+                  class="input input--xs"
+                  type="number"
+                  min="0"
+                  placeholder="귀속"
+                  :disabled="!editDrafts[row.raidKey].difficulties.includes(option.id)"
                 />
               </label>
             </div>
-            <span v-if="!isEditing(row)">{{ formatPartySize(row.partySize) }}</span>
-            <select v-else v-model="editDraft.partySize" class="select select--inline">
+            <span v-if="!isEditMode">{{ formatPartySize(row.partySize) }}</span>
+            <select v-else v-model="editDrafts[row.raidKey].partySize" class="select select--inline">
               <option value="">미설정</option>
               <option v-for="size in partySizeOptions" :key="size" :value="String(size)">{{ size }}명</option>
             </select>
-            <span v-if="!isEditing(row)">
+            <span v-if="!isEditMode">
               <span class="pill" :class="{ off: !row.active }">{{ row.active ? '활성' : '비활성' }}</span>
             </span>
             <label v-else class="checkbox inline">
-              <input v-model="editDraft.active" type="checkbox" />
+              <input v-model="editDrafts[row.raidKey].active" type="checkbox" />
               활성
             </label>
             <span class="muted">{{ formatDate(row.createdAt) }}</span>
             <span class="align-right">
-              <div class="btn-group">
-                <template v-if="isEditing(row)">
-                  <button
-                    class="btn btn-sm"
-                    type="button"
-                    :disabled="loading"
-                    @click="saveEdit"
-                  >
-                    저장
-                  </button>
-                  <button
-                    class="btn ghost btn-sm"
-                    type="button"
-                    :disabled="loading"
-                    @click="cancelEdit"
-                  >
-                    취소
-                  </button>
-                </template>
-                <template v-else>
-                  <button
-                    class="btn ghost btn-sm"
-                    type="button"
-                    :disabled="loading"
-                    @click="startEdit(row)"
-                  >
-                    수정
-                  </button>
-                  <button
-                    class="btn ghost btn-sm"
-                    type="button"
-                    :disabled="loading"
-                    @click="toggleActive(row)"
-                  >
-                    {{ row.active ? '비활성화' : '활성화' }}
-                  </button>
-                  <button
-                    class="btn ghost btn-sm"
-                    type="button"
-                    :disabled="loading"
-                    @click="deleteRaid(row)"
-                  >
-                    삭제
-                  </button>
-                </template>
+              <div v-if="!isEditMode" class="btn-group">
+                <button
+                  class="btn ghost btn-sm"
+                  type="button"
+                  :disabled="loading"
+                  @click="deleteRaid(row)"
+                >
+                  삭제
+                </button>
               </div>
+              <span v-else class="muted">-</span>
             </span>
           </div>
         </div>
@@ -203,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { onActivated, onDeactivated, onMounted, ref } from 'vue'
+import { onActivated, onDeactivated, onMounted, ref, watch } from 'vue'
 import { lostarkApi, type RaidCatalogEntry } from '@/api/lostark'
 import { getHttpErrorMessage } from '@/utils/httpError'
 import LoadingSpinner from './common/LoadingSpinner.vue'
@@ -212,7 +224,8 @@ const rows = ref<RaidCatalogEntry[]>([])
 const loading = ref(false)
 const error = ref('')
 const message = ref('')
-const editingKey = ref<string | null>(null)
+const isEditMode = ref(false)
+const editDrafts = ref<Record<string, RaidDraft>>({})
 
 const difficultyOptions = [
   { id: 'single', label: '싱글' },
@@ -228,7 +241,8 @@ type DifficultyId = (typeof difficultyOptions)[number]['id']
 const difficultyIdSet = new Set<DifficultyId>(difficultyOptions.map(option => option.id))
 const difficultyLabelMap = new Map<DifficultyId, string>(difficultyOptions.map(option => [option.id, option.label]))
 
-type DifficultyGolds = Record<DifficultyId, string>
+type DifficultyGoldsTrade = Record<DifficultyId, string>
+type DifficultyGoldsBound = Record<DifficultyId, string>
 type DifficultyLevels = Record<DifficultyId, string>
 
 type RaidDraft = {
@@ -239,10 +253,18 @@ type RaidDraft = {
   difficulties: DifficultyId[]
   partySize: string
   difficultyLevels: DifficultyLevels
-  difficultyGolds: DifficultyGolds
+  difficultyGoldsTrade: DifficultyGoldsTrade
+  difficultyGoldsBound: DifficultyGoldsBound
 }
 
-const createEmptyDifficultyGolds = (): DifficultyGolds => ({
+const createEmptyDifficultyGoldsTrade = (): DifficultyGoldsTrade => ({
+  single: '',
+  normal: '',
+  hard: '',
+  nightmare: ''
+})
+
+const createEmptyDifficultyGoldsBound = (): DifficultyGoldsBound => ({
   single: '',
   normal: '',
   hard: '',
@@ -256,17 +278,6 @@ const createEmptyDifficultyLevels = (): DifficultyLevels => ({
   nightmare: ''
 })
 
-const editDraft = ref<RaidDraft>({
-  raidKey: '',
-  raidName: '',
-  abbreviation: '',
-  active: true,
-  difficulties: [],
-  partySize: '',
-  difficultyLevels: createEmptyDifficultyLevels(),
-  difficultyGolds: createEmptyDifficultyGolds()
-})
-
 const draft = ref<RaidDraft>({
   raidKey: '',
   raidName: '',
@@ -275,7 +286,8 @@ const draft = ref<RaidDraft>({
   difficulties: [],
   partySize: '',
   difficultyLevels: createEmptyDifficultyLevels(),
-  difficultyGolds: createEmptyDifficultyGolds()
+  difficultyGoldsTrade: createEmptyDifficultyGoldsTrade(),
+  difficultyGoldsBound: createEmptyDifficultyGoldsBound()
 })
 
 const passwordInput = ref('')
@@ -325,13 +337,18 @@ const formatDifficultyDetails = (entry: RaidCatalogEntry) => {
   const parts = difficulties.map(difficulty => {
     const label = difficultyLabelMap.get(difficulty) ?? difficulty
     const itemLevel = resolveDifficultyItemLevel(entry, difficulty)
-    const gold = resolveDifficultyGold(entry, difficulty)
+    const { trade, bound } = resolveDifficultyGoldParts(entry, difficulty)
+    const legacyGold = resolveLegacyDifficultyGold(entry, difficulty)
     const detailParts = []
     if (itemLevel) {
       detailParts.push(`Lv.${formatNumber(itemLevel)}`)
     }
-    if (gold) {
-      detailParts.push(`${formatNumber(gold)}G`)
+    if (trade !== null || bound !== null) {
+      const tradeLabel = trade !== null ? `${formatNumber(trade)}G` : '-'
+      const boundLabel = bound !== null ? `${formatNumber(bound)}G` : '-'
+      detailParts.push(`거래 ${tradeLabel} / 귀속 ${boundLabel}`)
+    } else if (legacyGold) {
+      detailParts.push(`총 ${formatNumber(legacyGold)}G`)
     }
     return detailParts.length > 0 ? `${label} ${detailParts.join(' / ')}` : label
   })
@@ -350,6 +367,10 @@ const parseOptionalNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+const isFiniteNumber = (value: unknown): value is number => {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
 const normalizeDifficultyIds = (values: string[]) => {
   const selected = new Set<DifficultyId>()
   values.forEach(value => {
@@ -362,21 +383,24 @@ const normalizeDifficultyIds = (values: string[]) => {
   return difficultyOptions.map(option => option.id).filter(id => selected.has(id))
 }
 
-const resolveDifficultyGold = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
-  const goldMap: Record<DifficultyId, number | null | undefined> = {
-    single: entry.goldSingle,
-    normal: entry.goldNormal,
-    hard: entry.goldHard,
-    nightmare: entry.goldNightmare
+const resolveDifficultyGoldParts = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
+  const tradeMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleTrade,
+    normal: entry.goldNormalTrade,
+    hard: entry.goldHardTrade,
+    nightmare: entry.goldNightmareTrade
   }
-  const goldValue = goldMap[difficulty]
-  if (typeof goldValue === 'number' && Number.isFinite(goldValue) && goldValue > 0) {
-    return goldValue
+  const boundMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleBound,
+    normal: entry.goldNormalBound,
+    hard: entry.goldHardBound,
+    nightmare: entry.goldNightmareBound
   }
-  if (typeof entry.goldReward === 'number' && Number.isFinite(entry.goldReward) && entry.goldReward > 0) {
-    return entry.goldReward
-  }
-  return null
+  const tradeValue = tradeMap[difficulty]
+  const boundValue = boundMap[difficulty]
+  const trade = typeof tradeValue === 'number' && Number.isFinite(tradeValue) && tradeValue > 0 ? tradeValue : null
+  const bound = typeof boundValue === 'number' && Number.isFinite(boundValue) && boundValue > 0 ? boundValue : null
+  return { trade, bound }
 }
 
 const resolveDifficultyItemLevel = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
@@ -396,12 +420,79 @@ const resolveDifficultyItemLevel = (entry: RaidCatalogEntry, difficulty: Difficu
   return null
 }
 
-const buildDifficultyGolds = (entry: RaidCatalogEntry): DifficultyGolds => ({
-  single: entry.goldSingle != null ? String(entry.goldSingle) : '',
-  normal: entry.goldNormal != null ? String(entry.goldNormal) : '',
-  hard: entry.goldHard != null ? String(entry.goldHard) : '',
-  nightmare: entry.goldNightmare != null ? String(entry.goldNightmare) : ''
-})
+const resolveLegacyDifficultyGold = (entry: RaidCatalogEntry, difficulty: DifficultyId) => {
+  const legacyMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingle,
+    normal: entry.goldNormal,
+    hard: entry.goldHard,
+    nightmare: entry.goldNightmare
+  }
+  const goldValue = legacyMap[difficulty]
+  if (typeof goldValue === 'number' && Number.isFinite(goldValue) && goldValue > 0) {
+    return goldValue
+  }
+  if (typeof entry.goldReward === 'number' && Number.isFinite(entry.goldReward) && entry.goldReward > 0) {
+    return entry.goldReward
+  }
+  return null
+}
+
+const buildDifficultyGoldsTrade = (entry: RaidCatalogEntry): DifficultyGoldsTrade => {
+  const tradeMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleTrade,
+    normal: entry.goldNormalTrade,
+    hard: entry.goldHardTrade,
+    nightmare: entry.goldNightmareTrade
+  }
+  const boundMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleBound,
+    normal: entry.goldNormalBound,
+    hard: entry.goldHardBound,
+    nightmare: entry.goldNightmareBound
+  }
+  const resolveValue = (difficulty: DifficultyId) => {
+    const tradeValue = tradeMap[difficulty]
+    const boundValue = boundMap[difficulty]
+    if (isFiniteNumber(tradeValue)) return String(tradeValue)
+    if (isFiniteNumber(boundValue)) return ''
+    const legacyGold = resolveLegacyDifficultyGold(entry, difficulty)
+    return legacyGold !== null ? String(legacyGold) : ''
+  }
+  return {
+    single: resolveValue('single'),
+    normal: resolveValue('normal'),
+    hard: resolveValue('hard'),
+    nightmare: resolveValue('nightmare')
+  }
+}
+
+const buildDifficultyGoldsBound = (entry: RaidCatalogEntry): DifficultyGoldsBound => {
+  const tradeMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleTrade,
+    normal: entry.goldNormalTrade,
+    hard: entry.goldHardTrade,
+    nightmare: entry.goldNightmareTrade
+  }
+  const boundMap: Record<DifficultyId, number | null | undefined> = {
+    single: entry.goldSingleBound,
+    normal: entry.goldNormalBound,
+    hard: entry.goldHardBound,
+    nightmare: entry.goldNightmareBound
+  }
+  const resolveValue = (difficulty: DifficultyId) => {
+    const boundValue = boundMap[difficulty]
+    const tradeValue = tradeMap[difficulty]
+    if (isFiniteNumber(boundValue)) return String(boundValue)
+    if (isFiniteNumber(tradeValue)) return ''
+    return ''
+  }
+  return {
+    single: resolveValue('single'),
+    normal: resolveValue('normal'),
+    hard: resolveValue('hard'),
+    nightmare: resolveValue('nightmare')
+  }
+}
 
 const buildDifficultyLevels = (entry: RaidCatalogEntry): DifficultyLevels => ({
   single: entry.itemLevelSingle != null ? String(entry.itemLevelSingle) : '',
@@ -413,23 +504,42 @@ const buildDifficultyLevels = (entry: RaidCatalogEntry): DifficultyLevels => ({
 const parseGoldValue = (value: unknown) => parseOptionalNumber(value)
 const parseLevelValue = (value: unknown) => parseOptionalNumber(value)
 
-const buildDifficultyGoldPayload = (difficulties: DifficultyId[], golds: DifficultyGolds) => {
+const buildDifficultyGoldPayload = (
+  difficulties: DifficultyId[],
+  tradeGolds: DifficultyGoldsTrade,
+  boundGolds: DifficultyGoldsBound
+) => {
   const selected = new Set(difficulties)
   const payload: {
-    goldSingle?: number | null
-    goldNormal?: number | null
-    goldHard?: number | null
-    goldNightmare?: number | null
+    goldSingleTrade?: number | null
+    goldSingleBound?: number | null
+    goldNormalTrade?: number | null
+    goldNormalBound?: number | null
+    goldHardTrade?: number | null
+    goldHardBound?: number | null
+    goldNightmareTrade?: number | null
+    goldNightmareBound?: number | null
   } = {}
 
-  const singleValue = parseGoldValue(golds.single)
-  if (selected.has('single') && singleValue !== null) payload.goldSingle = singleValue
-  const normalValue = parseGoldValue(golds.normal)
-  if (selected.has('normal') && normalValue !== null) payload.goldNormal = normalValue
-  const hardValue = parseGoldValue(golds.hard)
-  if (selected.has('hard') && hardValue !== null) payload.goldHard = hardValue
-  const nightmareValue = parseGoldValue(golds.nightmare)
-  if (selected.has('nightmare') && nightmareValue !== null) payload.goldNightmare = nightmareValue
+  const singleTrade = parseGoldValue(tradeGolds.single)
+  if (selected.has('single') && singleTrade !== null) payload.goldSingleTrade = singleTrade
+  const singleBound = parseGoldValue(boundGolds.single)
+  if (selected.has('single') && singleBound !== null) payload.goldSingleBound = singleBound
+
+  const normalTrade = parseGoldValue(tradeGolds.normal)
+  if (selected.has('normal') && normalTrade !== null) payload.goldNormalTrade = normalTrade
+  const normalBound = parseGoldValue(boundGolds.normal)
+  if (selected.has('normal') && normalBound !== null) payload.goldNormalBound = normalBound
+
+  const hardTrade = parseGoldValue(tradeGolds.hard)
+  if (selected.has('hard') && hardTrade !== null) payload.goldHardTrade = hardTrade
+  const hardBound = parseGoldValue(boundGolds.hard)
+  if (selected.has('hard') && hardBound !== null) payload.goldHardBound = hardBound
+
+  const nightmareTrade = parseGoldValue(tradeGolds.nightmare)
+  if (selected.has('nightmare') && nightmareTrade !== null) payload.goldNightmareTrade = nightmareTrade
+  const nightmareBound = parseGoldValue(boundGolds.nightmare)
+  if (selected.has('nightmare') && nightmareBound !== null) payload.goldNightmareBound = nightmareBound
 
   return payload
 }
@@ -455,12 +565,11 @@ const buildDifficultyLevelPayload = (difficulties: DifficultyId[], levels: Diffi
   return payload
 }
 
-const isEditing = (row: RaidCatalogEntry) => editingKey.value === row.raidKey
+type RaidCatalogUpdatePayload = Parameters<typeof lostarkApi.updateRaidCatalog>[1]
 
-const startEdit = (row: RaidCatalogEntry) => {
-  editingKey.value = row.raidKey
+const buildRaidDraft = (row: RaidCatalogEntry): RaidDraft => {
   const difficulties = Array.isArray(row.difficulties) ? row.difficulties : []
-  editDraft.value = {
+  return {
     raidKey: row.raidKey,
     raidName: row.raidName,
     abbreviation: row.abbreviation ?? '',
@@ -468,12 +577,78 @@ const startEdit = (row: RaidCatalogEntry) => {
     difficulties: normalizeDifficultyIds(difficulties),
     partySize: row.partySize != null ? String(row.partySize) : '',
     difficultyLevels: buildDifficultyLevels(row),
-    difficultyGolds: buildDifficultyGolds(row)
+    difficultyGoldsTrade: buildDifficultyGoldsTrade(row),
+    difficultyGoldsBound: buildDifficultyGoldsBound(row)
   }
 }
 
-const cancelEdit = () => {
-  editingKey.value = null
+const startEditAll = () => {
+  if (loading.value) return
+  isEditMode.value = true
+  const drafts: Record<string, RaidDraft> = {}
+  rows.value.forEach((row) => {
+    drafts[row.raidKey] = buildRaidDraft(row)
+  })
+  editDrafts.value = drafts
+}
+
+const cancelEditAll = () => {
+  isEditMode.value = false
+  editDrafts.value = {}
+}
+
+const buildUpdatePayload = (draft: RaidDraft): RaidCatalogUpdatePayload => {
+  const raidName = normalizeText(draft.raidName)
+  const abbreviation = normalizeText(draft.abbreviation)
+  const normalizedDifficulties = normalizeDifficultyIds(draft.difficulties)
+  return {
+    raidName,
+    abbreviation: abbreviation || null,
+    active: draft.active,
+    difficulties: normalizedDifficulties,
+    partySize: parseOptionalNumber(draft.partySize),
+    ...buildDifficultyLevelPayload(normalizedDifficulties, draft.difficultyLevels),
+    ...buildDifficultyGoldPayload(
+      normalizedDifficulties,
+      draft.difficultyGoldsTrade,
+      draft.difficultyGoldsBound
+    )
+  }
+}
+
+const saveAllEdits = async () => {
+  if (gateEnabled && !unlocked.value) return
+  if (!isEditMode.value) return
+  const hasMissingName = rows.value.some((row) => {
+    const draft = editDrafts.value[row.raidKey]
+    return !draft || !normalizeText(draft.raidName)
+  })
+  if (hasMissingName) {
+    error.value = 'raidName이 필요합니다.'
+    return
+  }
+  loading.value = true
+  error.value = ''
+  message.value = ''
+  try {
+    const updatedRows: RaidCatalogEntry[] = []
+    for (const row of rows.value) {
+      const draft = editDrafts.value[row.raidKey]
+      if (!draft) continue
+      const payload = buildUpdatePayload(draft)
+      const updated = await lostarkApi.updateRaidCatalog(row.raidKey, payload)
+      updatedRows.push(updated)
+    }
+    const updatedMap = new Map(updatedRows.map(item => [item.raidKey, item]))
+    rows.value = rows.value.map(item => updatedMap.get(item.raidKey) ?? item)
+    isEditMode.value = false
+    editDrafts.value = {}
+    message.value = '수정했어요.'
+  } catch (err: unknown) {
+    error.value = resolveErrorMessage(err, '레이드 수정에 실패했습니다.')
+  } finally {
+    loading.value = false
+  }
 }
 
 const loadCatalog = async () => {
@@ -491,8 +666,18 @@ const loadCatalog = async () => {
   }
 }
 
+watch(rows, (nextRows) => {
+  if (!isEditMode.value) return
+  const nextDrafts: Record<string, RaidDraft> = {}
+  nextRows.forEach((row) => {
+    nextDrafts[row.raidKey] = editDrafts.value[row.raidKey] ?? buildRaidDraft(row)
+  })
+  editDrafts.value = nextDrafts
+})
+
 const createRaid = async () => {
   if (gateEnabled && !unlocked.value) return
+  if (isEditMode.value) return
   const raidKey = normalizeText(draft.value.raidKey)
   const raidName = normalizeText(draft.value.raidName)
   const abbreviation = normalizeText(draft.value.abbreviation)
@@ -510,7 +695,11 @@ const createRaid = async () => {
       difficulties: normalizedDifficulties,
       partySize: parseOptionalNumber(draft.value.partySize),
       ...buildDifficultyLevelPayload(normalizedDifficulties, draft.value.difficultyLevels),
-      ...buildDifficultyGoldPayload(normalizedDifficulties, draft.value.difficultyGolds)
+      ...buildDifficultyGoldPayload(
+        normalizedDifficulties,
+        draft.value.difficultyGoldsTrade,
+        draft.value.difficultyGoldsBound
+      )
     })
     draft.value.raidKey = ''
     draft.value.raidName = ''
@@ -519,27 +708,12 @@ const createRaid = async () => {
     draft.value.difficulties = []
     draft.value.partySize = ''
     draft.value.difficultyLevels = createEmptyDifficultyLevels()
-    draft.value.difficultyGolds = createEmptyDifficultyGolds()
+    draft.value.difficultyGoldsTrade = createEmptyDifficultyGoldsTrade()
+    draft.value.difficultyGoldsBound = createEmptyDifficultyGoldsBound()
     message.value = '추가했어요.'
     await loadCatalog()
   } catch (err: unknown) {
     error.value = resolveErrorMessage(err, '레이드 추가에 실패했습니다.')
-  } finally {
-    loading.value = false
-  }
-}
-
-const toggleActive = async (row: RaidCatalogEntry) => {
-  if (gateEnabled && !unlocked.value) return
-  loading.value = true
-  error.value = ''
-  message.value = ''
-  try {
-    const updated = await lostarkApi.updateRaidCatalog(row.raidKey, { active: !row.active })
-    rows.value = rows.value.map(item => (item.raidKey === updated.raidKey ? updated : item))
-    message.value = '변경했어요.'
-  } catch (err: unknown) {
-    error.value = resolveErrorMessage(err, '상태 변경에 실패했습니다.')
   } finally {
     loading.value = false
   }
@@ -556,45 +730,14 @@ const deleteRaid = async (row: RaidCatalogEntry) => {
   try {
     await lostarkApi.deleteRaidCatalog(row.raidKey)
     rows.value = rows.value.filter(item => item.raidKey !== row.raidKey)
-    if (editingKey.value === row.raidKey) {
-      editingKey.value = null
+    if (editDrafts.value[row.raidKey]) {
+      const nextDrafts = { ...editDrafts.value }
+      delete nextDrafts[row.raidKey]
+      editDrafts.value = nextDrafts
     }
     message.value = '삭제했어요.'
   } catch (err: unknown) {
     error.value = resolveErrorMessage(err, '레이드 삭제에 실패했습니다.')
-  } finally {
-    loading.value = false
-  }
-}
-
-const saveEdit = async () => {
-  if (gateEnabled && !unlocked.value) return
-  if (!editingKey.value) return
-  const trimmedName = normalizeText(editDraft.value.raidName)
-  const abbreviation = normalizeText(editDraft.value.abbreviation)
-  if (!trimmedName) {
-    error.value = 'raidName이 필요합니다.'
-    return
-  }
-  loading.value = true
-  error.value = ''
-  message.value = ''
-  try {
-    const normalizedDifficulties = normalizeDifficultyIds(editDraft.value.difficulties)
-    const updated = await lostarkApi.updateRaidCatalog(editingKey.value, {
-      raidName: trimmedName,
-      abbreviation: abbreviation || null,
-      active: editDraft.value.active,
-      difficulties: normalizedDifficulties,
-      partySize: parseOptionalNumber(editDraft.value.partySize),
-      ...buildDifficultyLevelPayload(normalizedDifficulties, editDraft.value.difficultyLevels),
-      ...buildDifficultyGoldPayload(normalizedDifficulties, editDraft.value.difficultyGolds)
-    })
-    rows.value = rows.value.map(item => (item.raidKey === updated.raidKey ? updated : item))
-    editingKey.value = null
-    message.value = '수정했어요.'
-  } catch (err: unknown) {
-    error.value = resolveErrorMessage(err, '레이드 수정에 실패했습니다.')
   } finally {
     loading.value = false
   }
@@ -665,6 +808,14 @@ onDeactivated(() => {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .form-row {

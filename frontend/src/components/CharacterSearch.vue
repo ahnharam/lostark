@@ -164,6 +164,8 @@
                     :raid-difficulties="weeklyGoldData.raidDifficulties"
                     :characters="weeklyGoldData.characters"
                     :selected-total-gold="weeklyGoldData.selectedTotalGold"
+                    :selected-total-gold-trade="weeklyGoldData.selectedTotalGoldTrade"
+                    :selected-total-gold-bound="weeklyGoldData.selectedTotalGoldBound"
                     @toggle-raid="toggleRaidCompletion"
                     @toggle-character="toggleCharacter"
                     @toggle-all="toggleAllCharacters"

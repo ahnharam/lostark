@@ -52,14 +52,38 @@ public class RaidCatalog {
     @Column(name = "gold_single")
     private Integer goldSingle;
 
+    @Column(name = "gold_single_trade")
+    private Integer goldSingleTrade;
+
+    @Column(name = "gold_single_bound")
+    private Integer goldSingleBound;
+
     @Column(name = "gold_normal")
     private Integer goldNormal;
+
+    @Column(name = "gold_normal_trade")
+    private Integer goldNormalTrade;
+
+    @Column(name = "gold_normal_bound")
+    private Integer goldNormalBound;
 
     @Column(name = "gold_hard")
     private Integer goldHard;
 
+    @Column(name = "gold_hard_trade")
+    private Integer goldHardTrade;
+
+    @Column(name = "gold_hard_bound")
+    private Integer goldHardBound;
+
     @Column(name = "gold_nightmare")
     private Integer goldNightmare;
+
+    @Column(name = "gold_nightmare_trade")
+    private Integer goldNightmareTrade;
+
+    @Column(name = "gold_nightmare_bound")
+    private Integer goldNightmareBound;
 
     @Column(name = "difficulty_codes", length = 128)
     private String difficultyCodes;

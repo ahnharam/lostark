@@ -60,6 +60,23 @@
 
 ---
 
+### 2025-12-22: 주간 골드 거래/귀속 분리 표기
+
+**변경 유형**: Feature
+
+**변경 내용**:
+- 레이드 헤더와 캐릭터 골드 합계를 거래/귀속으로 분리 표기
+- 합계 영역에 거래/귀속 합산 표기 추가
+- 거래/귀속 골드 합계 계산 로직 보강
+
+**영향받은 파일**:
+- `frontend/src/components/character/WeeklyGoldPanel.vue`
+- `frontend/src/composables/character/useWeeklyGoldData.ts`
+- `frontend/src/api/types/weekly-gold.ts`
+- `frontend/src/components/CharacterSearch.vue`
+
+---
+
 ### 2025-12-22: 아크패시브 랭크값 빈 값 처리
 
 **변경 유형**: Fix
