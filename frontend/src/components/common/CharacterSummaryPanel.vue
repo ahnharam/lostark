@@ -1,7 +1,19 @@
 <template>
   <section class="detail-panel summary-panel">
-    <div v-if="activeCharacter" class="summary-grid summary-grid--modules summary-grid--stacked">
-      <article class="summary-card summary-card--module summary-card--equipment">
+    <div
+      v-if="activeCharacter"
+      ref="summaryGridRef"
+      :class="[
+        'summary-grid',
+        'summary-grid--modules',
+        'summary-grid--stacked',
+        { 'summary-grid--masonry': isMasonryActive }
+      ]"
+    >
+      <article class="summary-card summary-card--module summary-card--equipment" data-summary-id="equipment">
+        <button type="button" class="summary-card__drag-handle" aria-label="레이아웃 이동">
+          <span aria-hidden="true">::::</span>
+        </button>
         <div class="ark-section__block">
           <div class="summary-card__head">
             <p class="summary-eyebrow">장비</p>
@@ -426,7 +438,10 @@
         </div>
       </article>
 
-      <article class="summary-card summary-card--module summary-card--ark">
+      <article class="summary-card summary-card--module summary-card--ark" data-summary-id="ark">
+        <button type="button" class="summary-card__drag-handle" aria-label="레이아웃 이동">
+          <span aria-hidden="true">::::</span>
+        </button>
         <div class="ark-section">
           <div class="ark-section__block ark-section__block--passive">
             <div class="summary-card__head">
@@ -531,7 +546,10 @@
         </div>
       </article>
 
-      <article class="summary-card summary-card--module summary-card--skills">
+      <article class="summary-card summary-card--module summary-card--skills" data-summary-id="skills">
+        <button type="button" class="summary-card__drag-handle" aria-label="레이아웃 이동">
+          <span aria-hidden="true">::::</span>
+        </button>
         <div class="ark-section__block">
           <div class="summary-card__head">
             <p class="summary-eyebrow">스킬</p>
@@ -654,7 +672,10 @@
 
       </article>
 
-      <article class="summary-card summary-card--module summary-card--cards">
+      <article class="summary-card summary-card--module summary-card--cards" data-summary-id="cards">
+        <button type="button" class="summary-card__drag-handle" aria-label="레이아웃 이동">
+          <span aria-hidden="true">::::</span>
+        </button>
         <div class="ark-section__block ark-section__block--cards">
           <div class="summary-card__head card-head">
             <div class="card-head__title">
@@ -700,7 +721,10 @@
           </div>
         </div>
       </article>
-      <article class="summary-card summary-card--module summary-card--collection">
+      <article class="summary-card summary-card--module summary-card--collection" data-summary-id="collection">
+        <button type="button" class="summary-card__drag-handle" aria-label="레이아웃 이동">
+          <span aria-hidden="true">::::</span>
+        </button>
         <div class="ark-section__block">
           <div class="summary-card__head">
             <p class="summary-eyebrow">수집</p>
@@ -732,7 +756,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import Muuri from 'muuri'
 import IconImage from './IconImage.vue'
 import EmptyState from './EmptyState.vue'
 import SkillCodeModal from './SkillCodeModal.vue'
@@ -743,7 +768,7 @@ import { extractTooltipColor, flattenTooltipLines } from '@/utils/tooltipText'
 import { getEngravingIcon } from '@/assets/BuffImage'
 import { getEngravingDisplayName, ENGRAVING_NAME_ENTRIES } from '@/data/engravingNames'
 import { COMBAT_STATS } from '@/data/combatStats'
-import { isRecord } from '@/utils/typeGuards'
+import { isRecord, isString } from '@/utils/typeGuards'
 import { getHttpErrorMessage, getHttpStatus } from '@/utils/httpError'
 import {
   applyEffectAbbreviations,
@@ -915,6 +940,109 @@ const props = defineProps<{
   combatRole?: 'dealer' | 'support' | null
 }>()
 
+const SUMMARY_LAYOUT_STORAGE_KEY = 'summary-layout-order-v1'
+
+const summaryGridRef = ref<HTMLDivElement | null>(null)
+const summaryGrid = ref<Muuri | null>(null)
+const isMasonryActive = ref(false)
+
+const readLayoutOrder = () => {
+  if (typeof window === 'undefined') return []
+  const raw = window.localStorage.getItem(SUMMARY_LAYOUT_STORAGE_KEY)
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    const seen = new Set<string>()
+    return parsed.filter((entry): entry is string => {
+      if (!isString(entry)) return false
+      if (seen.has(entry)) return false
+      seen.add(entry)
+      return true
+    })
+  } catch {
+    return []
+  }
+}
+
+const writeLayoutOrder = (order: string[]) => {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(SUMMARY_LAYOUT_STORAGE_KEY, JSON.stringify(order))
+}
+
+const applyLayoutOrder = (container: HTMLElement, order: string[]) => {
+  if (!order.length) return
+  const elements = Array.from(container.querySelectorAll<HTMLElement>('[data-summary-id]'))
+  const elementMap = new Map<string, HTMLElement>()
+  elements.forEach((element) => {
+    const key = element.dataset.summaryId
+    if (isString(key)) {
+      elementMap.set(key, element)
+    }
+  })
+  const orderedKeys = new Set(order)
+  order.forEach((key) => {
+    const element = elementMap.get(key)
+    if (element) {
+      container.appendChild(element)
+    }
+  })
+  elements.forEach((element) => {
+    const key = element.dataset.summaryId
+    if (!isString(key) || orderedKeys.has(key)) return
+    container.appendChild(element)
+  })
+}
+
+const persistLayoutOrder = (grid: Muuri) => {
+  const order = grid
+    .getItems()
+    .map((item) => item.getElement().dataset.summaryId)
+    .filter((entry): entry is string => isString(entry))
+  writeLayoutOrder(order)
+}
+
+const refreshSummaryGrid = () => {
+  if (!summaryGrid.value) return
+  summaryGrid.value.refreshItems().layout()
+}
+
+const initSummaryGrid = async () => {
+  if (summaryGrid.value) return
+  const container = summaryGridRef.value
+  if (!container) return
+  const order = readLayoutOrder()
+  applyLayoutOrder(container, order)
+  isMasonryActive.value = true
+  await nextTick()
+  const grid = new Muuri(container, {
+    items: '.summary-card',
+    layout: {
+      fillGaps: true,
+      rounding: true
+    },
+    dragEnabled: true,
+    dragHandle: '.summary-card__drag-handle',
+    dragSort: true,
+    dragSortPredicate: {
+      threshold: 40
+    },
+    layoutOnInit: true
+  })
+  grid.on('dragReleaseEnd', () => {
+    persistLayoutOrder(grid)
+  })
+  summaryGrid.value = grid
+  refreshSummaryGrid()
+}
+
+const destroySummaryGrid = () => {
+  if (!summaryGrid.value) return
+  summaryGrid.value.destroy()
+  summaryGrid.value = null
+  isMasonryActive.value = false
+}
+
 const equipmentView = ref<'equipment' | 'avatar'>('equipment')
 const inlineText = (value?: string | number | null) => (value ?? '').toString().replace(/\s+/g, ' ').trim()
 
@@ -968,6 +1096,55 @@ const equipmentRows = computed(() => {
     left: left[index],
     right: right[index]
   }))
+})
+
+const layoutSignature = computed(() => {
+  const cardCount = props.cardSummary?.cards?.length ?? 0
+  const cardEffectCount = props.cardSummary?.effects?.length ?? 0
+  const engravingCount = props.engravingSummary?.length ?? 0
+  const collectionCount = props.collectionSummary?.length ?? 0
+  const skillCount = displaySkillHighlights.value.length
+  const equipmentCount = equipmentRows.value.length
+  const arkPassiveCount = props.arkSummary?.passiveMatrix?.length ?? 0
+  const arkCoreCount = props.arkSummary?.coreMatrix?.rows?.length ?? 0
+  return [
+    cardCount,
+    cardEffectCount,
+    engravingCount,
+    collectionCount,
+    skillCount,
+    equipmentCount,
+    arkPassiveCount,
+    arkCoreCount,
+    equipmentView.value,
+    props.detailLoading,
+    props.skillLoading,
+    props.cardLoading,
+    props.collectiblesLoading,
+    props.arkGridLoading
+  ].join('|')
+})
+
+watch(
+  () => props.activeCharacter,
+  async (next) => {
+    if (next) {
+      await nextTick()
+      initSummaryGrid()
+    } else {
+      destroySummaryGrid()
+    }
+  },
+  { immediate: true }
+)
+
+watch(layoutSignature, async () => {
+  await nextTick()
+  refreshSummaryGrid()
+})
+
+onBeforeUnmount(() => {
+  destroySummaryGrid()
 })
 
 const AVATAR_SLOT_CONFIG = [

@@ -1749,6 +1749,18 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
+.summary-grid--masonry {
+  display: block;
+  position: relative;
+  min-height: 240px;
+}
+
+.summary-grid--masonry .summary-card {
+  position: absolute;
+  width: calc(33.333% - var(--space-md));
+  margin: calc(var(--space-md) / 2);
+}
+
 .summary-card {
   border: none;
   border-radius: var(--radius-lg);
@@ -1758,6 +1770,30 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   flex-direction: column;
   gap: var(--space-md);
   box-shadow: none;
+  position: relative;
+}
+
+.summary-card__drag-handle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  cursor: grab;
+  z-index: 2;
+}
+
+.summary-card__drag-handle:active {
+  cursor: grabbing;
+}
+
+.summary-card__drag-handle span {
+  display: block;
+  letter-spacing: 1px;
 }
 
 .summary-card__head {
@@ -3767,6 +3803,10 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   .summary-grid--stacked {
     grid-template-columns: repeat(2, minmax(300px, 1fr))
   }
+
+  .summary-grid--masonry .summary-card {
+    width: calc(50% - var(--space-md));
+  }
 }
 
 @media (max-width: 640px) {
@@ -3797,6 +3837,11 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 
   .summary-grid--stacked {
     grid-template-columns: repeat(1, minmax(300px, 1fr))
+  }
+
+  .summary-grid--masonry .summary-card {
+    width: 100%;
+    margin: 0 0 var(--space-md);
   }
 
   .search-panel-dropdown {
