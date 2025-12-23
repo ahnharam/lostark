@@ -668,7 +668,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   /* gap: 10px; */
-  padding: 10px 12px;
+  padding: 10px 16px;
   border-radius: 999px 0px 0px 999px;
   border: 0;
   background: transparent;
@@ -682,6 +682,7 @@ onBeforeUnmount(() => {
 .menu-center__item.active {
   color: var(--primary-color, #6366f1);
   font-weight: 700;
+  border-right: 1px dashed var(--primary-color, #6366f1);
 }
 
 .menu-center__icon {
