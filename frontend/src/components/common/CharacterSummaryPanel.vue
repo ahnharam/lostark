@@ -508,40 +508,45 @@
             </div>
             <div v-else class="summary-note">패시브 정보가 없습니다.</div>
           </div>
+        </div>
+      </article>
 
-          <div class="ark-section__block">
-            <div class="summary-card__head">
-              <p class="summary-eyebrow">아크 그리드</p>
-            </div>
-            <p v-if="arkGridLoading" class="summary-note">아크 그리드 정보를 불러오는 중입니다...</p>
-            <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
-            <div v-else class="ark-core-layout">
-              <div v-if="arkSummary.coreMatrix.rows.length" class="ark-core-card-grid">
-                <div v-for="row in arkSummary.coreMatrix.rows" :key="`core-row-${row.key}`" class="ark-core-row-group">
-                  <p class="ark-core-row-label">{{ row.label }}</p>
-                  <div class="ark-core-card-row">
-                    <div v-for="cell in row.cells" :key="`core-cell-${cell.key}`" class="ark-core-card-cell">
-                      <article v-for="slot in cell.slots" :key="slot.key" class="ark-core-card">
-                        <div class="ark-core-card__thumb">
-                          <IconImage v-if="slot.icon" :src="slot.icon" :alt="slot.name" width="40" height="40"
-                            imageClass="ark-core-card__image" errorIcon="🧩" :useProxy="true" />
-                          <div v-else class="ark-core-card__placeholder" aria-hidden="true">
-                            {{ slot.initial }}
-                          </div>
+      <article class="summary-card summary-card--module summary-card--ark-grid" data-summary-id="ark-grid">
+        <button type="button" class="summary-card__drag-handle" aria-label="레이아웃 이동">
+          <span aria-hidden="true">::::</span>
+        </button>
+        <div class="ark-section__block">
+          <div class="summary-card__head">
+            <p class="summary-eyebrow">아크 그리드</p>
+          </div>
+          <p v-if="arkGridLoading" class="summary-note">아크 그리드 정보를 불러오는 중입니다...</p>
+          <p v-else-if="arkGridError" class="summary-note summary-note--warning">{{ arkGridError }}</p>
+          <div v-else class="ark-core-layout">
+            <div v-if="arkSummary.coreMatrix.rows.length" class="ark-core-card-grid">
+              <div v-for="row in arkSummary.coreMatrix.rows" :key="`core-row-${row.key}`" class="ark-core-row-group">
+                <p class="ark-core-row-label">{{ row.label }}</p>
+                <div class="ark-core-card-row">
+                  <div v-for="cell in row.cells" :key="`core-cell-${cell.key}`" class="ark-core-card-cell">
+                    <article v-for="slot in cell.slots" :key="slot.key" class="ark-core-card">
+                      <div class="ark-core-card__thumb">
+                        <IconImage v-if="slot.icon" :src="slot.icon" :alt="slot.name" width="40" height="40"
+                          imageClass="ark-core-card__image" errorIcon="🧩" :useProxy="true" />
+                        <div v-else class="ark-core-card__placeholder" aria-hidden="true">
+                          {{ slot.initial }}
                         </div>
-                        <div class="ark-core-card__body">
-                          <p class="ark-core-card__name" :style="coreNameStyle(slot)">{{ formatCoreName(slot.name) }}</p>
-                          <p v-if="slot.pointLabel" class="ark-core-card__meta">{{ slot.pointLabel }}</p>
-                        </div>
-                      </article>
-                    </div>
+                      </div>
+                      <div class="ark-core-card__body">
+                        <p class="ark-core-card__name" :style="coreNameStyle(slot)">{{ formatCoreName(slot.name) }}</p>
+                        <p v-if="slot.pointLabel" class="ark-core-card__meta">{{ slot.pointLabel }}</p>
+                      </div>
+                    </article>
                   </div>
                 </div>
               </div>
-              <p v-else class="summary-note">
-                표시할 아크 그리드 정보가 없습니다.
-              </p>
             </div>
+            <p v-else class="summary-note">
+              표시할 아크 그리드 정보가 없습니다.
+            </p>
           </div>
         </div>
       </article>
@@ -635,6 +640,12 @@
           :error-message="skillCodeError"
           @close="closeSkillCodeModal"
         />
+      </article>
+
+      <article class="summary-card summary-card--module summary-card--engraving" data-summary-id="engraving">
+        <button type="button" class="summary-card__drag-handle" aria-label="레이아웃 이동">
+          <span aria-hidden="true">::::</span>
+        </button>
         <div class="ark-section__block ark-section__block--engravings">
           <div class="summary-card__head">
             <p class="summary-eyebrow">각인</p>
@@ -669,7 +680,6 @@
           </div>
           <p v-else class="summary-note">각인 정보가 없습니다.</p>
         </div>
-
       </article>
 
       <article class="summary-card summary-card--module summary-card--cards" data-summary-id="cards">
@@ -677,13 +687,22 @@
           <span aria-hidden="true">::::</span>
         </button>
         <div class="ark-section__block ark-section__block--cards">
-          <div class="summary-card__head card-head">
+          <div class="summary-card__head">
             <div class="card-head__title">
               <p class="summary-eyebrow">카드</p>
             </div>
             <div v-if="cardSummary?.effects?.length" class="card-head__effects">
               <div v-for="effect in cardSummary.effects" :key="effect.key" class="card-head__effect-chip">
-                <span class="card-head__effect-name">{{ effect.label }}</span>
+                <span class="card-head__effect-name">
+                  <template v-if="cardEffectLabelParts(effect.label).detail">
+                    <span>{{ cardEffectLabelParts(effect.label).main }}</span>
+                    <br />
+                    <span>{{ cardEffectLabelParts(effect.label).detail }}</span>
+                  </template>
+                  <template v-else>
+                    {{ cardEffectLabelParts(effect.label).main }}
+                  </template>
+                </span>
                 <!-- <span v-if="effect.setLabel" class="card-head__effect-meta">{{ effect.setLabel }}</span> -->
               </div>
             </div>
@@ -756,12 +775,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Muuri from 'muuri'
 import IconImage from './IconImage.vue'
 import EmptyState from './EmptyState.vue'
 import SkillCodeModal from './SkillCodeModal.vue'
 import type { CharacterProfile } from '@/api/types'
+import { apiClient } from '@/api/http'
 import { lostarkApi } from '@/api/lostark'
 import { stripHtml } from '@/utils/tooltipParser'
 import { extractTooltipColor, flattenTooltipLines } from '@/utils/tooltipText'
@@ -941,14 +961,18 @@ const props = defineProps<{
 }>()
 
 const SUMMARY_LAYOUT_STORAGE_KEY = 'summary-layout-order-v1'
+const DEFAULT_SUMMARY_ORDER = ['equipment', 'ark', 'ark-grid', 'skills', 'engraving', 'cards', 'collection']
 
 const summaryGridRef = ref<HTMLDivElement | null>(null)
 const summaryGrid = ref<Muuri | null>(null)
 const isMasonryActive = ref(false)
+const accountKey = ref('guest')
+
+const resolveStorageKey = () => `${SUMMARY_LAYOUT_STORAGE_KEY}:${accountKey.value}`
 
 const readLayoutOrder = () => {
   if (typeof window === 'undefined') return []
-  const raw = window.localStorage.getItem(SUMMARY_LAYOUT_STORAGE_KEY)
+  const raw = window.localStorage.getItem(resolveStorageKey())
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw)
@@ -967,7 +991,7 @@ const readLayoutOrder = () => {
 
 const writeLayoutOrder = (order: string[]) => {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(SUMMARY_LAYOUT_STORAGE_KEY, JSON.stringify(order))
+  window.localStorage.setItem(resolveStorageKey(), JSON.stringify(order))
 }
 
 const applyLayoutOrder = (container: HTMLElement, order: string[]) => {
@@ -1012,7 +1036,8 @@ const initSummaryGrid = async () => {
   const container = summaryGridRef.value
   if (!container) return
   const order = readLayoutOrder()
-  applyLayoutOrder(container, order)
+  const normalizedOrder = order.length ? order : DEFAULT_SUMMARY_ORDER
+  applyLayoutOrder(container, normalizedOrder)
   isMasonryActive.value = true
   await nextTick()
   const grid = new Muuri(container, {
@@ -1041,6 +1066,22 @@ const destroySummaryGrid = () => {
   summaryGrid.value.destroy()
   summaryGrid.value = null
   isMasonryActive.value = false
+}
+
+const resolveAccountKey = (data: unknown) => {
+  if (!isRecord(data)) return 'guest'
+  const id = data.id
+  if (typeof id === 'number' && Number.isFinite(id)) return `user-${id}`
+  return 'guest'
+}
+
+const fetchAccountKey = async () => {
+  try {
+    const response = await apiClient.get('/auth/me')
+    accountKey.value = resolveAccountKey(response.data)
+  } catch (err: unknown) {
+    accountKey.value = 'guest'
+  }
 }
 
 const equipmentView = ref<'equipment' | 'avatar'>('equipment')
@@ -1085,6 +1126,16 @@ const openSkillCodeModal = async () => {
 
 const closeSkillCodeModal = () => {
   showSkillCodeModal.value = false
+}
+
+const cardEffectLabelParts = (value?: string | null) => {
+  if (!isString(value)) return { main: '', detail: '' }
+  const normalized = value.replace(/각성합계\)/g, '각성)').trim()
+  const match = normalized.match(/^(.*?)(\s*\([^)]*\))\s*$/)
+  if (match) {
+    return { main: match[1].trim(), detail: match[2].trim() }
+  }
+  return { main: normalized, detail: '' }
 }
 
 const equipmentRows = computed(() => {
@@ -1143,7 +1194,28 @@ watch(layoutSignature, async () => {
   refreshSummaryGrid()
 })
 
+watch(accountKey, async (next, prev) => {
+  if (next === prev) return
+  destroySummaryGrid()
+  await nextTick()
+  initSummaryGrid()
+})
+
+const handleAuthChanged = () => {
+  fetchAccountKey()
+}
+
+onMounted(() => {
+  fetchAccountKey()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('loap-auth-changed', handleAuthChanged)
+  }
+})
+
 onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('loap-auth-changed', handleAuthChanged)
+  }
   destroySummaryGrid()
 })
 
@@ -2007,6 +2079,10 @@ const hasEffectsForPoint = (pointLabel: string): boolean => {
 </script>
 
 <style scoped>
+.card-head__effect-name{
+  text-align: center;
+}
+
 .equipment-item-level--stacked {
   margin-top: 2px;
 }
@@ -2194,7 +2270,7 @@ const hasEffectsForPoint = (pointLabel: string): boolean => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .card-head__effect-chip {
@@ -2355,8 +2431,8 @@ const hasEffectsForPoint = (pointLabel: string): boolean => {
 .equipment-toggle {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  margin-left: auto;
   padding: 2px;
   border-radius: 999px;
   background: var(--bg-secondary);
@@ -2723,7 +2799,7 @@ const hasEffectsForPoint = (pointLabel: string): boolean => {
   }
 
   .card-head__effects {
-    justify-content: flex-start;
+    justify-content: center;
   }
 }
 

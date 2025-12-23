@@ -4,197 +4,96 @@
       <div class="character-search__submenu-search">
         <div class="header-search__row">
           <div class="search-panel-wrapper" ref="searchPanelWrapperRef">
-            <CharacterSearchPanel
-              v-model:character-name="characterName"
-              :suggestions="[]"
-              :show-panel="shouldShowSearchPanel"
-              v-model:active-panel-tab="activeSearchPanelTab"
-              :history-items="historyItems"
-              :favorite-items="favorites"
-              :filtered-history-items="panelHistoryItems"
-              :filtered-favorite-items="panelFavoriteItems"
-              @select="handleSuggestionSelect"
-              @search="searchCharacterByInput"
-              @focus="handleSearchFocus"
-              @clear-history="store.clearHistory"
-              @select-history="handleSearchPanelSelect"
-              @select-favorite="handleSearchPanelSelect"
-            />
+            <CharacterSearchPanel v-model:character-name="characterName" :suggestions="[]"
+              :show-panel="shouldShowSearchPanel" v-model:active-panel-tab="activeSearchPanelTab"
+              :history-items="historyItems" :favorite-items="favorites" :filtered-history-items="panelHistoryItems"
+              :filtered-favorite-items="panelFavoriteItems" @select="handleSuggestionSelect"
+              @search="searchCharacterByInput" @focus="handleSearchFocus" @clear-history="store.clearHistory"
+              @select-history="handleSearchPanelSelect" @select-favorite="handleSearchPanelSelect" />
           </div>
         </div>
       </div>
     </Teleport>
-    <TopPageHeader>
-      <div class="page-header">
-        <div class="header-right" aria-hidden="true">
-          <CharacterResultTabs
-            v-model="activeResultTab"
-            :tabs="resultTabs"
-            :show-tabs="!!(character && !loading)"
-          />
-        </div>
-      </div>
-    </TopPageHeader>
-
     <div class="search-container">
-          <div v-if="loading" class="loading-display">
-            <LoadingSpinner message="캐릭터 정보를 불러오는 중..." />
+      <div v-if="loading" class="loading-display">
+        <LoadingSpinner message="캐릭터 정보를 불러오는 중..." />
+      </div>
+
+      <div v-if="error && !loading" class="error-display">
+        <ErrorMessage :title="error.title" :message="error.message" :type="error.type" :retry="true" :dismissible="true"
+          @retry="retrySearch" @dismiss="dismissError" />
+      </div>
+
+      <div v-if="!loading && !character && !error" class="empty-display">
+        <EmptyState icon="🔍" title="캐릭터를 검색해 주세요" description="캐릭터명을 입력하고 Enter를 누르거나 최근검색 혹은 즐겨찾기에서 선택해주세요." />
+      </div>
+
+      <section v-if="character && !loading" class="character-results">
+        <div class="results-layout">
+          <div class="results-overview">
+            <div class="results-tabs">
+              <CharacterResultTabs v-model="activeResultTab" :tabs="resultTabs" :show-tabs="!!(character && !loading)" />
+            </div>
+            <CharacterOverviewCard :active-character="activeCharacter" :has-character-image="hasCharacterImage"
+              :is-hero-image-large="isHeroImageLarge" :is-character-favorite="isCharacterFavorite"
+              :last-refreshed-label="lastRefreshedLabel" :display-stats="displayStats" :paradise-info="paradiseInfo"
+              :special-equipments="specialEquipmentsDetailed" :combat-role="combatRole"
+              :combat-role-loading="arkGridLoading" :combat-position="combatPositionLabel"
+              :combat-position-loading="detailLoading" :honor-point="activeCharacter?.honorPoint" :loading="loading"
+              :format-combat-power="formatCombatPower" :format-integer="formatInteger"
+              :format-item-level="formatItemLevel" :format-profile-stat="formatProfileStat"
+              @refresh="handleRefreshClick" @expand-hero="expandHeroImage" @shrink-hero="shrinkHeroImage"
+              @open-hero-popup="openHeroImagePopup" @toggle-favorite="toggleFavorite" />
           </div>
 
-          <div v-if="error && !loading" class="error-display">
-            <ErrorMessage
-              :title="error.title"
-              :message="error.message"
-              :type="error.type"
-              :retry="true"
-              :dismissible="true"
-              @retry="retrySearch"
-              @dismiss="dismissError"
-            />
-          </div>
+          <div class="results-panel">
+            <CharacterSummaryPanel v-if="activeResultTab === 'summary'" :active-character="activeCharacter"
+              :equipment-summary="equipmentSummary" :avatar-summary="avatarSummary" :character-image="characterImageSrc"
+              :detail-loading="detailLoading" :detail-error="detailError" :ark-summary="arkSummary"
+              :ark-grid-loading="arkGridLoading" :ark-grid-error="arkGridError" :skill-highlights="skillHighlights"
+              :skill-loose-gems="skillLooseGems" :skill-loading="skillLoading" :skill-error="skillError"
+              :engraving-summary="engravingSummary" :card-summary="cardSummary" :card-loading="cardLoading"
+              :card-error="cardError" :collection-summary="collectionSummary"
+              :collectibles-loading="collectiblesLoading" :collectibles-error="collectiblesError"
+              :combat-role="combatRole" />
 
-          <div v-if="!loading && !character && !error" class="empty-display">
-            <EmptyState
-              icon="🔍"
-              title="캐릭터를 검색해 주세요"
-              description="캐릭터명을 입력하고 Enter를 누르거나 최근검색 혹은 즐겨찾기에서 선택해주세요."
-            />
-          </div>
+            <section v-else-if="activeResultTab === 'skills'" class="detail-panel skill-panel">
+              <SkillPanel :response="skillResponse" :loading="skillLoading" :error-message="skillError"
+                :character-name="character?.characterName || ''" @retry="retrySkillData" />
+            </section>
 
-          <section v-if="character && !loading" class="character-results">
-            <div class="results-layout">
-              <CharacterOverviewCard
-                :active-character="activeCharacter"
-                :has-character-image="hasCharacterImage"
-                :is-hero-image-large="isHeroImageLarge"
-                :is-character-favorite="isCharacterFavorite"
-                :last-refreshed-label="lastRefreshedLabel"
-                :display-stats="displayStats"
-                :paradise-info="paradiseInfo"
-                :special-equipments="specialEquipmentsDetailed"
-                :combat-role="combatRole"
-                :combat-role-loading="arkGridLoading"
-                :combat-position="combatPositionLabel"
-                :combat-position-loading="detailLoading"
-                :honor-point="activeCharacter?.honorPoint"
-                :loading="loading"
-                :format-combat-power="formatCombatPower"
-                :format-integer="formatInteger"
-                :format-item-level="formatItemLevel"
-                :format-profile-stat="formatProfileStat"
-                @refresh="handleRefreshClick"
-                @expand-hero="expandHeroImage"
-                @shrink-hero="shrinkHeroImage"
-                @open-hero-popup="openHeroImagePopup"
-                @toggle-favorite="toggleFavorite"
-              />
+            <section v-else-if="activeResultTab === 'detail'" class="detail-panel">
+              <CharacterDetailModal :character="activeCharacter" :equipment="detailEquipment"
+                :engravings="detailEngravings" :loading="detailLoading" :error-message="detailError" />
+            </section>
 
-              <div class="results-panel">
-                <CharacterSummaryPanel
-                  v-if="activeResultTab === 'summary'"
-                  :active-character="activeCharacter"
-                  :equipment-summary="equipmentSummary"
-                  :avatar-summary="avatarSummary"
-                  :character-image="characterImageSrc"
-                  :detail-loading="detailLoading"
-                  :detail-error="detailError"
-                  :ark-summary="arkSummary"
-                  :ark-grid-loading="arkGridLoading"
-                  :ark-grid-error="arkGridError"
-                :skill-highlights="skillHighlights"
-                :skill-loose-gems="skillLooseGems"
-                :skill-loading="skillLoading"
-                :skill-error="skillError"
-                :engraving-summary="engravingSummary"
-                :card-summary="cardSummary"
-                :card-loading="cardLoading"
-                :card-error="cardError"
-                :collection-summary="collectionSummary"
-                :collectibles-loading="collectiblesLoading"
-                :collectibles-error="collectiblesError"
-                :combat-role="combatRole"
-              />
+            <section v-else-if="activeResultTab === 'collection'" class="detail-panel collection-panel">
+              <CollectionPanel :collectibles="collectibles" :loading="collectiblesLoading"
+                :error-message="collectiblesError" :character-name="character?.characterName || ''"
+                @retry="retryCollectiblesData" />
+            </section>
 
-                <section
-                  v-else-if="activeResultTab === 'skills'"
-                  class="detail-panel skill-panel"
-                >
-                  <SkillPanel
-                    :response="skillResponse"
-                    :loading="skillLoading"
-                    :error-message="skillError"
-                    :character-name="character?.characterName || ''"
-                    @retry="retrySkillData"
-                  />
-                </section>
+            <RankingTab v-else-if="activeResultTab === 'ranking'" :character-name="activeCharacter?.characterName" />
 
-                <section
-                  v-else-if="activeResultTab === 'detail'"
-                  class="detail-panel"
-                >
-                  <CharacterDetailModal
-                    :character="activeCharacter"
-                    :equipment="detailEquipment"
-                    :engravings="detailEngravings"
-                    :loading="detailLoading"
-                    :error-message="detailError"
-                  />
-                </section>
+            <template v-if="activeResultTab === 'expedition'">
+              <WeeklyGoldPanel :raid-difficulties="weeklyGoldData.raidDifficulties"
+                :characters="weeklyGoldData.characters" :selected-total-gold="weeklyGoldData.selectedTotalGold"
+                :selected-total-gold-trade="weeklyGoldData.selectedTotalGoldTrade"
+                :selected-total-gold-bound="weeklyGoldData.selectedTotalGoldBound" @toggle-raid="toggleRaidCompletion"
+                @toggle-character="toggleCharacter" @toggle-all="toggleAllCharacters" />
 
-                <section
-                  v-else-if="activeResultTab === 'collection'"
-                  class="detail-panel collection-panel"
-                >
-                  <CollectionPanel
-                    :collectibles="collectibles"
-                    :loading="collectiblesLoading"
-                    :error-message="collectiblesError"
-                    :character-name="character?.characterName || ''"
-                    @retry="retryCollectiblesData"
-                  />
-                </section>
+              <ExpeditionCharacterList :groups="expeditionGroups"
+                :selected-character-name="activeCharacter?.characterName" :total-count="expeditionTotalCount"
+                v-model:sort-key="expeditionSortKey" :sort-options="expeditionSortOptions"
+                @select="viewCharacterDetail" />
+            </template>
 
-                <RankingTab
-                  v-else-if="activeResultTab === 'ranking'"
-                  :character-name="activeCharacter?.characterName"
-                />
+            <section v-else-if="activeResultTab === 'arkGrid'" class="detail-panel ark-grid-panel">
+              <ArkGridPanel :response="arkGridResponse" :loading="arkGridLoading" :error-message="arkGridError"
+                :character-name="character?.characterName || ''" @retry="retryArkGridData" />
+            </section>
 
-                <template v-if="activeResultTab === 'expedition'">
-                  <WeeklyGoldPanel
-                    :raid-difficulties="weeklyGoldData.raidDifficulties"
-                    :characters="weeklyGoldData.characters"
-                    :selected-total-gold="weeklyGoldData.selectedTotalGold"
-                    :selected-total-gold-trade="weeklyGoldData.selectedTotalGoldTrade"
-                    :selected-total-gold-bound="weeklyGoldData.selectedTotalGoldBound"
-                    @toggle-raid="toggleRaidCompletion"
-                    @toggle-character="toggleCharacter"
-                    @toggle-all="toggleAllCharacters"
-                  />
-
-                  <ExpeditionCharacterList
-                    :groups="expeditionGroups"
-                    :selected-character-name="activeCharacter?.characterName"
-                    :total-count="expeditionTotalCount"
-                    v-model:sort-key="expeditionSortKey"
-                    :sort-options="expeditionSortOptions"
-                    @select="viewCharacterDetail"
-                  />
-                </template>
-
-                <section
-                  v-else-if="activeResultTab === 'arkGrid'"
-                  class="detail-panel ark-grid-panel"
-                >
-                  <ArkGridPanel
-                    :response="arkGridResponse"
-                    :loading="arkGridLoading"
-                    :error-message="arkGridError"
-                    :character-name="character?.characterName || ''"
-                    @retry="retryArkGridData"
-                  />
-                </section>
-
-                <section
+            <!-- <section
                   v-else
                   class="detail-panel placeholder-panel"
                 >
@@ -203,24 +102,16 @@
                     :title="activePlaceholder?.title || '준비 중인 메뉴입니다'"
                     :description="activePlaceholder?.description || '곧 해당 메뉴의 세부 기능을 제공할 예정입니다.'"
                   />
-                </section>
-              </div>
-            </div>
-          </section>
+                </section> -->
+          </div>
         </div>
+      </section>
+    </div>
 
-    <div
-      v-if="isHeroImagePopupOpen && hasCharacterImage"
-      class="character-portrait-overlay"
-      @click.self="closeHeroImagePopup"
-    >
+    <div v-if="isHeroImagePopupOpen && hasCharacterImage" class="character-portrait-overlay"
+      @click.self="closeHeroImagePopup">
       <div class="character-portrait-overlay__content">
-        <button
-          type="button"
-          class="portrait-overlay__close"
-          aria-label="캐릭터 이미지 닫기"
-          @click="closeHeroImagePopup"
-        >
+        <button type="button" class="portrait-overlay__close" aria-label="캐릭터 이미지 닫기" @click="closeHeroImagePopup">
           ✕
         </button>
         <img :src="characterImageSrc" :alt="activeCharacter?.characterName ?? '캐릭터 확대 이미지'" />
@@ -258,7 +149,6 @@ import RankingTab from './ranking/RankingTab.vue'
 import CharacterOverviewCard from './common/CharacterOverviewCard.vue'
 import CharacterSummaryPanel from './common/CharacterSummaryPanel.vue'
 import type { Suggestion } from './common/AutocompleteInput.vue'
-import TopPageHeader from './common/TopPageHeader.vue'
 import ExpeditionCharacterList from './character/ExpeditionCharacterList.vue'
 import type { ExpeditionGroup } from './character/ExpeditionCharacterList.vue'
 import WeeklyGoldPanel from './character/WeeklyGoldPanel.vue'
@@ -950,9 +840,9 @@ const cardSummary = computed(() => {
 
   const cardData = cardResponse.value?.card as
     | {
-        cards?: CardSlotEntry[] | null
-        effects?: CardEffectEntry[] | null
-      }
+      cards?: CardSlotEntry[] | null
+      effects?: CardEffectEntry[] | null
+    }
     | null
 
   const cards =
@@ -977,83 +867,83 @@ const cardSummary = computed(() => {
       }) ?? []
 
 
-	  const equippedCount = cards.length
-	  const totalAwakeCount = cards.reduce((sum, card) => sum + (card.awakeCount ?? 0), 0)
+  const equippedCount = cards.length
+  const totalAwakeCount = cards.reduce((sum, card) => sum + (card.awakeCount ?? 0), 0)
 
-	  const effects =
-	    cardData?.effects?.map((effect, index) => {
-	      const slots = (effect.cardSlots ?? []).filter(slot => Number.isFinite(slot))
-	      const items = effect.items ?? []
+  const effects =
+    cardData?.effects?.map((effect, index) => {
+      const slots = (effect.cardSlots ?? []).filter(slot => Number.isFinite(slot))
+      const items = effect.items ?? []
 
-	      const maxSlot = slots.reduce((best, slot) => Math.max(best, slot), 0)
-	      const activeSlot = slots.reduce((best, slot) => {
-	        if (equippedCount < slot) return best
-	        return Math.max(best, slot)
-	      }, 0)
+      const maxSlot = slots.reduce((best, slot) => Math.max(best, slot), 0)
+      const activeSlot = slots.reduce((best, slot) => {
+        if (equippedCount < slot) return best
+        return Math.max(best, slot)
+      }, 0)
 
-	      const baseIndex = (() => {
-	        if (!slots.length) return 0
-	        if (!activeSlot) return 0
-	        const idx = slots.lastIndexOf(activeSlot)
-	        return idx >= 0 ? idx : 0
-	      })()
+      const baseIndex = (() => {
+        if (!slots.length) return 0
+        if (!activeSlot) return 0
+        const idx = slots.lastIndexOf(activeSlot)
+        return idx >= 0 ? idx : 0
+      })()
 
-	      const parseAwakeningRequirement = (rawName?: string | null) => {
-	        const name = inlineText(rawName)
-	        if (!name) return null
-	        const match = name.match(/(\d+)\s*(?:각성|각)/)
-	        if (!match?.[1]) return null
-	        const value = Number(match[1])
-	        return Number.isFinite(value) ? value : null
-	      }
+      const parseAwakeningRequirement = (rawName?: string | null) => {
+        const name = inlineText(rawName)
+        if (!name) return null
+        const match = name.match(/(\d+)\s*(?:각성|각)/)
+        if (!match?.[1]) return null
+        const value = Number(match[1])
+        return Number.isFinite(value) ? value : null
+      }
 
-	      const activeIndex = (() => {
-	        if (!items.length) return 0
-	        const clampedBaseIndex = Math.min(Math.max(0, baseIndex), items.length - 1)
+      const activeIndex = (() => {
+        if (!items.length) return 0
+        const clampedBaseIndex = Math.min(Math.max(0, baseIndex), items.length - 1)
 
-	        if (!maxSlot || equippedCount < maxSlot || activeSlot < maxSlot) return clampedBaseIndex
-	        if (!totalAwakeCount) return clampedBaseIndex
+        if (!maxSlot || equippedCount < maxSlot || activeSlot < maxSlot) return clampedBaseIndex
+        if (!totalAwakeCount) return clampedBaseIndex
 
-	        const awakeningCandidates = items
-	          .map((item, idx) => ({
-	            idx,
-	            requirement: parseAwakeningRequirement(item?.name)
-	          }))
-	          .filter((entry): entry is { idx: number; requirement: number } => entry.requirement !== null)
-	          .filter(entry => entry.idx >= clampedBaseIndex)
+        const awakeningCandidates = items
+          .map((item, idx) => ({
+            idx,
+            requirement: parseAwakeningRequirement(item?.name)
+          }))
+          .filter((entry): entry is { idx: number; requirement: number } => entry.requirement !== null)
+          .filter(entry => entry.idx >= clampedBaseIndex)
 
-	        const matchedCandidate = awakeningCandidates
-	          .filter(entry => totalAwakeCount >= entry.requirement)
-	          .reduce<{ idx: number; requirement: number } | null>((best, entry) => {
-	            if (!best) return entry
-	            return entry.requirement >= best.requirement ? entry : best
-	          }, null)
+        const matchedCandidate = awakeningCandidates
+          .filter(entry => totalAwakeCount >= entry.requirement)
+          .reduce<{ idx: number; requirement: number } | null>((best, entry) => {
+            if (!best) return entry
+            return entry.requirement >= best.requirement ? entry : best
+          }, null)
 
-	        if (matchedCandidate) return matchedCandidate.idx
+        if (matchedCandidate) return matchedCandidate.idx
 
-	        const extraCount = items.length - (clampedBaseIndex + 1)
-	        if (extraCount <= 0) return clampedBaseIndex
-	        const thresholds = Array.from({ length: extraCount }, (_, idx) => 12 + idx * 6)
-	        const metCount = thresholds.filter(threshold => totalAwakeCount >= threshold).length
-	        return Math.min(items.length - 1, clampedBaseIndex + metCount)
-	      })()
+        const extraCount = items.length - (clampedBaseIndex + 1)
+        if (extraCount <= 0) return clampedBaseIndex
+        const thresholds = Array.from({ length: extraCount }, (_, idx) => 12 + idx * 6)
+        const metCount = thresholds.filter(threshold => totalAwakeCount >= threshold).length
+        return Math.min(items.length - 1, clampedBaseIndex + metCount)
+      })()
 
-	      const activeItem = items[activeIndex]
+      const activeItem = items[activeIndex]
 
-	      const label =
-	        inlineText(activeItem?.name) ||
-	        items.map(item => inlineText(item.name)).find(Boolean) ||
-	        `세트 효과 ${effect.index ?? index + 1}`
+      const label =
+        inlineText(activeItem?.name) ||
+        items.map(item => inlineText(item.name)).find(Boolean) ||
+        `세트 효과 ${effect.index ?? index + 1}`
 
-	      const descriptions = [inlineText(activeItem?.description)].filter(Boolean)
+      const descriptions = [inlineText(activeItem?.description)].filter(Boolean)
 
-	      const setLabel =
-	        activeSlot > 0
-	          ? `${activeSlot}세트`
-	          : slots.length
-	            ? `${slots.join(' / ')}세트`
-	            : ''
-	      return {
+      const setLabel =
+        activeSlot > 0
+          ? `${activeSlot}세트`
+          : slots.length
+            ? `${slots.join(' / ')}세트`
+            : ''
+      return {
         key: `effect-${effect.index ?? index}`,
         label,
         descriptions,
@@ -1102,14 +992,14 @@ interface ParadiseInfo {
   power?: string
 }
 
-  const paradiseInfo = computed<ParadiseInfo>(() => {
-    const info: ParadiseInfo = {}
-    const extractLastNumber = (text: string) => {
-      const matches = text.match(/\d[\d.,]*/g)
-      if (!matches || !matches.length) return ''
-      const last = matches[matches.length - 1] ?? ''
-      return last.replace(/[^\d.,]/g, '')
-    }
+const paradiseInfo = computed<ParadiseInfo>(() => {
+  const info: ParadiseInfo = {}
+  const extractLastNumber = (text: string) => {
+    const matches = text.match(/\d[\d.,]*/g)
+    if (!matches || !matches.length) return ''
+    const last = matches[matches.length - 1] ?? ''
+    return last.replace(/[^\d.,]/g, '')
+  }
 
   for (const special of specialEquipmentsDetailed.value) {
     const tooltipLines = extractTooltipLines(special.item.tooltip)
@@ -1445,7 +1335,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   flex-direction: column;
   justify-content: center;
   gap: 24px;
-  width:100%;
+  width: 100%;
   min-height: inherit;
 }
 
@@ -1683,6 +1573,18 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   align-items: stretch;
 }
 
+.results-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 0 0 350px;
+}
+
+.results-tabs {
+  display: flex;
+  justify-content: center;
+}
+
 .results-panel {
   flex: 1;
   display: flex;
@@ -1758,7 +1660,6 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 .summary-grid--masonry .summary-card {
   position: absolute;
   width: calc(33.333% - var(--space-md));
-  margin: calc(var(--space-md) / 2);
 }
 
 .summary-card {
@@ -1771,6 +1672,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   gap: var(--space-md);
   box-shadow: none;
   position: relative;
+  max-width: 355px;
 }
 
 .summary-card__drag-handle {
@@ -1797,9 +1699,8 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 }
 
 .summary-card__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 60px 1fr 60px;
   gap: var(--space-md);
 }
 
@@ -1808,6 +1709,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   font-size: calc(var(--font-lg) - 4px);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
+  text-align: center;
 }
 
 .summary-eyebrow {
@@ -1885,14 +1787,14 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   grid-template-columns: 50px 1fr 1fr;
   align-items: center;
   gap: var(--space-xs);
-  padding:4px;
+  padding: 4px;
 }
 
 .summary-list-text {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  width:100%;
+  width: 100%;
   height: 100%;
 }
 
@@ -1972,7 +1874,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 .summary-skill-level-inline {
   font-size: var(--font-xs);
   color: var(--text-secondary);
-  margin-left:5px;
+  margin-left: 5px;
 }
 
 .summary-skill-title {
@@ -2335,8 +2237,8 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   color: var(--text-secondary);
 }
 
-.ark-core-layout{
-  display:flex;
+.ark-core-layout {
+  display: flex;
   flex-direction: column;
   gap: 10px;
 }
@@ -2528,7 +2430,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   gap: var(--space-xs);
 }
 
-.ark-passive-grid-header{
+.ark-passive-grid-header {
   align-items: center;
 }
 
@@ -2554,7 +2456,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width:100%;
+  width: 100%;
   position: relative;
 }
 
@@ -2563,7 +2465,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
   gap: 10px;
   justify-items: center;
-  width:100%;
+  width: 100%;
 }
 
 .ark-passive-cell:not(:first-child)::before {
@@ -2681,9 +2583,9 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   align-items: center;
   justify-content: center;
   min-width: 40px;
-  height:65px;
+  height: 65px;
   position: relative;
-  gap:4px;
+  gap: 4px;
 }
 
 .equipment-item-level {
@@ -2742,7 +2644,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   flex-direction: column;
   justify-content: center;
   gap: 6px;
-  min-height:65px;
+  min-height: 65px;
 }
 
 .equipment-line {
@@ -2915,10 +2817,10 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 }
 
 .equipment-badge--effect {
-  display:inline-block;
+  display: inline-block;
   background: var(--bg-secondary);
   color: var(--text-primary);
-  white-space:nowrap;
+  white-space: nowrap;
   max-width: 100px;
   text-overflow: ellipsis;
 }
@@ -2956,12 +2858,12 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 .equipment-effect-badges {
   display: inline-flex;
   flex-direction: column;
-  height:inherit;
-  gap:2px;
+  height: inherit;
+  gap: 2px;
 }
 
 .equipment-effect-chip {
-  display:flex;
+  display: flex;
   position: relative;
 }
 
@@ -2973,8 +2875,8 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-4px);
-  white-space:none;
-  word-break:none;
+  white-space: none;
+  word-break: none;
   width: max-content;
 }
 
@@ -3164,7 +3066,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   transition: color 0.2s ease;
 }
 
-.hero-avatar-btn + .hero-avatar-btn {
+.hero-avatar-btn+.hero-avatar-btn {
   border-left: 1px solid var(--border-color);
 }
 
@@ -3244,7 +3146,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   color: var(--text-secondary);
 }
 
-.hero-text{
+.hero-text {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3355,7 +3257,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  width:100%;
+  width: 100%;
 }
 
 .special-grid--icons {
@@ -3376,7 +3278,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   border: 2px solid transparent;
   border-radius: 16px;
   box-sizing: border-box;
-  padding:10px;
+  padding: 10px;
 }
 
 .special-icon-wrapper.is-hovered .special-icon-box {
@@ -3502,6 +3404,11 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
     flex-direction: column;
   }
 
+  .results-overview {
+    flex: 1;
+    width: 100%;
+  }
+
   .character-overview-card {
     flex: 1;
   }
@@ -3565,7 +3472,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   color: var(--text-secondary);
 }
 
-.expedition-group + .expedition-group {
+.expedition-group+.expedition-group {
   margin-top: 20px;
 }
 
@@ -3815,12 +3722,12 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   }
 
   .header-left {
-    display:block;
+    display: block;
     text-align: center;
   }
 
-  .header-right{
-    width:unset;
+  .header-right {
+    width: unset;
   }
 
   .header-search__row {
@@ -3848,7 +3755,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
     padding: 16px;
   }
 
-  .equipment-side{
+  .equipment-side {
     grid-template-columns: 90px 1fr;
   }
 }
