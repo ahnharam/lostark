@@ -299,9 +299,8 @@ defineExpose({
   gap: var(--space-xs);
   height: 37px;
   width: 250px;
-  padding: 0 var(--space-xl);
   background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  border: unset;
   border-radius: var(--radius-full);
   transition: all var(--transition-slow);
   /* box-shadow: var(--shadow-sm); */
@@ -310,7 +309,7 @@ defineExpose({
 
 .input-frame:focus-within {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  /* box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); */
 }
 
 /* 좌 아이콘 (W=Hug) */

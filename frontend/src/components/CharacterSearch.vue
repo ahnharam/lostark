@@ -1666,7 +1666,7 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
   border: none;
   border-radius: var(--radius-lg);
   background: transparent;
-  /* padding: var(--space-md); */
+  padding: var(--space-xs);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);

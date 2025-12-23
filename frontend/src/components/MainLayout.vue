@@ -17,11 +17,19 @@
               v-for="item in centerMenuItems"
               :key="item.key"
               class="menu-center__group"
+              :class="{
+                'menu-center__group--active': visualActiveMenu === item.key,
+                'menu-center__group--closing': closingMenuKey === item.key,
+                'menu-center__group--disabled': !item.available
+              }"
             >
               <button
                 type="button"
                 class="menu-center__item"
-                :class="{ active: activeMenu === item.key, disabled: !item.available }"
+                :class="{
+                  active: visualActiveMenu === item.key || closingMenuKey === item.key,
+                  disabled: !item.available
+                }"
                 :disabled="!item.available"
                 @click="selectMenu(item.key)"
               >
@@ -31,25 +39,25 @@
               </button>
               <Transition name="menu-submenu-slide">
                 <div
-                  v-if="activeMenu === item.key && (activeMenu === 'character-search' || activeSubMenuItems.length)"
+                  v-if="shouldShowSubMenu(item.key)"
                   class="menu-submenu menu-submenu--inline"
-                  :class="{ 'menu-submenu--character-search': activeMenu === 'character-search' }"
+                  :class="{ 'menu-submenu--character-search': item.key === 'character-search' }"
                   aria-label="서브 메뉴"
                 >
                   <div
-                    v-if="activeMenu === 'character-search'"
+                    v-if="item.key === 'character-search'"
                     id="character-search-submenu"
                     class="menu-submenu__character-search"
                     aria-label="캐릭터 검색"
                   />
                   <template v-else>
                     <button
-                      v-for="tab in activeSubMenuItems"
+                      v-for="tab in getSubMenuItemsForRender(item.key)"
                       :key="tab.key"
                       type="button"
                       class="menu-submenu__item"
-                      :class="{ active: activeSubMenuKey === tab.key }"
-                      :disabled="tab.disabled"
+                      :class="{ active: visualActiveMenu === item.key && activeSubMenuKey === tab.key }"
+                      :disabled="tab.disabled || closingMenuKey === item.key"
                       @click="selectSubMenu(tab.key)"
                     >
                       {{ tab.label }}
@@ -108,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ThemeToggle from './common/ThemeToggle.vue'
 import MyInfoModal from './common/MyInfoModal.vue'
@@ -190,34 +198,101 @@ const centerMenuItems = computed(() => menuItems)
 
 const hasCenterMenu = computed(() => centerMenuItems.value.length > 0)
 
-const activeSubMenuItems = computed<SubMenuItem[]>(() => {
-  if (activeMenu.value === 'auction') {
+const getSubMenuItems = (menu: MainMenuKey): SubMenuItem[] => {
+  if (menu === 'auction') {
     return [
       { key: 'market', label: '거래소' },
       { key: 'auction-house', label: '경매장' },
     ]
   }
-  if (activeMenu.value === 'reforge') {
+  if (menu === 'reforge') {
     return [
-      { key: 'normal', label: '제련' },
+      { key: 'normal', label: '일반 제련' },
       { key: 'advanced', label: '상급 제련' },
       { key: 'blunt-thorn', label: '뭉가 계산기' },
       { key: 'supersonic', label: '음돌 계산기' },
     ]
   }
-  if (activeMenu.value === 'raid') {
+  if (menu === 'raid') {
     return [
       { key: 'party', label: '레이드 모집' },
     ]
   }
-  if (activeMenu.value === 'admin') {
+  if (menu === 'admin') {
     return [
       { key: 'market-records', label: '거래소 기록' },
       { key: 'raid-catalog', label: '레이드 관리' },
     ]
   }
   return []
+}
+
+const activeSubMenuItems = computed<SubMenuItem[]>(() => {
+  return getSubMenuItems(activeMenu.value)
 })
+
+const closingSubMenuItems = computed<SubMenuItem[]>(() => {
+  if (!closingMenuKey.value) return []
+  return getSubMenuItems(closingMenuKey.value)
+})
+
+const shouldShowSubMenu = (menu: MainMenuKey): boolean => {
+  if (visualActiveMenu.value === menu) {
+    return menu === 'character-search' || activeSubMenuItems.value.length > 0
+  }
+  if (closingMenuKey.value === menu) {
+    return menu === 'character-search' || closingSubMenuItems.value.length > 0
+  }
+  return false
+}
+
+const getSubMenuItemsForRender = (menu: MainMenuKey): SubMenuItem[] => {
+  if (visualActiveMenu.value === menu) {
+    return activeSubMenuItems.value
+  }
+  if (closingMenuKey.value === menu) {
+    return closingSubMenuItems.value
+  }
+  return []
+}
+
+const visualActiveMenu = ref<MainMenuKey | null>(null)
+const closingMenuKey = ref<MainMenuKey | null>(null)
+const MENU_SWITCH_DURATION_MS = 1000
+let menuSwitchTimer: number | undefined
+
+watch(
+  activeMenu,
+  (nextMenu, prevMenu) => {
+    if (!prevMenu) {
+      visualActiveMenu.value = nextMenu
+      closingMenuKey.value = null
+      return
+    }
+    if (nextMenu === prevMenu) return
+
+    if (menuSwitchTimer) {
+      if (typeof window !== 'undefined') {
+        window.clearTimeout(menuSwitchTimer)
+      }
+      menuSwitchTimer = undefined
+    }
+
+    visualActiveMenu.value = nextMenu
+    closingMenuKey.value = prevMenu
+
+    if (typeof window === 'undefined') {
+      closingMenuKey.value = null
+      return
+    }
+
+    menuSwitchTimer = window.setTimeout(() => {
+      closingMenuKey.value = null
+      menuSwitchTimer = undefined
+    }, MENU_SWITCH_DURATION_MS)
+  },
+  { immediate: true }
+)
 
 const selectSubMenu = (key: string) => {
   // router.push를 사용하여 서브메뉴 이동
@@ -382,6 +457,10 @@ onBeforeUnmount(() => {
   if (statusTimer) {
     window.clearInterval(statusTimer)
   }
+  if (menuSwitchTimer) {
+    window.clearTimeout(menuSwitchTimer)
+    menuSwitchTimer = undefined
+  }
 
   if (menuHeaderResizeObserver) {
     menuHeaderResizeObserver.disconnect()
@@ -453,7 +532,13 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 0;
+  padding: 4px 10px 4px 6px;
+  overflow: hidden;
+  max-width: var(--submenu-max-width, 640px);
 }
 
 .menu-submenu--inline {
@@ -461,25 +546,34 @@ onBeforeUnmount(() => {
 }
 
 .menu-submenu-slide-enter-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.menu-submenu-slide-enter-from {
-  opacity: 0;
-  transform: translateX(-6px);
+  transition: max-width 1s ease, opacity 1s ease, transform 1s ease, padding 1s ease;
 }
 
 .menu-submenu-slide-leave-active {
-  transition: none;
+  transition: max-width 1s ease, opacity 1s ease, transform 1s ease, padding 1s ease;
 }
 
+.menu-submenu-slide-enter-from,
 .menu-submenu-slide-leave-to {
+  max-width: 0;
   opacity: 0;
-  transform: none;
+  transform: translateX(-10px);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.menu-submenu-slide-enter-to,
+.menu-submenu-slide-leave-from {
+  max-width: var(--submenu-max-width, 640px);
+  opacity: 1;
+  transform: translateX(0);
+  padding-left: 6px;
+  padding-right: 10px;
 }
 
 .menu-submenu--character-search {
   flex-wrap: nowrap;
+  --submenu-max-width: 320px;
 }
 
 .menu-submenu__character-search {
@@ -489,20 +583,22 @@ onBeforeUnmount(() => {
 }
 
 .menu-submenu__item {
-  border: 1px solid var(--border-color, #e5e7eb);
-  background: var(--card-bg, #ffffff);
-  border-radius: 999px;
+  border: unset;
+  background: unset;
+  /* border-radius: 999px; */
   padding: 8px 12px;
+  white-space: nowrap;
   cursor: pointer;
   font-weight: 750;
   color: var(--text-secondary, #374151);
   transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  max-height: 35px;
 }
 
 .menu-submenu__item.active {
-  background: var(--primary-soft-bg, rgba(99, 102, 241, 0.16));
+  /* background: var(--primary-soft-bg, rgba(99, 102, 241, 0.16)); */
   color: var(--primary-color, #6366f1);
-  border-color: rgba(99, 102, 241, 0.35);
+  /* border-color: rgba(99, 102, 241, 0.35); */
 }
 
 .menu-submenu__item:hover:not(:disabled) {
@@ -542,8 +638,25 @@ onBeforeUnmount(() => {
 .menu-center__group {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
   min-width: 0;
+}
+
+.menu-center__group:not(.menu-center__group--disabled):not(.menu-center__group--active):not(.menu-center__group--closing):hover,
+.menu-center__group:not(.menu-center__group--disabled):not(.menu-center__group--active):not(.menu-center__group--closing):focus-within {
+  border-color: var(--primary-color, #6366f1);
+}
+
+.menu-center__group--active {
+  border-color: var(--primary-color, #6366f1);
+}
+
+.menu-center__group--closing {
+  border-color: transparent;
+  transition: border-color 2s ease;
 }
 
 .menu-center::-webkit-scrollbar {
@@ -554,21 +667,19 @@ onBeforeUnmount(() => {
 .menu-center__item {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  /* gap: 10px; */
   padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 999px 0px 0px 999px;
+  border: 0;
   background: transparent;
   color: var(--text-primary, #111827);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease;
   white-space: nowrap;
 }
 
 .menu-center__item.active {
-  background: var(--primary-soft-bg, rgba(99, 102, 241, 0.16));
-  border-color: rgba(99, 102, 241, 0.35);
   color: var(--primary-color, #6366f1);
   font-weight: 700;
 }
@@ -599,8 +710,7 @@ onBeforeUnmount(() => {
 
 .menu-center__item:hover:not(.disabled),
 .menu-center__item:focus-visible:not(.disabled) {
-  border-color: var(--primary-color, #6366f1);
-  transform: translateY(-1px);
+  color: var(--primary-color, #6366f1);
 }
 
 .menu-center__item.disabled {
