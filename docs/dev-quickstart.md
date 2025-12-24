@@ -769,6 +769,7 @@ fi
 | 파일 | 설명 |
 |-----|------|
 | `guides/mcp-usage.md` | MCP 서버 API 호출/테스트 가이드 |
+| `guides/guide-skills-index.md` | Codex 스킬 목록/검색 인덱스 |
 
 #### docs/references/ - 참조 문서
 | 파일 | 설명 |
@@ -807,6 +808,7 @@ fi
 | `frontend/docs/UX_OVERVIEW.md` | UX 방향/컨셉 |
 | `frontend/docs/ARK_GRID_GUIDE.md` | 아크 그리드 컴포넌트 가이드 |
 | `frontend/docs/CHARACTER_RANKING_GUIDE.md` | 캐릭터 랭킹 화면 가이드 |
+| `frontend/docs/guide-readable-text-style.md` | 읽기 쉬운 텍스트 블록 스타일 가이드 (WCAG 3.0 기반) |
 
 ### 13.4 문서 작업 체크리스트
 

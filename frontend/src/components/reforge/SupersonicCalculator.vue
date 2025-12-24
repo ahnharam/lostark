@@ -111,31 +111,31 @@
 
       <section class="panel-card result-card">
         <div class="result-grid">
-          <div class="result-box primary">
+          <div class="result-box primary readable-text-block">
             <p class="eyebrow">현재 음돌 피해증가</p>
             <p class="result-value">{{ formatPercent(currentSupersonicBonus) }}%</p>
-            <p class="muted">최대 {{ selectedSupersonicConfig.maxBonus }}% 중</p>
+            <p class="muted">최대 {{ selectedSupersonicConfig.maxBonus }}% 증가</p>
           </div>
-          <div class="result-box">
+          <div class="result-box readable-text-block">
             <p class="eyebrow">필요 신속 스탯</p>
             <p class="result-value">{{ requiredSwiftForTarget === null ? '-' : formatNumber(requiredSwiftForTarget) }}</p>
             <p class="muted">
               추가 필요 {{ remainingSwiftForTarget === null ? '-' : formatNumber(remainingSwiftForTarget) }}
             </p>
           </div>
-          <div class="result-box">
+          <div class="result-box readable-text-block">
             <p class="eyebrow">현재 공격속도</p>
             <p class="result-value">{{ formatPercent(currentAttackTotalCapped) }}%</p>
             <p class="muted">상한 적용 <br/> (초과 {{ formatPercent(attackOverCap) }}%)</p>
           </div>
-          <div class="result-box">
+          <div class="result-box readable-text-block">
             <p class="eyebrow">현재 이동속도</p>
             <p class="result-value">{{ formatPercent(currentMoveTotalCapped) }}%</p>
             <p class="muted">상한 적용 <br/> (초과 {{ formatPercent(moveOverCap) }}%)</p>
           </div>
         </div>
 
-        <div class="breakdown">
+        <div class="breakdown readable-text-block">
           <div class="breakdown-head">
             <p class="eyebrow">합산 버프 상세</p>
             <span class="pill-note">총 {{ formatSigned(totalSpeedIncrease) }}%</span>
@@ -435,6 +435,10 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
 <style scoped>
 .supersonic-calculator {
   width: 100%;
+  --readable-text-min: 30ch;
+  --readable-text-max: 100ch;
+  --readable-text-paragraph-gap: 0.5em;
+  --readable-text-line-height: 1;
 }
 
 .level-toggle {
@@ -485,6 +489,13 @@ const formatNumber = (value: number) => value.toLocaleString('ko-KR')
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 16px;
+}
+
+.readable-text-block {
+  min-inline-size: min(100%, var(--readable-text-min));
+  max-inline-size: var(--readable-text-max);
+  line-height: var(--readable-text-line-height);
+  text-align: left;
 }
 
 .card-head {

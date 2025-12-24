@@ -1,6 +1,6 @@
 # docs 디렉토리 구조
 
-> **최종 수정**: 2025-12-21
+> **최종 수정**: 2025-12-24
 > **관련 문서**: [documentation-guidelines.md](./documentation-guidelines.md)
 
 ## 개요
@@ -54,6 +54,7 @@ docs/
 | 파일 | 설명 |
 |-----|------|
 | `guides/mcp-usage.md` | Postman MCP 서버 기반 API 호출/테스트 가이드 |
+| `guides/guide-skills-index.md` | Codex 스킬 목록/검색 인덱스 |
 
 ### 참조 문서 (references/)
 
@@ -103,6 +104,7 @@ docs/
 | `frontend/docs/UX_OVERVIEW.md` | UX 방향 및 컨셉 |
 | `frontend/docs/ARK_GRID_GUIDE.md` | 아크 그리드 컴포넌트 가이드 |
 | `frontend/docs/CHARACTER_RANKING_GUIDE.md` | 캐릭터 랭킹 화면 가이드 |
+| `frontend/docs/guide-readable-text-style.md` | 읽기 쉬운 텍스트 블록 스타일 가이드 (WCAG 3.0 기반) |
 
 ---
 

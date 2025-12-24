@@ -20,7 +20,8 @@
               :class="{
                 'menu-center__group--active': visualActiveMenu === item.key,
                 'menu-center__group--closing': closingMenuKey === item.key,
-                'menu-center__group--disabled': !item.available
+                'menu-center__group--disabled': !item.available,
+                'menu-center__group--floating': item.key === 'character-search'
               }"
             >
               <button
@@ -574,6 +575,7 @@ onBeforeUnmount(() => {
 .menu-submenu--character-search {
   flex-wrap: nowrap;
   --submenu-max-width: 320px;
+  overflow: visible;
 }
 
 .menu-submenu__character-search {
@@ -643,6 +645,10 @@ onBeforeUnmount(() => {
   overflow: hidden;
   transition: border-color 0.2s ease;
   min-width: 0;
+}
+
+.menu-center__group--floating {
+  overflow: visible;
 }
 
 .menu-center__group:not(.menu-center__group--disabled):not(.menu-center__group--active):not(.menu-center__group--closing):hover,

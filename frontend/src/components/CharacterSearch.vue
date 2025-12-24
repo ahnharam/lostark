@@ -1296,6 +1296,8 @@ const formatProfileStat = (value?: string | string[] | number | null) => {
 .character-search__submenu-search .search-panel-dropdown {
   width: min(300px, 100%);
   max-width: 300px;
+  padding: 0px;
+  gap: 0px;
 }
 
 .page-header h1 {
